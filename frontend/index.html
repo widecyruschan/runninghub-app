@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RunningHub AI 工作流调用平台 - 演示版</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/element-plus@2.4.4/dist/index.css">
+  <script src="https://unpkg.com/element-plus@2.4.4/dist/index.full.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    .header { text-align: center; color: white; padding: 40px 0; }
+    .header h1 { font-size: 2.5em; margin-bottom: 10px; }
+    .header p { font-size: 1.2em; opacity: 0.9; }
+    .card { background: white; border-radius: 16px; padding: 30px; margin-bottom: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); }
+    .card-title { font-size: 1.5em; margin-bottom: 20px; color: #333; border-bottom: 2px solid #667eea; padding-bottom: 10px; }
+    .form-group { margin-bottom: 20px; }
+    .form-label { display: block; margin-bottom: 8px; font-weight: 600; color: #555; }
+    .upload-area { border: 2px dashed #dcdfe6; border-radius: 8px; padding: 40px; text-align: center; cursor: pointer; transition: all 0.3s; }
+    .upload-area:hover { border-color: #667eea; background: #f5f7fa; }
+    .upload-area.dragover { border-color: #667eea; background: #ecf5ff; }
+    .preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-top: 20px; }
+    .preview-item { position: relative; border-radius: 8px; overflow: hidden; background: #f5f7fa; }
+    .preview-item img { width: 100%; height: 200px; object-fit: cover; }
+    .preview-item .remove-btn { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; }
+    .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 15px 40px; border-radius: 8px; font-size: 1.1em; cursor: pointer; transition: transform 0.2s; }
+    .btn-primary:hover { transform: translateY(-2px); }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    .result-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
+    .result-item { background: #f5f7fa; border-radius: 12px; overflow: hidden; }
+    .result-item img { width: 100%; height: 250px; object-fit: cover; }
+    .result-item .info { padding: 15px; }
+    .loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+    .loading-content { background: white; padding: 40px; border-radius: 16px; text-align: center; }
+    .spinner { width: 50px; height: 50px; border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.9em; }
+    .status-pending { background: #e6a23c; color: white; }
+    .status-processing { background: #409eff; color: white; }
+    .status-completed { background: #67c23a; color: white; }
+    .status-failed { background: #f56c6c; color: white; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="container">
+      <div class="header">
+        <h1>🚀 RunningHub AI 工作流平台</h1>
+        <p>简单几步，调用 AI 工作流进行图片处理</p>
+      </div>
+
+      <!-- 工作流选择 -->
+      <div class="card">
+        <div class="card-title">📋 选择工作流</div>
+        <div class="form-group">
+          <label class="form-label">工作流</label>
+          <el-select v-model="selectedWorkflow" placeholder="请选择工作流" style="width: 100%;">
+            <el-option label="扩图 (2x)" value="upscale-2x" />
+            <el-option label="扩图 (4x)" value="upscale-4x" />
+            <el-option label="修图去水印" value="inpaint-remove" />
+            <el-option label="风格迁移" value="style-transfer" />
+          </el-select>
+        </div>
+      </div>
+
+      <!-- 图片上传 -->
+      <div class="card">
+        <div class="card-title">📤 上传图片</div>
+        <div 
+          class="upload-area"
+          :class="{ dragover: isDragover }"
+          @dragover.prevent="isDragover = true"
+          @dragleave="isDragover = false"
+          @drop.prevent="handleDrop"
+          @click="$refs.fileInput.click()"
+        >
+          <div style="font-size: 48px; margin-bottom: 15px;">🖼️</div>
+          <div style="font-size: 1.2em; color: #666;">拖拽图片到此处或点击上传</div>
+          <div style="color: #999; margin-top: 10px;">支持 JPG、PNG、WebP，最大 10MB</div>
+        </div>
+        <input type="file" ref="fileInput" @change="handleFileSelect" accept="image/*" multiple style="display: none;">
+        
+        <div v-if="previewImages.length > 0" class="preview-grid">
+          <div v-for="(img, index) in previewImages" :key="index" class="preview-item">
+            <img :src="img.url" alt="预览">
+            <button class="remove-btn" @click="removeImage(index)">✕</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 执行按钮 -->
+      <div style="text-align: center; margin: 30px 0;">
+        <button 
+          class="btn-primary" 
+          @click="executeWorkflow"
+          :disabled="!canExecute || isExecuting"
+        >
+          {{ isExecuting ? '处理中...' : '🚀 开始执行' }}
+        </button>
+      </div>
+
+      <!-- 执行结果 -->
+      <div v-if="executionResult" class="card">
+        <div class="card-title">✅ 执行结果</div>
+        <div style="margin-bottom: 15px;">
+          <span class="status-badge" :class="'status-' + executionResult.status">
+            {{ getStatusText(executionResult.status) }}
+          </span>
+          <span v-if="executionResult.taskId" style="margin-left: 15px; color: #666;">
+            任务 ID: {{ executionResult.taskId }}
+          </span>
+        </div>
+        
+        <div v-if="executionResult.status === 'completed'" class="result-grid">
+          <div v-for="(img, index) in executionResult.images" :key="index" class="result-item">
+            <img :src="img" alt="结果图片">
+            <div class="info">
+              <el-button type="primary" @click="downloadImage(img, 'result-' + index + '.png')">下载</el-button>
+            </div>
+          </div>
+        </div>
+        
+        <div v-if="executionResult.status === 'failed'" style="color: #f56c6c; padding: 20px;">
+          {{ executionResult.error }}
+        </div>
+      </div>
+
+      <!-- 执行历史 -->
+      <div v-if="executionHistory.length > 0" class="card">
+        <div class="card-title">📜 执行历史</div>
+        <el-table :data="executionHistory" style="width: 100%">
+          <el-table-column prop="workflowId" label="工作流" width="150" />
+          <el-table-column prop="status" label="状态" width="120">
+            <template #default="scope">
+              <span class="status-badge" :class="'status-' + scope.row.status">
+                {{ getStatusText(scope.row.status) }}
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="createdAt" label="时间" />
+          <el-table-column label="操作" width="150">
+            <template #default="scope">
+              <el-button size="small" @click="viewDetail(scope.row)">查看</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+    </div>
+
+    <!-- 加载遮罩 -->
+    <div v-if="isExecuting" class="loading-overlay">
+      <div class="loading-content">
+        <div class="spinner"></div>
+        <div style="font-size: 1.2em;">正在调用 RunningHub 工作流...</div>
+        <div style="color: #999; margin-top: 10px;">请稍候</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { createApp, ref, computed } = Vue;
+
+    const API_KEY = 'ae079bdc75d6461ba2905fbebd47ef3a';
+    const API_BASE_URL = 'https://www.runninghub.cn/openapi/v2';
+
+    const app = createApp({
+      setup() {
+        const selectedWorkflow = ref('');
+        const uploadedFiles = ref([]);
+        const previewImages = ref([]);
+        const isExecuting = ref(false);
+        const isDragover = ref(false);
+        const executionResult = ref(null);
+        const executionHistory = ref([]);
+
+        // 工作流映射 - 需要替换为实际的工作流 ID
+        const workflowMapping = {
+          'upscale-2x': { id: 'YOUR_WORKFLOW_ID_1', name: '扩图 2x', params: { scale: 2 } },
+          'upscale-4x': { id: 'YOUR_WORKFLOW_ID_2', name: '扩图 4x', params: { scale: 4 } },
+          'inpaint-remove': { id: 'YOUR_WORKFLOW_ID_3', name: '去水印', params: { mode: 'remove' } },
+          'style-transfer': { id: 'YOUR_WORKFLOW_ID_4', name: '风格迁移', params: { style: 'anime' } },
+        };
+
+        const canExecute = computed(() => {
+          return selectedWorkflow.value && uploadedFiles.value.length > 0;
+        });
+
+        const handleFileSelect = (event) => {
+          const files = Array.from(event.target.files);
+          addFiles(files);
+        };
+
+        const handleDrop = (event) => {
+          isDragover.value = false;
+          const files = Array.from(event.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+          addFiles(files);
+        };
+
+        const addFiles = (files) => {
+          files.forEach(file => {
+            if (file.size > 10 * 1024 * 1024) {
+              ElementPlus.ElMessage.warning(file.name + ' 超过 10MB，跳过');
+              return;
+            }
+            uploadedFiles.value.push(file);
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              previewImages.value.push({ url: e.target.result, file: file });
+            };
+            reader.readAsDataURL(file);
+          });
+        };
+
+        const removeImage = (index) => {
+          uploadedFiles.value.splice(index, 1);
+          previewImages.value.splice(index, 1);
+        };
+
+        const executeWorkflow = async () => {
+          if (!canExecute.value) return;
+
+          isExecuting.value = true;
+          executionResult.value = null;
+
+          const workflow = workflowMapping[selectedWorkflow.value];
+          const file = uploadedFiles.value[0];
+
+          try {
+            // TODO: 实际调用需要先上传图片获取 URL，然后调用工作流
+            // 这里演示 API 调用结构，实际使用需要：
+            // 1. 先调用 RunningHub 的文件上传接口获取图片 URL
+            // 2. 然后调用工作流执行接口
+
+            const response = await axios.post(API_BASE_URL + '/run/workflow/' + workflow.id, {
+              addMetadata: true,
+              nodeInfoList: [],
+              instanceType: 'default',
+              usePersonalQueue: 'false'
+            }, {
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + API_KEY
+              }
+            });
+
+            // 模拟结果 - 实际应该根据 API 响应处理
+            executionResult.value = {
+              status: 'completed',
+              taskId: response.data?.taskId || 'DEMO-' + Date.now(),
+              images: [previewImages.value[0]?.url || '']
+            };
+
+            // 添加到历史
+            executionHistory.value.unshift({
+              workflowId: workflow.name,
+              status: 'completed',
+              createdAt: new Date().toLocaleString(),
+              result: executionResult.value
+            });
+
+            ElementPlus.ElMessage.success('执行成功！');
+          } catch (error) {
+            console.error('API 调用失败:', error);
+            executionResult.value = {
+              status: 'failed',
+              error: error.response?.data?.message || error.message || '调用失败，请检查 API Key 和工作流 ID'
+            };
+            ElementPlus.ElMessage.error('执行失败');
+          } finally {
+            isExecuting.value = false;
+          }
+        };
+
+        const getStatusText = (status) => {
+          const map = {
+            pending: '等待中',
+            processing: '处理中',
+            completed: '已完成',
+            failed: '失败'
+          };
+          return map[status] || status;
+        };
+
+        const downloadImage = (url, filename) => {
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = filename;
+          link.click();
+        };
+
+        const viewDetail = (row) => {
+          executionResult.value = row.result;
+        };
+
+        return {
+          selectedWorkflow,
+          uploadedFiles,
+          previewImages,
+          isExecuting,
+          isDragover,
+          executionResult,
+          executionHistory,
+          canExecute,
+          handleFileSelect,
+          handleDrop,
+          removeImage,
+          executeWorkflow,
+          getStatusText,
+          downloadImage,
+          viewDetail
+        };
+      }
+    });
+
+    app.use(ElementPlus);
+    app.mount('#app');
+  </script>
+</body>
+</html>
