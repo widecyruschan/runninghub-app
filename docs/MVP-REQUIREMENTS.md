@@ -76,7 +76,7 @@
 ```
 API 地址: https://www.runninghub.cn/openapi/v2
 认证方式: Bearer Token
-API Key: ae079bdc75d6461ba2905fbebd47ef3a
+API Key: 通过后端环境变量 `RUNNINGHUB_API_KEY` 配置
 ```
 
 ### 3.2 工作流调用流程

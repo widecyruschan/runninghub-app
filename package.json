@@ -1,0 +1,14 @@
+{
+  "name": "runninghub-app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --check server.js && sed -n '/<script>/,/<\\/script>/p' frontend/index.html | sed '1d;$d' | node --check"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}
