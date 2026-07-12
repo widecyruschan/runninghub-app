@@ -35,6 +35,16 @@ function createToolRepository(database) {
         ON tool_categories.id = tools.category_id
       WHERE tools.slug = ?
     `),
+    findByIdOrSlug: database.prepare(`
+      SELECT
+        tools.*,
+        tool_categories.name AS category_name,
+        tool_categories.category_key AS category_key
+      FROM tools
+      LEFT JOIN tool_categories
+        ON tool_categories.id = tools.category_id
+      WHERE tools.id = ? OR tools.slug = ?
+    `),
     listActive: database.prepare(`
       SELECT
         tools.*,
@@ -127,6 +137,12 @@ function createToolRepository(database) {
     return mapPublicToolRecord(record);
   }
 
+  function getActiveToolByIdOrSlug(idOrSlug) {
+    const record = statements.findByIdOrSlug.get(idOrSlug, idOrSlug);
+    if (!record || record.status !== 'active') return null;
+    return mapPublicToolRecord(record);
+  }
+
   function saveTool(rawTool) {
     const normalizedTool = normalizeToolPayload(rawTool);
     const now = new Date().toISOString();
@@ -199,6 +215,7 @@ function createToolRepository(database) {
 
   return {
     getToolById,
+    getActiveToolByIdOrSlug,
     getActiveToolBySlug,
     listActiveTools,
     listTools,

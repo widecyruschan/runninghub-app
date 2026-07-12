@@ -4,10 +4,12 @@ const path = require('path');
 const { createDatabase } = require('./src/database');
 const { createToolRepository } = require('./src/toolRepository');
 const { createCategoryRepository } = require('./src/categoryRepository');
+const { createTaskRepository } = require('./src/taskRepository');
 
 const PUBLIC_DIR = path.join(__dirname, 'frontend');
 const DEFAULT_PORT = 3000;
 const MAX_UPLOAD_SIZE = 12 * 1024 * 1024;
+const MAX_JSON_BODY_SIZE = 18 * 1024 * 1024;
 
 loadEnvFile(path.join(__dirname, '.env'));
 
@@ -19,6 +21,7 @@ const host = process.env.HOST || '0.0.0.0';
 const database = createDatabase();
 const toolRepository = createToolRepository(database);
 const categoryRepository = createCategoryRepository(database);
+const taskRepository = createTaskRepository(database);
 
 toolRepository.seedDefaultTools();
 
@@ -58,6 +61,11 @@ const server = http.createServer(async (request, response) => {
       return;
     }
 
+    if (request.url.startsWith('/api/tasks')) {
+      await handleTaskApi(request, response);
+      return;
+    }
+
     if (request.url.startsWith('/api/tools') || request.url.startsWith('/api/categories')) {
       await handlePublicApi(request, response);
       return;
@@ -70,7 +78,10 @@ const server = http.createServer(async (request, response) => {
 
     await serveStaticFile(request, response);
   } catch (error) {
-    console.error('伺服器錯誤:', error);
+    if (!error.statusCode || error.statusCode >= 500) {
+      console.error('伺服器錯誤:', error);
+    }
+
     sendJson(response, error.statusCode || 500, {
       success: false,
       message: error.statusCode ? error.message : '伺服器處理請求失敗',
@@ -219,6 +230,20 @@ async function handlePublicApi(request, response) {
     return;
   }
 
+  const executeMatch = url.pathname.match(/^\/api\/tools\/([^/]+)\/execute$/);
+  if (executeMatch && request.method === 'POST') {
+    const idOrSlug = decodeURIComponent(executeMatch[1]);
+    const requestBody = await readJsonBody(request);
+    const result = await executeConfiguredTool(idOrSlug, requestBody);
+
+    sendJson(response, 201, {
+      success: true,
+      message: '任務已建立',
+      data: result
+    });
+    return;
+  }
+
   const toolMatch = url.pathname.match(/^\/api\/tools\/([^/]+)$/);
   if (toolMatch && request.method === 'GET') {
     const slug = decodeURIComponent(toolMatch[1]);
@@ -257,6 +282,249 @@ async function handlePublicApi(request, response) {
   });
 }
 
+async function handleTaskApi(request, response) {
+  const url = new URL(request.url, `http://${request.headers.host}`);
+
+  const outputsMatch = url.pathname.match(/^\/api\/tasks\/([^/]+)\/outputs$/);
+  if (outputsMatch && request.method === 'GET') {
+    const taskId = decodeURIComponent(outputsMatch[1]);
+    const task = await getTaskOutputs(taskId);
+
+    sendJson(response, 200, {
+      success: true,
+      message: '操作成功',
+      data: {
+        task,
+        outputs: task.outputValues,
+        outputUrls: task.outputUrls
+      }
+    });
+    return;
+  }
+
+  const taskMatch = url.pathname.match(/^\/api\/tasks\/([^/]+)$/);
+  if (taskMatch && request.method === 'GET') {
+    const taskId = decodeURIComponent(taskMatch[1]);
+    const task = await syncTaskStatus(taskId);
+
+    sendJson(response, 200, {
+      success: true,
+      message: '操作成功',
+      data: task
+    });
+    return;
+  }
+
+  sendJson(response, 404, {
+    success: false,
+    message: '介面不存在',
+    error: { code: 'API_NOT_FOUND' }
+  });
+}
+
+async function executeConfiguredTool(idOrSlug, requestBody) {
+  ensureRunningHubConfigured();
+
+  const tool = toolRepository.getActiveToolByIdOrSlug(idOrSlug);
+  if (!tool) {
+    throwHttpError('工具不存在或未上線', 'TOOL_NOT_FOUND', 404);
+  }
+
+  const rawInputValues = requestBody?.inputValues && typeof requestBody.inputValues === 'object'
+    ? requestBody.inputValues
+    : {};
+  const normalizedInputValues = {};
+  const task = taskRepository.createTask({
+    tool,
+    inputValues: sanitizeInputValues(tool, rawInputValues),
+    nodeInfoList: []
+  });
+
+  try {
+    const nodeInfoList = await buildNodeInfoList(tool, rawInputValues, normalizedInputValues);
+    taskRepository.updateTaskPayload(task.id, normalizedInputValues, nodeInfoList);
+
+    const runningHubResponse = await callRunningHubJson(`${runningHubApiBaseUrl}/run/workflow/${tool.workflowId}`, {
+      addMetadata: true,
+      nodeInfoList,
+      instanceType: tool.instanceType || 'default',
+      usePersonalQueue: false
+    });
+    const runningHubTaskId = extractRunningHubTaskId(runningHubResponse);
+
+    if (!runningHubTaskId) {
+      throwHttpError('任務建立失敗，未返回任務 ID', 'RUNNINGHUB_TASK_ID_MISSING', 502);
+    }
+
+    const savedTask = taskRepository.attachRunningHubTask(task.id, runningHubTaskId, 'QUEUED');
+
+    return {
+      taskId: savedTask.id,
+      runningHubTaskId: savedTask.runningHubTaskId,
+      status: savedTask.status,
+      tool: {
+        id: tool.id,
+        slug: tool.slug,
+        name: tool.name
+      }
+    };
+  } catch (error) {
+    taskRepository.markTaskStatus(task.id, 'FAILED', {
+      code: error.code || 'TASK_CREATE_FAILED',
+      message: error.message || '任務建立失敗'
+    });
+    throw error;
+  }
+}
+
+async function buildNodeInfoList(tool, rawInputValues, normalizedInputValues) {
+  const inputNodes = Array.isArray(tool.inputNodes) ? tool.inputNodes : [];
+
+  if (!inputNodes.length) {
+    throwHttpError('工具未配置輸入節點', 'INPUT_NODE_REQUIRED', 422);
+  }
+
+  const nodeInfoList = [];
+
+  for (const node of inputNodes) {
+    const value = await normalizeInputValue(node, rawInputValues);
+    normalizedInputValues[node.key] = value;
+
+    nodeInfoList.push({
+      nodeId: node.nodeId,
+      fieldName: node.fieldName,
+      fieldValue: value
+    });
+  }
+
+  return nodeInfoList;
+}
+
+function sanitizeInputValues(tool, rawInputValues) {
+  const sanitizedInputValues = {};
+  const inputNodes = Array.isArray(tool.inputNodes) ? tool.inputNodes : [];
+
+  inputNodes.forEach((node) => {
+    const value = rawInputValues[node.key];
+
+    if (typeof value === 'string' && value.startsWith('data:')) {
+      const dataUrlMatch = value.match(/^data:([^;,]+);base64,/);
+      sanitizedInputValues[node.key] = {
+        kind: 'data-url',
+        mimeType: dataUrlMatch?.[1] || '',
+        size: value.length
+      };
+      return;
+    }
+
+    sanitizedInputValues[node.key] = value ?? '';
+  });
+
+  return sanitizedInputValues;
+}
+
+async function normalizeInputValue(node, inputValues) {
+  const rawValue = inputValues[node.key];
+  const fallbackValue = node.defaultValue ?? '';
+  const value = rawValue === undefined || rawValue === null || rawValue === '' ? fallbackValue : rawValue;
+
+  if (node.required && (value === undefined || value === null || value === '')) {
+    throwHttpError(`${node.label || node.key} 為必填`, 'INPUT_VALUE_REQUIRED', 422);
+  }
+
+  if (node.dataType === 'image' || node.dataType === 'video') {
+    if (!value) return '';
+    if (typeof value !== 'string') {
+      throwHttpError(`${node.label || node.key} 必須是檔案 Data URL 或 URL`, 'UPLOAD_VALUE_INVALID', 422);
+    }
+
+    if (value.startsWith('data:')) {
+      return uploadMediaDataUrl(value, node.dataType);
+    }
+
+    if (!isHttpUrl(value)) {
+      throwHttpError(`${node.label || node.key} URL 格式不正確`, 'UPLOAD_URL_INVALID', 422);
+    }
+
+    return value;
+  }
+
+  if (node.dataType === 'number') {
+    if (value === '') return '';
+
+    const numberValue = Number(value);
+    if (!Number.isFinite(numberValue)) {
+      throwHttpError(`${node.label || node.key} 必須是數字`, 'INPUT_NUMBER_INVALID', 422);
+    }
+
+    return numberValue;
+  }
+
+  if (node.dataType === 'select') {
+    const optionValues = Array.isArray(node.options) ? node.options.map((option) => option.value) : [];
+    if (value && optionValues.length && !optionValues.includes(String(value))) {
+      throwHttpError(`${node.label || node.key} 選項不正確`, 'INPUT_SELECT_INVALID', 422);
+    }
+  }
+
+  return String(value || '');
+}
+
+async function syncTaskStatus(taskId) {
+  ensureRunningHubConfigured();
+
+  const task = getExistingTask(taskId);
+  if (!task.runningHubTaskId || ['SUCCESS', 'FAILED'].includes(task.status)) {
+    return task;
+  }
+
+  const statusResponse = await callRunningHubJson(`${runningHubTaskApiBaseUrl}/status`, {
+    apiKey: runningHubApiKey,
+    taskId: task.runningHubTaskId
+  });
+  const runningHubStatus = extractRunningHubStatus(statusResponse);
+
+  if (runningHubStatus === 'FAILED') {
+    return taskRepository.markTaskStatus(task.id, 'FAILED', {
+      code: 'RUNNINGHUB_TASK_FAILED',
+      message: statusResponse.msg || statusResponse.errorMessage || 'RunningHub 任務執行失敗'
+    });
+  }
+
+  if (runningHubStatus === 'SUCCESS') {
+    return taskRepository.markTaskStatus(task.id, 'SUCCESS');
+  }
+
+  return taskRepository.markTaskStatus(task.id, normalizeRunningStatus(runningHubStatus));
+}
+
+async function getTaskOutputs(taskId) {
+  ensureRunningHubConfigured();
+
+  const task = await syncTaskStatus(taskId);
+  if (!task.runningHubTaskId) {
+    throwHttpError('任務尚未建立 RunningHub taskId', 'RUNNINGHUB_TASK_ID_MISSING', 409);
+  }
+
+  if (task.outputUrls.length) {
+    return task;
+  }
+
+  if (task.status !== 'SUCCESS') {
+    throwHttpError('任務尚未完成，暫無輸出結果', 'TASK_NOT_FINISHED', 409);
+  }
+
+  const outputsResponse = await callRunningHubJson(`${runningHubTaskApiBaseUrl}/outputs`, {
+    apiKey: runningHubApiKey,
+    taskId: task.runningHubTaskId
+  });
+  const outputs = Array.isArray(outputsResponse.data) ? outputsResponse.data : [];
+  const tool = toolRepository.getToolById(task.toolId);
+  const outputUrls = extractOutputUrls(outputs, tool?.outputConfig);
+
+  return taskRepository.completeTask(task.id, outputs, outputUrls);
+}
+
 async function proxyUploadImage(request, response) {
   const contentType = request.headers['content-type'];
   if (!contentType || !contentType.includes('multipart/form-data')) {
@@ -269,7 +537,7 @@ async function proxyUploadImage(request, response) {
   }
 
   const bodyBuffer = await readRequestBody(request, MAX_UPLOAD_SIZE);
-  const runningHubResponse = await fetch(`${runningHubApiBaseUrl}/media/upload/binary`, {
+  const runningHubResponse = await fetchRunningHub(`${runningHubApiBaseUrl}/media/upload/binary`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${runningHubApiKey}`,
@@ -282,7 +550,7 @@ async function proxyUploadImage(request, response) {
 }
 
 async function proxyJson(response, targetUrl, payload) {
-  const runningHubResponse = await fetch(targetUrl, {
+  const runningHubResponse = await fetchRunningHub(targetUrl, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${runningHubApiKey}`,
@@ -294,6 +562,207 @@ async function proxyJson(response, targetUrl, payload) {
   await pipeRunningHubResponse(response, runningHubResponse);
 }
 
+function ensureRunningHubConfigured() {
+  if (!runningHubApiKey) {
+    throwHttpError('後端未配置 RUNNINGHUB_API_KEY', 'RUNNINGHUB_API_KEY_MISSING', 500);
+  }
+}
+
+async function callRunningHubJson(targetUrl, payload) {
+  const runningHubResponse = await fetchRunningHub(targetUrl, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${runningHubApiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+  const responseText = await runningHubResponse.text();
+  const responseData = parseJsonText(responseText);
+
+  if (!runningHubResponse.ok) {
+    throwHttpError(
+      responseData?.message || responseData?.msg || 'RunningHub 服務調用失敗',
+      responseData?.error?.code || responseData?.code || 'RUNNINGHUB_REQUEST_FAILED',
+      502
+    );
+  }
+
+  return responseData;
+}
+
+async function uploadMediaDataUrl(dataUrl, expectedType) {
+  const parsedDataUrl = parseDataUrl(dataUrl);
+  if (!parsedDataUrl.mimeType.startsWith(`${expectedType}/`)) {
+    throwHttpError(`請上傳${expectedType === 'image' ? '圖片' : '影片'}檔案`, 'UPLOAD_TYPE_INVALID', 422);
+  }
+
+  if (parsedDataUrl.buffer.length > MAX_UPLOAD_SIZE) {
+    throwHttpError('上傳檔案超過大小限制', 'UPLOAD_SIZE_EXCEEDED', 413);
+  }
+
+  const boundary = `----runninghub-form-${Date.now().toString(16)}`;
+  const fileExtension = getExtensionFromMimeType(parsedDataUrl.mimeType, expectedType);
+  const bodyBuffer = Buffer.concat([
+    Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="input.${fileExtension}"\r\nContent-Type: ${parsedDataUrl.mimeType}\r\n\r\n`),
+    parsedDataUrl.buffer,
+    Buffer.from(`\r\n--${boundary}--\r\n`)
+  ]);
+
+  const runningHubResponse = await fetchRunningHub(`${runningHubApiBaseUrl}/media/upload/binary`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${runningHubApiKey}`,
+      'Content-Type': `multipart/form-data; boundary=${boundary}`
+    },
+    body: bodyBuffer
+  });
+  const responseText = await runningHubResponse.text();
+  const responseData = parseJsonText(responseText);
+
+  if (!runningHubResponse.ok) {
+    throwHttpError(
+      responseData?.message || responseData?.msg || '檔案上傳到 RunningHub 失敗',
+      responseData?.error?.code || responseData?.code || 'RUNNINGHUB_UPLOAD_FAILED',
+      502
+    );
+  }
+
+  const uploadedUrl = responseData?.data?.download_url
+    || responseData?.data?.fileUrl
+    || responseData?.data?.url
+    || responseData?.url;
+
+  if (!uploadedUrl) {
+    throwHttpError('檔案上傳失敗，未返回檔案位址', 'RUNNINGHUB_UPLOAD_URL_MISSING', 502);
+  }
+
+  return uploadedUrl;
+}
+
+async function fetchRunningHub(targetUrl, options) {
+  try {
+    return await fetch(targetUrl, options);
+  } catch (error) {
+    throwHttpError('RunningHub 服務暫時無法連線', 'RUNNINGHUB_NETWORK_ERROR', 502);
+  }
+}
+
+function getExistingTask(taskId) {
+  const task = taskRepository.getTaskById(taskId);
+  if (!task) {
+    throwHttpError('任務不存在', 'TASK_NOT_FOUND', 404);
+  }
+
+  return task;
+}
+
+function extractRunningHubTaskId(responseData) {
+  return responseData?.taskId || responseData?.data?.taskId || responseData?.data?.id || '';
+}
+
+function extractRunningHubStatus(responseData) {
+  if (responseData?.code !== undefined && responseData.code !== 0) {
+    throwHttpError(
+      responseData.msg || responseData.errorMessage || '查詢任務狀態失敗',
+      responseData.code || 'RUNNINGHUB_STATUS_FAILED',
+      502
+    );
+  }
+
+  return responseData?.data?.status || responseData?.data || responseData?.status || 'RUNNING';
+}
+
+function normalizeRunningStatus(status) {
+  const normalizedStatus = String(status || 'RUNNING').toUpperCase();
+  if (['CREATED', 'QUEUED', 'RUNNING', 'SUCCESS', 'FAILED'].includes(normalizedStatus)) {
+    return normalizedStatus;
+  }
+
+  return 'RUNNING';
+}
+
+function extractOutputUrls(outputs, outputConfig) {
+  const fallbackPaths = Array.isArray(outputConfig?.fallbackPaths) && outputConfig.fallbackPaths.length
+    ? outputConfig.fallbackPaths
+    : ['fileUrl', 'url', 'file_url', 'download_url'];
+
+  return outputs
+    .flatMap((output) => extractOutputUrlsFromValue(output, fallbackPaths))
+    .filter(Boolean);
+}
+
+function extractOutputUrlsFromValue(value, fallbackPaths) {
+  if (!value) return [];
+  if (typeof value === 'string') return [value];
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => extractOutputUrlsFromValue(item, fallbackPaths));
+  }
+
+  if (typeof value === 'object') {
+    const directUrls = fallbackPaths
+      .map((pathName) => value[pathName])
+      .filter(Boolean);
+    const nestedUrls = Object.values(value)
+      .filter((item) => item && typeof item === 'object')
+      .flatMap((item) => extractOutputUrlsFromValue(item, fallbackPaths));
+
+    return [...directUrls, ...nestedUrls];
+  }
+
+  return [];
+}
+
+function parseDataUrl(dataUrl) {
+  const match = String(dataUrl).match(/^data:([^;,]+);base64,(.+)$/);
+  if (!match) {
+    throwHttpError('檔案 Data URL 格式不正確', 'DATA_URL_INVALID', 422);
+  }
+
+  return {
+    mimeType: match[1],
+    buffer: Buffer.from(match[2], 'base64')
+  };
+}
+
+function getExtensionFromMimeType(mimeType, fallbackType) {
+  const extensions = {
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+    'image/gif': 'gif',
+    'video/mp4': 'mp4',
+    'video/webm': 'webm',
+    'video/quicktime': 'mov'
+  };
+
+  return extensions[mimeType] || (fallbackType === 'image' ? 'png' : 'mp4');
+}
+
+function isHttpUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch (error) {
+    return false;
+  }
+}
+
+function parseJsonText(value) {
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    return { raw: value };
+  }
+}
+
+function throwHttpError(message, code, statusCode) {
+  const error = new Error(message);
+  error.code = code;
+  error.statusCode = statusCode;
+  throw error;
+}
+
 async function pipeRunningHubResponse(response, runningHubResponse) {
   const responseText = await runningHubResponse.text();
   response.writeHead(runningHubResponse.status, {
@@ -303,7 +772,7 @@ async function pipeRunningHubResponse(response, runningHubResponse) {
 }
 
 async function readJsonBody(request) {
-  const bodyBuffer = await readRequestBody(request, 1024 * 1024);
+  const bodyBuffer = await readRequestBody(request, MAX_JSON_BODY_SIZE);
   if (!bodyBuffer.length) return {};
 
   try {

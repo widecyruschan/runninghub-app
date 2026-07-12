@@ -803,8 +803,8 @@
   <script>
     const { createApp, ref, computed, onMounted } = Vue;
 
-    const API_BASE_URL = '/api/runninghub';
     const TOOLS_API_BASE_URL = '/api/tools';
+    const TASKS_API_BASE_URL = '/api/tasks';
     const MAX_FILE_SIZE = 10 * 1024 * 1024;
     const POLLING_INTERVAL = 3000;
     const MAX_POLLING_COUNT = 120;
@@ -1004,95 +1004,67 @@
           formValues.value = nextValues;
         };
 
-        const uploadImageFile = async (file) => {
-          const formData = new FormData();
-          formData.append('file', file);
+        const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (event) => resolve(event.target.result);
+          reader.onerror = () => reject(new Error('讀取檔案失敗'));
+          reader.readAsDataURL(file);
+        });
 
-          const response = await axios.post(API_BASE_URL + '/upload', formData);
-          const uploadedUrl = response.data?.data?.download_url || response.data?.data?.fileUrl || response.data?.url;
-
-          if (!uploadedUrl) {
-            throw new Error(response.data?.message || response.data?.msg || '圖片上傳失敗，未返回圖片位址');
-          }
-
-          return uploadedUrl;
-        };
-
-        const createWorkflowTask = async (imageUrl) => {
+        const createToolTask = async () => {
           if (!toolConfig.value || !imageInputNode.value) {
             throw new Error('工具配置未載入，請刷新頁面後重試');
           }
 
-          const nodeInfoList = [
-            {
-              nodeId: imageInputNode.value.nodeId,
-              fieldName: imageInputNode.value.fieldName,
-              fieldValue: imageUrl
-            },
-            ...dynamicInputFields.value.map((node) => ({
-              nodeId: node.nodeId,
-              fieldName: node.fieldName,
-              fieldValue: formValues.value[node.key] ?? node.defaultValue ?? ''
-            }))
-          ];
+          const imageDataUrl = await readFileAsDataUrl(uploadedFile.value);
+          const inputValues = {
+            ...formValues.value,
+            [imageInputNode.value.key]: imageDataUrl
+          };
 
-          const response = await axios.post(API_BASE_URL + '/workflow/' + toolConfig.value.workflowId, {
-            addMetadata: true,
-            nodeInfoList,
-            instanceType: toolConfig.value.instanceType || 'default',
-            usePersonalQueue: false
+          const response = await axios.post(TOOLS_API_BASE_URL + '/' + encodeURIComponent(toolConfig.value.slug) + '/execute', {
+            inputValues
           }, {
             headers: createJsonHeaders()
           });
+          const task = response.data?.data;
 
-          const taskId = response.data?.taskId || response.data?.data?.taskId;
-
-          if (!taskId) {
+          if (!task?.taskId) {
             throw new Error(response.data?.errorMessage || response.data?.message || '任務建立失敗，未返回任務 ID');
           }
 
-          return {
-            taskId
-          };
+          return task;
         };
 
         const queryTaskStatus = async (taskId) => {
-          const response = await axios.post(API_BASE_URL + '/status', {
-            taskId
-          }, {
-            headers: createJsonHeaders()
-          });
+          const response = await axios.get(TASKS_API_BASE_URL + '/' + encodeURIComponent(taskId));
 
-          if (response.data?.code !== 0) {
-            throw new Error(response.data?.msg || response.data?.errorMessage || '查詢任務狀態失敗');
+          if (!response.data?.success) {
+            throw new Error(response.data?.message || '查詢任務狀態失敗');
           }
 
           return response.data.data;
         };
 
         const queryTaskOutputs = async (taskId) => {
-          const response = await axios.post(API_BASE_URL + '/outputs', {
-            taskId
-          }, {
-            headers: createJsonHeaders()
-          });
+          const response = await axios.get(TASKS_API_BASE_URL + '/' + encodeURIComponent(taskId) + '/outputs');
 
-          if (response.data?.code !== 0) {
-            throw new Error(response.data?.msg || response.data?.errorMessage || '獲取任務結果失敗');
+          if (!response.data?.success) {
+            throw new Error(response.data?.message || '獲取任務結果失敗');
           }
 
-          return Array.isArray(response.data.data) ? response.data.data : [];
+          return response.data.data?.outputUrls || [];
         };
 
         const waitForTaskSuccess = async (taskId) => {
           for (let count = 0; count < MAX_POLLING_COUNT; count += 1) {
-            const status = await queryTaskStatus(taskId);
-            executionMessage.value = '任務狀態：' + getStatusText(status);
-            setStatus('任務狀態：' + getStatusText(status), 'processing');
+            const task = await queryTaskStatus(taskId);
+            executionMessage.value = '任務狀態：' + getStatusText(task.status);
+            setStatus('任務狀態：' + getStatusText(task.status), 'processing');
 
-            if (status === 'SUCCESS') return;
-            if (status === 'FAILED') {
-              throw new Error('RunningHub 任務執行失敗');
+            if (task.status === 'SUCCESS') return task;
+            if (task.status === 'FAILED') {
+              throw new Error(task.errorMessage || 'RunningHub 任務執行失敗');
             }
 
             await delay(POLLING_INTERVAL);
@@ -1100,18 +1072,6 @@
 
           throw new Error('任務等待逾時，請稍後在 RunningHub 後台查看結果');
         };
-
-        const extractOutputImageUrls = (outputs) => outputs
-          .flatMap((output) => {
-            if (typeof output === 'string') return [output];
-            return [
-              output.fileUrl,
-              output.url,
-              output.file_url,
-              output.download_url
-            ];
-          })
-          .filter(Boolean);
 
         const executeWorkflow = async () => {
           if (!canExecute.value) return;
@@ -1122,18 +1082,16 @@
           resultImageUrl.value = '';
 
           try {
-            const imageUrl = await uploadImageFile(uploadedFile.value);
-            executionMessage.value = '正在建立 RunningHub 任務';
+            executionMessage.value = '正在建立工具任務';
 
-            const task = await createWorkflowTask(imageUrl);
+            const task = await createToolTask();
             latestTaskId.value = task.taskId;
 
             executionMessage.value = '任務已建立，等待結果';
             await waitForTaskSuccess(task.taskId);
 
             executionMessage.value = '正在獲取輸出圖片';
-            const outputs = await queryTaskOutputs(task.taskId);
-            const imageUrls = extractOutputImageUrls(outputs);
+            const imageUrls = await queryTaskOutputs(task.taskId);
 
             if (!imageUrls.length) {
               throw new Error('任務已完成，但未返回可下載圖片');

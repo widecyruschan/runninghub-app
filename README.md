@@ -91,10 +91,11 @@ docker compose down
 - 后台分类管理页面与分类保存 API
 - 公开工具读取 API
 - `/tools/:slug` 前台动态工具页
+- 统一工具执行 API
+- 本地 `execution_tasks` 任务记录
+- 本地任务状态轮询与输出查询 API
 
 ### 🔧 待配置
-- 统一工具执行 API
-- 本地任务记录与轮询 API
 - 后台测试执行与上线流程
 - 管理后台登录鉴权
 - 用户、积分、会员、批量与云盘能力
@@ -112,7 +113,7 @@ docker compose down
 
 ### 工作流调用配置
 
-`frontend/index.html` 当前不再写死 workflowID、nodeId 和 fieldName。页面会根据 URL slug 请求 `GET /api/tools/:slug`，再从返回的 `workflowId`、`instanceType`、`inputNodes` 和 `outputConfig` 动态生成表单与 RunningHub 入参。
+`frontend/index.html` 当前不再写死 workflowID、nodeId 和 fieldName。页面会根据 URL slug 请求 `GET /api/tools/:slug`，执行时调用 `POST /api/tools/:slug/execute`，由后端根据 `workflowId`、`instanceType`、`inputNodes` 和 `outputConfig` 组装 RunningHub 入参并创建本地任务记录。
 
 ### 环境变量说明
 
@@ -156,6 +157,9 @@ curl --location --request POST 'http://127.0.0.1:3000/api/runninghub/workflow/${
 | `/api/runninghub/outputs` | POST | 后端代理获取任务结果 |
 | `/api/tools` | GET | 前台公开工具列表，只返回已上线工具 |
 | `/api/tools/{slug}` | GET | 前台公开工具详情，只返回已上线工具 |
+| `/api/tools/{idOrSlug}/execute` | POST | 根据工具配置执行 RunningHub 工作流，并创建本地任务 |
+| `/api/tasks/{taskId}` | GET | 查询本地任务状态，并同步 RunningHub 状态 |
+| `/api/tasks/{taskId}/outputs` | GET | 查询任务输出并保存输出 URL |
 | `/api/categories` | GET | 前台公开分类列表，只返回启用分类 |
 | `/api/admin/tools` | GET | 后台工具配置列表 |
 | `/api/admin/tools` | POST | 新增或更新后台工具配置 |
@@ -189,8 +193,8 @@ curl --location --request POST 'http://127.0.0.1:3000/api/runninghub/workflow/${
 - [x] 任务状态轮询
 - [x] 后台工具配置保存
 - [x] 前台动态工具页基础
-- [ ] 统一工具执行 API
-- [ ] 本地任务记录
+- [x] 统一工具执行 API
+- [x] 本地任务记录
 - [ ] 后台测试执行与上线流程
 
 ### 第二阶段：完整版
@@ -478,3 +482,13 @@ A: 支持 JPG、PNG、WebP 等常见格式，单个文件最大 10MB。
 - **新增或修改文件**：修改 `server.js`、`src/toolRepository.js`、`frontend/index.html`、`docs/DEVELOPMENT_ROADMAP.md`、`README.md`。
 - **測試結果**：已通過 `npm test`；Docker 容器 `runninghub-app` 正常運行；已驗證 `GET /api/tools`、`GET /api/tools/remove-background`、`GET /api/categories` 返回成功；已驗證 `/tools/remove-background` 返回 `200` 並包含動態工具載入程式碼；不存在工具返回 `404 TOOL_NOT_FOUND`。
 - **後續建議**：下一步開發統一工具執行 API、本地 `execution_tasks` 任務表、任務狀態查詢和輸出查詢，讓前台不再直接拼 RunningHub workflow 請求。
+
+### 2026-07-12 18:38 HKT - 統一工具執行 API 與本地任務記錄
+
+- **會話主要目的**：完成下一步開發，讓前台通過統一工具執行 API 建立任務，並把 RunningHub taskId、輸入、節點參數、輸出和錯誤持久化到本地。
+- **完成的主要任務**：新增 `execution_tasks` 資料表；新增 `src/taskRepository.js`；新增 `POST /api/tools/:idOrSlug/execute`、`GET /api/tasks/:taskId`、`GET /api/tasks/:taskId/outputs`；前台工具頁改為提交本地工具任務並輪詢本地 taskId；後端根據工具配置組裝 `nodeInfoList`，支援 image/video Data URL 上傳到 RunningHub。
+- **關鍵決策和解決方案**：執行 API 在調用 RunningHub 前先建立本地任務，配置校驗或 RunningHub 建立失敗也會留下 `FAILED` 任務記錄；輸出 URL 使用工具 `outputConfig.fallbackPaths` 解析；保留 `/api/runninghub/*` 代理作為底層兼容能力，但前台業務不再直接拼 workflow 請求。
+- **使用的技術棧**：Node.js 原生 HTTP、SQLite、better-sqlite3、Vue 3 CDN、Axios、RunningHub OpenAPI。
+- **新增或修改文件**：新增 `src/taskRepository.js`；修改 `src/database.js`、`src/toolRepository.js`、`server.js`、`frontend/index.html`、`package.json`、`docs/DEVELOPMENT_ROADMAP.md`、`README.md`。
+- **測試結果**：已通過 `npm test`；已用臨時 SQLite 和臨時服務驗證 `execution_tasks` 表建立成功；已驗證缺少必填圖片時 `POST /api/tools/remove-background/execute` 返回 `422 INPUT_VALUE_REQUIRED` 並寫入本地 `FAILED` 任務；已驗證不存在任務返回 `404 TASK_NOT_FOUND`。
+- **後續建議**：下一步開發後台工具測試執行和上線狀態，讓管理員能在工具上線前驗證 workflowID、nodeId、fieldName 和輸出解析是否可用。

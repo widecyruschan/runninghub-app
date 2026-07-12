@@ -47,11 +47,37 @@ function migrateDatabase(database) {
       updated_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS execution_tasks (
+      id TEXT PRIMARY KEY,
+      tool_id TEXT NOT NULL,
+      tool_key TEXT NOT NULL,
+      tool_name TEXT NOT NULL,
+      runninghub_task_id TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'CREATED',
+      input_values_json TEXT NOT NULL DEFAULT '{}',
+      node_info_list_json TEXT NOT NULL DEFAULT '[]',
+      output_values_json TEXT NOT NULL DEFAULT '[]',
+      output_urls_json TEXT NOT NULL DEFAULT '[]',
+      error_code TEXT NOT NULL DEFAULT '',
+      error_message TEXT NOT NULL DEFAULT '',
+      started_at TEXT,
+      completed_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (tool_id) REFERENCES tools(id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_tools_status_sort
       ON tools(status, sort_order);
 
     CREATE INDEX IF NOT EXISTS idx_tool_categories_status_sort
       ON tool_categories(status, sort_order);
+
+    CREATE INDEX IF NOT EXISTS idx_execution_tasks_status_updated
+      ON execution_tasks(status, updated_at);
+
+    CREATE INDEX IF NOT EXISTS idx_execution_tasks_tool_created
+      ON execution_tasks(tool_id, created_at);
   `);
 
   ensureColumn(database, 'tools', 'category_id', "TEXT NOT NULL DEFAULT 'image'");
