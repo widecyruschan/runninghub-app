@@ -1,6 +1,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { createDatabase } = require('./src/database');
 const { createToolRepository } = require('./src/toolRepository');
 const { createCategoryRepository } = require('./src/categoryRepository');
@@ -16,6 +17,9 @@ loadEnvFile(path.join(__dirname, '.env'));
 const runningHubApiKey = process.env.RUNNINGHUB_API_KEY;
 const runningHubApiBaseUrl = process.env.RUNNINGHUB_API_BASE_URL || 'https://www.runninghub.cn/openapi/v2';
 const runningHubTaskApiBaseUrl = process.env.RUNNINGHUB_TASK_API_BASE_URL || 'https://www.runninghub.cn/task/openapi';
+const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+const adminSessionSecret = process.env.ADMIN_SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 const port = Number(process.env.PORT || DEFAULT_PORT);
 const host = process.env.HOST || '0.0.0.0';
 const database = createDatabase();
@@ -53,6 +57,9 @@ const adminRoutePrefixes = [
 const frontendRoutePrefixes = [
   '/tools'
 ];
+const adminSessions = new Map();
+const ADMIN_SESSION_COOKIE = 'runninghub_admin_session';
+const ADMIN_SESSION_MAX_AGE_SECONDS = 60 * 60 * 8;
 
 const server = http.createServer(async (request, response) => {
   try {
@@ -94,6 +101,7 @@ server.listen(port, host, () => {
   console.log(`RunningHub demo server: http://${host}:${port}`);
   console.log(`Local access URL: http://127.0.0.1:${port}`);
   console.log(`RUNNINGHUB_API_KEY: ${runningHubApiKey ? '已配置' : '未配置'}`);
+  console.log(`ADMIN_USERNAME: ${adminUsername}`);
 });
 
 function loadEnvFile(envPath) {
@@ -168,6 +176,65 @@ async function handleRunningHubApi(request, response) {
 
 async function handleAdminApi(request, response) {
   const url = new URL(request.url, `http://${request.headers.host}`);
+
+  if (url.pathname === '/api/admin/auth/login' && request.method === 'POST') {
+    const requestBody = await readJsonBody(request);
+    const username = String(requestBody.username || '').trim();
+    const password = String(requestBody.password || '');
+
+    if (!isValidAdminCredential(username, password)) {
+      sendJson(response, 401, {
+        success: false,
+        message: '帳號或密碼不正確',
+        error: { code: 'ADMIN_LOGIN_FAILED' }
+      });
+      return;
+    }
+
+    const sessionId = createAdminSession(username);
+    sendJson(response, 200, {
+      success: true,
+      message: '登入成功',
+      data: { username }
+    }, {
+      'Set-Cookie': createSessionCookie(request, sessionId)
+    });
+    return;
+  }
+
+  if (url.pathname === '/api/admin/auth/logout' && request.method === 'POST') {
+    const sessionId = getCookieValue(request, ADMIN_SESSION_COOKIE);
+    if (sessionId) adminSessions.delete(sessionId);
+
+    sendJson(response, 200, {
+      success: true,
+      message: '已登出',
+      data: null
+    }, {
+      'Set-Cookie': createExpiredSessionCookie(request)
+    });
+    return;
+  }
+
+  if (url.pathname === '/api/admin/auth/me' && request.method === 'GET') {
+    const session = getAdminSession(request);
+    if (!session) {
+      sendUnauthorized(response);
+      return;
+    }
+
+    sendJson(response, 200, {
+      success: true,
+      message: '操作成功',
+      data: { username: session.username }
+    });
+    return;
+  }
+
+  if (!getAdminSession(request)) {
+    sendUnauthorized(response);
+    return;
+  }
 
   if (url.pathname === '/api/admin/tools' && request.method === 'GET') {
     sendJson(response, 200, {
@@ -864,6 +931,102 @@ function throwHttpError(message, code, statusCode) {
   throw error;
 }
 
+function isValidAdminCredential(username, password) {
+  return timingSafeEqual(username, adminUsername) && timingSafeEqual(password, adminPassword);
+}
+
+function timingSafeEqual(leftValue, rightValue) {
+  const left = Buffer.from(String(leftValue));
+  const right = Buffer.from(String(rightValue));
+  const maxLength = Math.max(left.length, right.length, 1);
+  const paddedLeft = Buffer.alloc(maxLength);
+  const paddedRight = Buffer.alloc(maxLength);
+
+  left.copy(paddedLeft);
+  right.copy(paddedRight);
+
+  return crypto.timingSafeEqual(paddedLeft, paddedRight) && left.length === right.length;
+}
+
+function createAdminSession(username) {
+  const sessionId = crypto.randomBytes(32).toString('hex');
+  const now = Date.now();
+  pruneExpiredAdminSessions(now);
+
+  adminSessions.set(sessionId, {
+    username,
+    expiresAt: now + ADMIN_SESSION_MAX_AGE_SECONDS * 1000
+  });
+
+  return sessionId;
+}
+
+function getAdminSession(request) {
+  const sessionId = getCookieValue(request, ADMIN_SESSION_COOKIE);
+  if (!sessionId) return null;
+
+  const session = adminSessions.get(sessionId);
+  if (!session) return null;
+
+  if (session.expiresAt <= Date.now()) {
+    adminSessions.delete(sessionId);
+    return null;
+  }
+
+  return session;
+}
+
+function pruneExpiredAdminSessions(now = Date.now()) {
+  for (const [sessionId, session] of adminSessions.entries()) {
+    if (session.expiresAt <= now) {
+      adminSessions.delete(sessionId);
+    }
+  }
+}
+
+function getCookieValue(request, cookieName) {
+  const cookieHeader = request.headers.cookie || '';
+  const cookies = cookieHeader.split(';').map((cookie) => cookie.trim()).filter(Boolean);
+  const cookiePrefix = `${cookieName}=`;
+  const foundCookie = cookies.find((cookie) => cookie.startsWith(cookiePrefix));
+
+  return foundCookie ? decodeURIComponent(foundCookie.slice(cookiePrefix.length)) : '';
+}
+
+function createSessionCookie(request, sessionId) {
+  return [
+    `${ADMIN_SESSION_COOKIE}=${encodeURIComponent(sessionId)}`,
+    'Path=/',
+    'HttpOnly',
+    'SameSite=Lax',
+    `Max-Age=${ADMIN_SESSION_MAX_AGE_SECONDS}`,
+    shouldUseSecureCookie(request) ? 'Secure' : ''
+  ].filter(Boolean).join('; ');
+}
+
+function createExpiredSessionCookie(request) {
+  return [
+    `${ADMIN_SESSION_COOKIE}=`,
+    'Path=/',
+    'HttpOnly',
+    'SameSite=Lax',
+    'Max-Age=0',
+    shouldUseSecureCookie(request) ? 'Secure' : ''
+  ].filter(Boolean).join('; ');
+}
+
+function shouldUseSecureCookie(request) {
+  return request.headers['x-forwarded-proto'] === 'https' || process.env.NODE_ENV === 'production';
+}
+
+function sendUnauthorized(response) {
+  sendJson(response, 401, {
+    success: false,
+    message: '請先登入後台',
+    error: { code: 'ADMIN_AUTH_REQUIRED' }
+  });
+}
+
 async function pipeRunningHubResponse(response, runningHubResponse) {
   const responseText = await runningHubResponse.text();
   response.writeHead(runningHubResponse.status, {
@@ -957,7 +1120,10 @@ async function sendStaticFile(response, filePath) {
   fs.createReadStream(filePath).pipe(response);
 }
 
-function sendJson(response, statusCode, payload) {
-  response.writeHead(statusCode, { 'Content-Type': 'application/json; charset=utf-8' });
+function sendJson(response, statusCode, payload, extraHeaders = {}) {
+  response.writeHead(statusCode, {
+    'Content-Type': 'application/json; charset=utf-8',
+    ...extraHeaders
+  });
   response.end(JSON.stringify(payload));
 }

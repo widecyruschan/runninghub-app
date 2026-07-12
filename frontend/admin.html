@@ -54,6 +54,52 @@
       grid-template-columns: 248px minmax(0, 1fr);
     }
 
+    .login-shell {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background:
+        linear-gradient(135deg, rgba(15, 118, 110, 0.12), transparent 40%),
+        var(--page-bg);
+    }
+
+    .login-card {
+      width: min(420px, 100%);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      padding: 28px;
+      box-shadow: var(--shadow);
+    }
+
+    .login-title {
+      font-size: 24px;
+      font-weight: 850;
+    }
+
+    .login-description {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .login-form {
+      display: grid;
+      gap: 14px;
+      margin-top: 22px;
+    }
+
+    .login-error {
+      border-radius: 7px;
+      background: var(--danger-soft);
+      color: var(--danger);
+      padding: 10px 12px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
     .sidebar {
       position: sticky;
       top: 0;
@@ -775,7 +821,28 @@
 </head>
 <body>
   <div id="admin-app">
-    <div class="admin-shell">
+    <section v-if="!isAuthenticated" class="login-shell">
+      <form class="login-card" @submit.prevent="loginAdmin">
+        <h1 class="login-title">後台登入</h1>
+        <p class="login-description">請使用管理員帳號登入後台。登入後才能管理工具、分類和測試執行。</p>
+        <div class="login-form">
+          <div class="field">
+            <label for="admin-username">帳號</label>
+            <input id="admin-username" v-model="loginForm.username" autocomplete="username" placeholder="admin">
+          </div>
+          <div class="field">
+            <label for="admin-password">密碼</label>
+            <input id="admin-password" v-model="loginForm.password" autocomplete="current-password" type="password" placeholder="請輸入密碼">
+          </div>
+          <div v-if="loginError" class="login-error">{{ loginError }}</div>
+          <button class="button button-primary" type="submit" :disabled="isCheckingAuth">
+            {{ isCheckingAuth ? '登入中' : '登入後台' }}
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <div v-else class="admin-shell">
       <aside class="sidebar">
         <a class="brand" href="/admin" @click.prevent="navigateTo('/admin')">
           <span class="brand-mark">RH</span>
@@ -811,6 +878,7 @@
             <p class="page-description">{{ currentPage.description }}</p>
           </div>
           <div class="top-actions">
+            <button class="button" type="button" @click="logoutAdmin">登出</button>
             <a class="button" href="/" target="_blank" rel="noreferrer">查看前台</a>
             <button class="button button-primary" type="button" @click="handlePrimaryAction">
               {{ currentPage.primaryAction }}
@@ -1333,6 +1401,13 @@
 
     createApp({
       setup() {
+        const isAuthenticated = ref(false);
+        const isCheckingAuth = ref(true);
+        const loginError = ref('');
+        const loginForm = ref({
+          username: 'admin',
+          password: ''
+        });
         const currentRoute = ref(normalizeRoute(window.location.pathname));
         const toolKeyword = ref('');
         const toolForm = ref(createEmptyToolForm());
@@ -1610,7 +1685,7 @@
         }
 
         async function loadTools() {
-          const response = await fetch('/api/admin/tools');
+          const response = await adminFetch('/api/admin/tools');
           const payload = await response.json();
 
           if (!payload.success) {
@@ -1624,7 +1699,7 @@
         }
 
         async function loadCategories() {
-          const response = await fetch('/api/admin/categories');
+          const response = await adminFetch('/api/admin/categories');
           const payload = await response.json();
 
           if (!payload.success) {
@@ -1647,7 +1722,7 @@
             status: categoryForm.value.status
           };
 
-          const response = await fetch('/api/admin/categories', {
+          const response = await adminFetch('/api/admin/categories', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -1689,7 +1764,7 @@
             }))
           };
 
-          const response = await fetch('/api/admin/tools', {
+          const response = await adminFetch('/api/admin/tools', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -1717,7 +1792,7 @@
           };
 
           try {
-            const response = await fetch(`/api/admin/tools/${encodeURIComponent(toolForm.value.id)}/test`, {
+            const response = await adminFetch(`/api/admin/tools/${encodeURIComponent(toolForm.value.id)}/test`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ inputValues: toolTestValues.value })
@@ -1809,7 +1884,7 @@
         }
 
         async function updateToolStatus(tool, status) {
-          const response = await fetch(`/api/admin/tools/${encodeURIComponent(tool.id)}/status`, {
+          const response = await adminFetch(`/api/admin/tools/${encodeURIComponent(tool.id)}/status`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status })
@@ -1825,11 +1900,96 @@
           return result.data;
         }
 
-        onMounted(() => {
-          Promise.all([
+        async function adminFetch(url, options = {}) {
+          const response = await fetch(url, {
+            credentials: 'same-origin',
+            ...options,
+            headers: {
+              ...(options.headers || {})
+            }
+          });
+
+          if (response.status === 401) {
+            isAuthenticated.value = false;
+            throw new Error('請先登入後台');
+          }
+
+          return response;
+        }
+
+        async function checkAdminSession() {
+          isCheckingAuth.value = true;
+
+          try {
+            const response = await fetch('/api/admin/auth/me', {
+              credentials: 'same-origin'
+            });
+
+            if (!response.ok) {
+              isAuthenticated.value = false;
+              return;
+            }
+
+            const payload = await response.json();
+            isAuthenticated.value = Boolean(payload.success);
+
+            if (isAuthenticated.value) {
+              await loadAdminData();
+            }
+          } catch (error) {
+            isAuthenticated.value = false;
+          } finally {
+            isCheckingAuth.value = false;
+          }
+        }
+
+        async function loginAdmin() {
+          isCheckingAuth.value = true;
+          loginError.value = '';
+
+          try {
+            const response = await fetch('/api/admin/auth/login', {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(loginForm.value)
+            });
+            const payload = await response.json();
+
+            if (!payload.success) {
+              throw new Error(payload.message || '登入失敗');
+            }
+
+            isAuthenticated.value = true;
+            loginForm.value.password = '';
+            await loadAdminData();
+          } catch (error) {
+            loginError.value = error.message || '登入失敗，請稍後再試';
+            isAuthenticated.value = false;
+          } finally {
+            isCheckingAuth.value = false;
+          }
+        }
+
+        async function logoutAdmin() {
+          await fetch('/api/admin/auth/logout', {
+            method: 'POST',
+            credentials: 'same-origin'
+          }).catch(() => {});
+
+          isAuthenticated.value = false;
+          loginForm.value.password = '';
+        }
+
+        async function loadAdminData() {
+          await Promise.all([
             loadCategories(),
             loadTools()
-          ]).catch((error) => {
+          ]);
+        }
+
+        onMounted(() => {
+          checkAdminSession().catch((error) => {
             window.alert(error.message || '後台資料載入失敗');
           });
 
@@ -1839,6 +1999,10 @@
         });
 
         return {
+          isAuthenticated,
+          isCheckingAuth,
+          loginError,
+          loginForm,
           currentPage,
           currentRoute,
           activeCategories,
@@ -1851,6 +2015,8 @@
           handlePrimaryAction,
           inputDataTypes,
           isActiveRoute,
+          loginAdmin,
+          logoutAdmin,
           membershipPlans,
           metrics,
           navItems,
