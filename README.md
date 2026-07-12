@@ -492,3 +492,13 @@ A: 支持 JPG、PNG、WebP 等常见格式，单个文件最大 10MB。
 - **新增或修改文件**：新增 `src/taskRepository.js`；修改 `src/database.js`、`src/toolRepository.js`、`server.js`、`frontend/index.html`、`package.json`、`docs/DEVELOPMENT_ROADMAP.md`、`README.md`。
 - **測試結果**：已通過 `npm test`；已用臨時 SQLite 和臨時服務驗證 `execution_tasks` 表建立成功；已驗證缺少必填圖片時 `POST /api/tools/remove-background/execute` 返回 `422 INPUT_VALUE_REQUIRED` 並寫入本地 `FAILED` 任務；已驗證不存在任務返回 `404 TASK_NOT_FOUND`。
 - **後續建議**：下一步開發後台工具測試執行和上線狀態，讓管理員能在工具上線前驗證 workflowID、nodeId、fieldName 和輸出解析是否可用。
+
+### 2026-07-12 21:21 HKT - GitHub Actions 部署流程修復
+
+- **會話主要目的**：排查 GitHub Actions `build-and-deploy` 失敗，並重試同步更新。
+- **完成的主要任務**：修正 `.github/workflows/deploy.yml`，移除已不符合當前倉庫結構的 `cd frontend`、`cd ../backend`、`npm run build`、`npm run lint` 步驟；改為在倉庫根目錄使用 `npm ci` 安裝依賴並執行 `npm test`。
+- **關鍵決策和解決方案**：目前專案是根目錄 Node.js 原生 HTTP + Vue CDN 結構，沒有獨立 `frontend/package.json` 或 `backend/` 目錄；GitHub Actions 改用 Node.js 22，匹配 `better-sqlite3` 的支援版本，避免 Node 18 engine 警告。
+- **使用的技術棧**：GitHub Actions、Node.js 22、npm、SQLite、better-sqlite3。
+- **新增或修改文件**：修改 `.github/workflows/deploy.yml`；追加更新 `README.md` 會話總結。
+- **測試結果**：本地已通過 `npm ci` 和 `npm test`。
+- **後續建議**：推送後由 GitHub Actions 自動重新執行；若未來引入 Vite 前端工程化，再新增正式 build 步驟。
