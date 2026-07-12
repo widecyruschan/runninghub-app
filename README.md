@@ -515,3 +515,14 @@ A: 支持 JPG、PNG、WebP 等常见格式，单个文件最大 10MB。
 - **新增或修改文件**：修改 `src/database.js`、`src/toolRepository.js`、`server.js`、`frontend/admin.html`、`frontend/index.html`、`docs/DEVELOPMENT_ROADMAP.md`、`README.md`。
 - **測試結果**：已通過 `npm test`；已用臨時 SQLite 和假 RunningHub 地址驗證未測試工具上線返回 `409 TOOL_TEST_REQUIRED`；測試執行網絡失敗時會寫回 `lastTestStatus=failed` 和可讀錯誤。
 - **後續建議**：下一步建議做前台工具市場首頁、分類篩選和搜索，讓前台從單工具頁升級為多工具入口。
+
+### 2026-07-12 22:20 HKT - 前台工具市場首頁與閉環驗證
+
+- **會話主要目的**：按開發順序完成前台動態工具頁的下一步，讓 `http://localhost:3000/` 從單工具頁升級為資料庫驅動的工具市場首頁，並保留 `/tools/:slug` 工具執行閉環。
+- **完成的主要任務**：新增首頁工具市場 UI；首頁讀取 `GET /api/tools` 和 `GET /api/categories`；支援分類切換、關鍵詞搜尋、預覽圖片卡片和點擊工具卡片進入 `/tools/:slug`；工具詳情頁繼續使用統一工具執行 API、本地任務輪詢和輸出查詢。
+- **關鍵決策和解決方案**：沿用目前 Vue 3 CDN + 單頁 HTML 架構，不引入 Vue Router；使用 `window.history.pushState` 和 `currentPath` 管理 `/` 與 `/tools/:slug` 的前台切換；UI 方向參考 `neural.love/tools` 的工具目錄、搜尋與分類入口，但保持本項目既有淺色視覺和繁體中文規則。
+- **使用的技術棧**：Vue 3 CDN、Element Plus CDN、Axios、Node.js 原生 HTTP、SQLite、better-sqlite3。
+- **新增或修改文件**：修改 `frontend/index.html`、`docs/DEVELOPMENT_ROADMAP.md`、`README.md`。
+- **測試結果**：已通過 `npm test`；本地服務 `http://127.0.0.1:3000/` 返回 200；`GET /api/tools` 和 `GET /api/categories` 返回成功；`/tools/remove-background` 返回 200；已用系統 Chrome 進行瀏覽器級驗證，首頁渲染 1 個工具卡片和「全部、圖像、視頻、音頻、文本」分類，點擊卡片可進入 `/tools/remove-background` 並顯示上傳控件。
+- **Hostinger MCP 部署記錄**：本輪已查找可用工具，當前 Codex 環境沒有暴露 Hostinger MCP 部署工具，因此尚不能直接發布到 Hostinger。後續部署需要可用 Hostinger MCP 或主機 SSH/面板權限，並配置 Node.js 22、`npm ci`、`npm start`、`RUNNINGHUB_API_KEY`、持久化 `data/` 目錄或替換為正式資料庫。
+- **後續建議**：下一步補後台任務列表和前台任務歷史，或先補首頁熱門工具、服務端分類/關鍵詞查詢參數與工具排序權重。

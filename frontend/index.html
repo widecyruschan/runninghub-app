@@ -158,6 +158,169 @@
       white-space: nowrap;
     }
 
+    .marketplace {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+      padding: clamp(38px, 7vw, 68px) clamp(20px, 4vw, 30px) 64px;
+    }
+
+    .marketplace-header {
+      display: grid;
+      grid-template-columns: minmax(0, 0.95fr) minmax(320px, 0.55fr);
+      gap: 28px;
+      align-items: end;
+      margin-bottom: 26px;
+    }
+
+    .marketplace-title {
+      color: var(--strong);
+      font-size: clamp(40px, 6vw, 64px);
+      line-height: 1;
+      font-weight: 850;
+      letter-spacing: 0;
+      margin-bottom: 18px;
+    }
+
+    .marketplace-description {
+      max-width: 680px;
+      color: #334155;
+      font-size: 18px;
+      line-height: 1.7;
+    }
+
+    .marketplace-search {
+      display: grid;
+      gap: 10px;
+    }
+
+    .marketplace-search label {
+      color: #334155;
+      font-size: 13px;
+      font-weight: 850;
+    }
+
+    .marketplace-search input {
+      width: 100%;
+      min-height: 48px;
+      border: 1px solid #cfd9e5;
+      border-radius: 7px;
+      background: #ffffff;
+      color: var(--strong);
+      padding: 0 14px;
+      outline: none;
+      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+    }
+
+    .category-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+
+    .category-tab {
+      min-height: 40px;
+      border: 1px solid #cfd9e5;
+      border-radius: 999px;
+      background: #ffffff;
+      color: #26364a;
+      padding: 0 15px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .category-tab.is-active {
+      border-color: var(--strong);
+      background: var(--strong);
+      color: #ffffff;
+    }
+
+    .tool-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .market-tool-card {
+      min-height: 286px;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid #cfd9e5;
+      border-radius: 8px;
+      background: var(--surface);
+      overflow: hidden;
+      cursor: pointer;
+      box-shadow: 0 18px 45px rgba(27, 39, 52, 0.08);
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+
+    .market-tool-card:hover {
+      transform: translateY(-2px);
+      border-color: #9cc8c2;
+      box-shadow: 0 24px 60px rgba(27, 39, 52, 0.13);
+    }
+
+    .market-tool-image,
+    .market-tool-placeholder {
+      width: 100%;
+      aspect-ratio: 16 / 10;
+      background: #eef3f8;
+    }
+
+    .market-tool-image {
+      display: block;
+      object-fit: cover;
+    }
+
+    .market-tool-placeholder {
+      display: grid;
+      place-items: center;
+      color: #526276;
+      font-size: 13px;
+      font-weight: 850;
+    }
+
+    .market-tool-body {
+      display: grid;
+      gap: 10px;
+      padding: 16px;
+    }
+
+    .market-tool-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 850;
+    }
+
+    .market-tool-title {
+      color: var(--strong);
+      font-size: 18px;
+      line-height: 1.25;
+      font-weight: 850;
+    }
+
+    .market-tool-description {
+      color: #526276;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .market-empty {
+      border: 1px dashed #cbd8e6;
+      border-radius: 8px;
+      background: #ffffff;
+      color: #526276;
+      padding: 34px;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 750;
+    }
+
     .tool-card {
       width: 100%;
       border: 1px solid #cfd9e5;
@@ -553,6 +716,14 @@
         align-items: start;
       }
 
+      .marketplace-header {
+        grid-template-columns: 1fr;
+      }
+
+      .tool-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
       .hero-copy {
         max-width: 680px;
       }
@@ -604,6 +775,14 @@
       .hero-title {
         font-size: 44px;
       }
+
+      .marketplace-title {
+        font-size: 42px;
+      }
+
+      .tool-grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
@@ -616,12 +795,77 @@
           <span>{{ toolTitle }}</span>
         </div>
         <nav class="nav-links" aria-label="頁面導航">
+          <a href="/" @click.prevent="goToMarketplace">工具</a>
           <a href="#faq">FAQ</a>
           <a href="#privacy">隱私</a>
         </nav>
       </header>
 
-      <section class="hero">
+      <section v-if="isMarketplace" class="marketplace">
+        <div class="marketplace-header">
+          <div>
+            <p class="eyebrow">AI TOOL MARKET</p>
+            <h1 class="marketplace-title">探索所有 AI 工具</h1>
+            <p class="marketplace-description">
+              從後台配置、測試並上線的工具會自動出現在這裡。選擇工具後即可進入專屬頁面，上傳素材並建立 RunningHub 任務。
+            </p>
+          </div>
+          <div class="marketplace-search">
+            <label for="tool-search">搜尋工具</label>
+            <input id="tool-search" v-model="toolKeyword" type="search" placeholder="搜尋名稱、分類或說明">
+          </div>
+        </div>
+
+        <div class="category-tabs" aria-label="工具分類">
+          <button
+            type="button"
+            class="category-tab"
+            :class="{ 'is-active': selectedCategory === 'all' }"
+            @click="selectedCategory = 'all'"
+          >
+            全部
+          </button>
+          <button
+            v-for="category in categories"
+            :key="category.id"
+            type="button"
+            class="category-tab"
+            :class="{ 'is-active': selectedCategory === category.categoryKey }"
+            @click="selectedCategory = category.categoryKey"
+          >
+            {{ category.name }}
+          </button>
+        </div>
+
+        <div v-if="isLoadingMarketplace" class="market-empty">工具載入中...</div>
+        <div v-else-if="filteredTools.length" class="tool-grid">
+          <article
+            v-for="tool in filteredTools"
+            :key="tool.id"
+            class="market-tool-card"
+            @click="openTool(tool)"
+          >
+            <img
+              v-if="tool.previewImageUrl"
+              class="market-tool-image"
+              :src="tool.previewImageUrl"
+              :alt="`${tool.name} 預覽圖片`"
+            >
+            <div v-else class="market-tool-placeholder">暫無預覽圖</div>
+            <div class="market-tool-body">
+              <div class="market-tool-meta">
+                <span>{{ tool.categoryName || 'AI 工具' }}</span>
+                <span>{{ tool.estimatedSeconds ? `約 ${tool.estimatedSeconds} 秒` : '立即使用' }}</span>
+              </div>
+              <h2 class="market-tool-title">{{ tool.name }}</h2>
+              <p class="market-tool-description">{{ tool.shortDescription || tool.description || '這個工具暫未填寫說明。' }}</p>
+            </div>
+          </article>
+        </div>
+        <div v-else class="market-empty">暫時沒有符合條件的工具。</div>
+      </section>
+
+      <section v-else class="hero">
         <div class="hero-copy">
           <p class="eyebrow">{{ toolCategoryLabel }}</p>
           <h1 class="hero-title">{{ toolTitle }}</h1>
@@ -826,6 +1070,40 @@
         const latestTaskId = ref('');
         const toolConfig = ref(null);
         const formValues = ref({});
+        const currentPath = ref(window.location.pathname || '/');
+        const marketplaceTools = ref([]);
+        const categories = ref([]);
+        const toolKeyword = ref('');
+        const selectedCategory = ref('all');
+        const isLoadingMarketplace = ref(false);
+
+        const isMarketplace = computed(() => {
+          const normalizedPath = normalizePath(currentPath.value);
+          return normalizedPath === '/' || normalizedPath === '/tools';
+        });
+
+        const activeCategories = computed(() => categories.value.filter((category) => category.status !== 'inactive'));
+
+        const filteredTools = computed(() => {
+          const keyword = toolKeyword.value.trim().toLowerCase();
+          const categoryKey = selectedCategory.value;
+
+          return marketplaceTools.value.filter((tool) => {
+            const matchesCategory = categoryKey === 'all'
+              || tool.categoryKey === categoryKey
+              || tool.categoryId === categoryKey;
+            const searchableText = [
+              tool.name,
+              tool.shortDescription,
+              tool.description,
+              tool.categoryName,
+              tool.categoryKey
+            ].filter(Boolean).join(' ').toLowerCase();
+            const matchesKeyword = !keyword || searchableText.includes(keyword);
+
+            return matchesCategory && matchesKeyword;
+          });
+        });
 
         const backgroundOptions = computed(() => [
           {
@@ -865,7 +1143,10 @@
         });
 
         const dynamicInputFields = computed(() => (toolConfig.value?.inputNodes || []).filter((node) => node.key !== uploadInputNode.value?.key));
-        const toolTitle = computed(() => toolConfig.value?.name || '圖片背景移除');
+        const toolTitle = computed(() => {
+          if (isMarketplace.value) return 'AI 工具平台';
+          return toolConfig.value?.name || '圖片背景移除';
+        });
         const toolDescription = computed(() => (
           toolConfig.value?.shortDescription
           || toolConfig.value?.description
@@ -979,10 +1260,69 @@
 
         const delay = (milliseconds) => new Promise(resolve => setTimeout(resolve, milliseconds));
 
+        const normalizePath = (pathname) => {
+          if (!pathname || pathname === '/') return '/';
+          return pathname.replace(/\/$/, '');
+        };
+
+        const setCurrentPath = () => {
+          currentPath.value = window.location.pathname || '/';
+        };
+
         const getCurrentToolSlug = () => {
-          const pathname = window.location.pathname.replace(/\/$/, '');
+          const pathname = normalizePath(currentPath.value);
           const toolMatch = pathname.match(/^\/tools\/([^/]+)$/);
           return toolMatch ? decodeURIComponent(toolMatch[1]) : 'remove-background';
+        };
+
+        const loadMarketplaceData = async () => {
+          isLoadingMarketplace.value = true;
+          setStatus('', '');
+
+          try {
+            const [toolsResponse, categoriesResponse] = await Promise.all([
+              axios.get(TOOLS_API_BASE_URL),
+              axios.get('/api/categories')
+            ]);
+
+            if (!toolsResponse.data?.success) {
+              throw new Error(toolsResponse.data?.message || '工具列表載入失敗');
+            }
+
+            if (!categoriesResponse.data?.success) {
+              throw new Error(categoriesResponse.data?.message || '分類載入失敗');
+            }
+
+            marketplaceTools.value = Array.isArray(toolsResponse.data.data) ? toolsResponse.data.data : [];
+            categories.value = Array.isArray(categoriesResponse.data.data) ? categoriesResponse.data.data : [];
+            document.title = 'AI 工具平台 - RunningHub';
+          } catch (error) {
+            console.error('工具市場載入失敗:', error);
+            marketplaceTools.value = [];
+            categories.value = [];
+            ElementPlus.ElMessage.error(getApiErrorMessage(error));
+          } finally {
+            isLoadingMarketplace.value = false;
+          }
+        };
+
+        const openTool = (tool) => {
+          if (!tool?.slug) return;
+
+          window.history.pushState({}, '', '/tools/' + encodeURIComponent(tool.slug));
+          setCurrentPath();
+          loadToolConfig().catch((error) => {
+            console.error('工具配置載入失敗:', error);
+            setStatus(error.message || '工具配置載入失敗', 'error');
+          });
+        };
+
+        const goToMarketplace = () => {
+          window.history.pushState({}, '', '/');
+          setCurrentPath();
+          resetTool();
+          toolConfig.value = null;
+          loadMarketplaceData();
         };
 
         const loadToolConfig = async () => {
@@ -996,6 +1336,7 @@
 
           toolConfig.value = payload.data;
           initializeFormValues(payload.data.inputNodes || []);
+          resetTool();
           document.title = payload.data.name + ' - RunningHub';
         };
 
@@ -1150,6 +1491,26 @@
         };
 
         onMounted(() => {
+          window.addEventListener('popstate', () => {
+            setCurrentPath();
+
+            if (isMarketplace.value) {
+              toolConfig.value = null;
+              loadMarketplaceData();
+              return;
+            }
+
+            loadToolConfig().catch((error) => {
+              console.error('工具配置載入失敗:', error);
+              setStatus(error.message || '工具配置載入失敗', 'error');
+            });
+          });
+
+          if (isMarketplace.value) {
+            loadMarketplaceData();
+            return;
+          }
+
           loadToolConfig().catch((error) => {
             console.error('工具配置載入失敗:', error);
             setStatus(error.message || '工具配置載入失敗', 'error');
@@ -1157,16 +1518,22 @@
         });
 
         return {
+          isMarketplace,
           fileInput,
           replacementFileInput,
           backgroundOptions,
+          categories: activeCategories,
           dynamicInputFields,
           estimatedTimeLabel,
+          filteredTools,
           formValues,
+          isLoadingMarketplace,
           selectedBackground,
           customBackgroundColor,
+          selectedCategory,
           currentFileName,
           currentFileMeta,
+          toolKeyword,
           toolTitle,
           toolDescription,
           toolCategoryLabel,
@@ -1184,6 +1551,8 @@
           stageBackgroundStyle,
           handleFileSelect,
           handleDrop,
+          openTool,
+          goToMarketplace,
           openFileDialog,
           resetTool,
           executeWorkflow,
