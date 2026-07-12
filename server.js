@@ -1,6 +1,9 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { createDatabase } = require('./src/database');
+const { createToolRepository } = require('./src/toolRepository');
+const { createCategoryRepository } = require('./src/categoryRepository');
 
 const PUBLIC_DIR = path.join(__dirname, 'frontend');
 const DEFAULT_PORT = 3000;
@@ -12,6 +15,12 @@ const runningHubApiKey = process.env.RUNNINGHUB_API_KEY;
 const runningHubApiBaseUrl = process.env.RUNNINGHUB_API_BASE_URL || 'https://www.runninghub.cn/openapi/v2';
 const runningHubTaskApiBaseUrl = process.env.RUNNINGHUB_TASK_API_BASE_URL || 'https://www.runninghub.cn/task/openapi';
 const port = Number(process.env.PORT || DEFAULT_PORT);
+const host = process.env.HOST || '0.0.0.0';
+const database = createDatabase();
+const toolRepository = createToolRepository(database);
+const categoryRepository = createCategoryRepository(database);
+
+toolRepository.seedDefaultTools();
 
 const mimeTypes = {
   '.html': 'text/html; charset=utf-8',
@@ -26,8 +35,34 @@ const mimeTypes = {
   '.ico': 'image/x-icon'
 };
 
+const adminRoutePrefixes = [
+  '/admin',
+  '/admin/',
+  '/admin/tools',
+  '/admin/categories',
+  '/admin/workflows',
+  '/admin/memberships',
+  '/admin/tasks',
+  '/admin/content',
+  '/admin/settings'
+];
+
+const frontendRoutePrefixes = [
+  '/tools'
+];
+
 const server = http.createServer(async (request, response) => {
   try {
+    if (request.url.startsWith('/api/admin/')) {
+      await handleAdminApi(request, response);
+      return;
+    }
+
+    if (request.url.startsWith('/api/tools') || request.url.startsWith('/api/categories')) {
+      await handlePublicApi(request, response);
+      return;
+    }
+
     if (request.url.startsWith('/api/runninghub/')) {
       await handleRunningHubApi(request, response);
       return;
@@ -35,17 +70,18 @@ const server = http.createServer(async (request, response) => {
 
     await serveStaticFile(request, response);
   } catch (error) {
-    console.error('服务器错误:', error);
-    sendJson(response, 500, {
+    console.error('伺服器錯誤:', error);
+    sendJson(response, error.statusCode || 500, {
       success: false,
-      message: '服务器处理请求失败',
-      error: { code: 'INTERNAL_SERVER_ERROR' }
+      message: error.statusCode ? error.message : '伺服器處理請求失敗',
+      error: { code: error.code || 'INTERNAL_SERVER_ERROR' }
     });
   }
 });
 
-server.listen(port, () => {
-  console.log(`RunningHub demo server: http://127.0.0.1:${port}`);
+server.listen(port, host, () => {
+  console.log(`RunningHub demo server: http://${host}:${port}`);
+  console.log(`Local access URL: http://127.0.0.1:${port}`);
   console.log(`RUNNINGHUB_API_KEY: ${runningHubApiKey ? '已配置' : '未配置'}`);
 });
 
@@ -74,7 +110,7 @@ async function handleRunningHubApi(request, response) {
   if (!runningHubApiKey) {
     sendJson(response, 500, {
       success: false,
-      message: '后端未配置 RUNNINGHUB_API_KEY',
+      message: '後端未配置 RUNNINGHUB_API_KEY',
       error: { code: 'RUNNINGHUB_API_KEY_MISSING' }
     });
     return;
@@ -114,7 +150,109 @@ async function handleRunningHubApi(request, response) {
 
   sendJson(response, 404, {
     success: false,
-    message: '接口不存在',
+    message: '介面不存在',
+    error: { code: 'API_NOT_FOUND' }
+  });
+}
+
+async function handleAdminApi(request, response) {
+  const url = new URL(request.url, `http://${request.headers.host}`);
+
+  if (url.pathname === '/api/admin/tools' && request.method === 'GET') {
+    sendJson(response, 200, {
+      success: true,
+      message: '操作成功',
+      data: toolRepository.listTools()
+    });
+    return;
+  }
+
+  if (url.pathname === '/api/admin/tools' && request.method === 'POST') {
+    const requestBody = await readJsonBody(request);
+    const savedTool = toolRepository.saveTool(requestBody);
+
+    sendJson(response, requestBody.id ? 200 : 201, {
+      success: true,
+      message: '工具配置已儲存',
+      data: savedTool
+    });
+    return;
+  }
+
+  if (url.pathname === '/api/admin/categories' && request.method === 'GET') {
+    sendJson(response, 200, {
+      success: true,
+      message: '操作成功',
+      data: categoryRepository.listCategories()
+    });
+    return;
+  }
+
+  if (url.pathname === '/api/admin/categories' && request.method === 'POST') {
+    const requestBody = await readJsonBody(request);
+    const savedCategory = categoryRepository.saveCategory(requestBody);
+
+    sendJson(response, requestBody.id ? 200 : 201, {
+      success: true,
+      message: '分類已儲存',
+      data: savedCategory
+    });
+    return;
+  }
+
+  sendJson(response, 404, {
+    success: false,
+    message: '介面不存在',
+    error: { code: 'API_NOT_FOUND' }
+  });
+}
+
+async function handlePublicApi(request, response) {
+  const url = new URL(request.url, `http://${request.headers.host}`);
+
+  if (url.pathname === '/api/tools' && request.method === 'GET') {
+    sendJson(response, 200, {
+      success: true,
+      message: '操作成功',
+      data: toolRepository.listActiveTools()
+    });
+    return;
+  }
+
+  const toolMatch = url.pathname.match(/^\/api\/tools\/([^/]+)$/);
+  if (toolMatch && request.method === 'GET') {
+    const slug = decodeURIComponent(toolMatch[1]);
+    const tool = toolRepository.getActiveToolBySlug(slug);
+
+    if (!tool) {
+      sendJson(response, 404, {
+        success: false,
+        message: '工具不存在或未上線',
+        error: { code: 'TOOL_NOT_FOUND' }
+      });
+      return;
+    }
+
+    sendJson(response, 200, {
+      success: true,
+      message: '操作成功',
+      data: tool
+    });
+    return;
+  }
+
+  if (url.pathname === '/api/categories' && request.method === 'GET') {
+    sendJson(response, 200, {
+      success: true,
+      message: '操作成功',
+      data: categoryRepository.listCategories().filter((category) => category.status === 'active')
+    });
+    return;
+  }
+
+  sendJson(response, 404, {
+    success: false,
+    message: '介面不存在',
     error: { code: 'API_NOT_FOUND' }
   });
 }
@@ -124,7 +262,7 @@ async function proxyUploadImage(request, response) {
   if (!contentType || !contentType.includes('multipart/form-data')) {
     sendJson(response, 400, {
       success: false,
-      message: '请使用 multipart/form-data 上传图片',
+      message: '請使用 multipart/form-data 上傳檔案',
       error: { code: 'INVALID_UPLOAD_CONTENT_TYPE' }
     });
     return;
@@ -171,8 +309,9 @@ async function readJsonBody(request) {
   try {
     return JSON.parse(bodyBuffer.toString('utf8'));
   } catch (error) {
-    const invalidJsonError = new Error('请求 JSON 格式不正确');
+    const invalidJsonError = new Error('請求 JSON 格式不正確');
     invalidJsonError.statusCode = 400;
+    invalidJsonError.code = 'INVALID_JSON';
     throw invalidJsonError;
   }
 }
@@ -185,7 +324,7 @@ function readRequestBody(request, maxSize) {
     request.on('data', (chunk) => {
       totalSize += chunk.length;
       if (totalSize > maxSize) {
-        reject(new Error('请求体超过大小限制'));
+        reject(new Error('請求內容超過大小限制'));
         request.destroy();
         return;
       }
@@ -199,6 +338,16 @@ function readRequestBody(request, maxSize) {
 
 async function serveStaticFile(request, response) {
   const url = new URL(request.url, `http://${request.headers.host}`);
+  if (isAdminRoute(url.pathname)) {
+    await sendStaticFile(response, path.join(PUBLIC_DIR, 'admin.html'));
+    return;
+  }
+
+  if (isFrontendRoute(url.pathname)) {
+    await sendStaticFile(response, path.join(PUBLIC_DIR, 'index.html'));
+    return;
+  }
+
   const pathname = url.pathname === '/' ? '/index.html' : url.pathname;
   const requestedPath = path.normalize(decodeURIComponent(pathname)).replace(/^(\.\.[/\\])+/, '');
   const filePath = path.join(PUBLIC_DIR, requestedPath);
@@ -215,6 +364,22 @@ async function serveStaticFile(request, response) {
     return;
   }
 
+  await sendStaticFile(response, filePath);
+}
+
+function isAdminRoute(pathname) {
+  return adminRoutePrefixes.some((routePrefix) => (
+    pathname === routePrefix || pathname.startsWith(`${routePrefix}/`)
+  ));
+}
+
+function isFrontendRoute(pathname) {
+  return frontendRoutePrefixes.some((routePrefix) => (
+    pathname === routePrefix || pathname.startsWith(`${routePrefix}/`)
+  ));
+}
+
+async function sendStaticFile(response, filePath) {
   const extension = path.extname(filePath).toLowerCase();
   response.writeHead(200, {
     'Content-Type': mimeTypes[extension] || 'application/octet-stream'

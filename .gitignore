@@ -34,3 +34,7 @@ yarn-error.log*
 
 # Uploads
 uploads/
+
+# Local SQLite data
+data/*.sqlite
+data/*.sqlite-*

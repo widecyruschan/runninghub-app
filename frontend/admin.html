@@ -1,0 +1,1550 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理後台 - RunningHub AI 工具平台</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/element-plus@2.4.4/dist/index.css">
+  <script src="https://unpkg.com/element-plus@2.4.4/dist/index.full.min.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --page-bg: #f5f7fb;
+      --surface: #ffffff;
+      --surface-soft: #f9fbff;
+      --ink: #17212b;
+      --muted: #66758a;
+      --line: #dbe3ee;
+      --accent: #0f766e;
+      --accent-soft: #e8f7f4;
+      --warning: #b45309;
+      --warning-soft: #fff7ed;
+      --danger: #b91c1c;
+      --danger-soft: #fff1f2;
+      --shadow: 0 20px 45px rgba(34, 48, 73, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      background: var(--page-bg);
+      color: var(--ink);
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .admin-shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 248px minmax(0, 1fr);
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--line);
+      background: #ffffff;
+    }
+
+    .brand {
+      height: 72px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+      padding: 0 20px;
+    }
+
+    .brand-mark {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      background: var(--ink);
+      color: #ffffff;
+      font-weight: 850;
+    }
+
+    .brand-title {
+      font-size: 16px;
+      font-weight: 850;
+      letter-spacing: 0;
+    }
+
+    .brand-subtitle {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .nav-list {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 16px 12px;
+      overflow-y: auto;
+    }
+
+    .nav-link {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      border-radius: 8px;
+      padding: 0 12px;
+      color: #334155;
+      font-size: 14px;
+      font-weight: 750;
+      cursor: pointer;
+    }
+
+    .nav-link:hover,
+    .nav-link.is-active {
+      background: var(--accent-soft);
+      color: #075e58;
+    }
+
+    .nav-mark {
+      width: 26px;
+      height: 26px;
+      display: grid;
+      place-items: center;
+      border-radius: 7px;
+      background: #edf2f7;
+      color: #43566e;
+      font-size: 12px;
+      font-weight: 850;
+    }
+
+    .nav-link.is-active .nav-mark {
+      background: var(--accent);
+      color: #ffffff;
+    }
+
+    .sidebar-footer {
+      border-top: 1px solid var(--line);
+      padding: 14px 16px 18px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .main {
+      min-width: 0;
+    }
+
+    .topbar {
+      min-height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.9);
+      padding: 16px clamp(18px, 3vw, 34px);
+      backdrop-filter: blur(10px);
+    }
+
+    .page-title {
+      font-size: 22px;
+      line-height: 1.2;
+      font-weight: 850;
+    }
+
+    .page-description {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .button {
+      min-height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #ffffff;
+      color: #26364a;
+      padding: 0 14px;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .button-primary {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #ffffff;
+    }
+
+    .content {
+      width: min(1220px, 100%);
+      margin: 0 auto;
+      padding: 24px clamp(18px, 3vw, 34px) 42px;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .metric-card,
+    .panel,
+    .route-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .metric-card {
+      min-height: 118px;
+      padding: 18px;
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 750;
+    }
+
+    .metric-value {
+      margin-top: 12px;
+      font-size: 30px;
+      font-weight: 850;
+      line-height: 1;
+    }
+
+    .metric-note {
+      margin-top: 10px;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.9fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      overflow: hidden;
+    }
+
+    .panel-header {
+      min-height: 58px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      border-bottom: 1px solid var(--line);
+      padding: 0 18px;
+    }
+
+    .panel-title {
+      font-size: 15px;
+      font-weight: 850;
+    }
+
+    .panel-body {
+      padding: 18px;
+    }
+
+    .route-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .route-card {
+      min-height: 132px;
+      padding: 18px;
+      cursor: pointer;
+      transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    .route-card:hover {
+      transform: translateY(-2px);
+      border-color: #9fc9c2;
+      box-shadow: 0 24px 52px rgba(34, 48, 73, 0.12);
+    }
+
+    .route-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .route-title {
+      font-size: 16px;
+      font-weight: 850;
+    }
+
+    .route-path {
+      border-radius: 999px;
+      background: #eef2f7;
+      color: #4f6077;
+      padding: 5px 9px;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .route-description {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .table th,
+    .table td {
+      border-bottom: 1px solid var(--line);
+      padding: 13px 12px;
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    .table th {
+      color: var(--muted);
+      background: var(--surface-soft);
+      font-weight: 800;
+    }
+
+    .table tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .tool-summary {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 240px;
+    }
+
+    .tool-thumb,
+    .tool-thumb-empty {
+      width: 86px;
+      height: 54px;
+      flex: 0 0 auto;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #eef2f7;
+      overflow: hidden;
+    }
+
+    .tool-thumb img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+    }
+
+    .tool-thumb-empty {
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .tool-name {
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 850;
+      line-height: 1.4;
+    }
+
+    .tool-desc {
+      max-width: 360px;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 5px 9px;
+      font-size: 12px;
+      font-weight: 850;
+    }
+
+    .status-active,
+    .status-success {
+      background: var(--accent-soft);
+      color: #08635d;
+    }
+
+    .status-draft,
+    .status-processing {
+      background: var(--warning-soft);
+      color: var(--warning);
+    }
+
+    .status-error {
+      background: var(--danger-soft);
+      color: var(--danger);
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .search-input {
+      min-height: 40px;
+      width: min(320px, 100%);
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #ffffff;
+      color: var(--ink);
+      padding: 0 12px;
+      outline: none;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .field label {
+      color: #405168;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #ffffff;
+      color: var(--ink);
+      padding: 0 12px;
+      outline: none;
+    }
+
+    .field textarea {
+      min-height: 86px;
+      resize: vertical;
+      padding: 10px 12px;
+      line-height: 1.5;
+    }
+
+    .field-full {
+      grid-column: 1 / -1;
+    }
+
+    .preview-config-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 280px;
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .preview-card {
+      min-height: 166px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface-soft);
+      overflow: hidden;
+    }
+
+    .preview-card img {
+      width: 100%;
+      height: 166px;
+      display: block;
+      object-fit: cover;
+    }
+
+    .preview-placeholder {
+      height: 166px;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      padding: 18px;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1.55;
+    }
+
+    .preview-meta {
+      border-top: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--muted);
+      padding: 10px 12px;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 22px 0 12px;
+    }
+
+    .section-title h3 {
+      font-size: 15px;
+      font-weight: 850;
+    }
+
+    .section-title p {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .node-list {
+      display: grid;
+      gap: 14px;
+    }
+
+    .node-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface-soft);
+      overflow: hidden;
+    }
+
+    .node-card-header {
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+      padding: 0 14px;
+    }
+
+    .node-card-title {
+      font-size: 14px;
+      font-weight: 850;
+    }
+
+    .node-card-body {
+      padding: 14px;
+    }
+
+    .node-grid {
+      display: grid;
+      grid-template-columns: minmax(120px, 0.8fr) minmax(160px, 1fr) minmax(160px, 1fr) minmax(180px, 1fr);
+      gap: 12px;
+    }
+
+    .button-danger {
+      border-color: #fecdd3;
+      background: #fff1f2;
+      color: var(--danger);
+    }
+
+    .option-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .option-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .option-row input {
+      min-height: 38px;
+    }
+
+    .form-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 10px;
+      border-top: 1px solid var(--line);
+      margin-top: 20px;
+      padding-top: 16px;
+    }
+
+    .hint-list {
+      display: grid;
+      gap: 10px;
+      color: #3f5066;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .hint-item {
+      border-radius: 8px;
+      background: var(--surface-soft);
+      padding: 12px;
+    }
+
+    .category-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .category-card {
+      min-height: 118px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .category-card-title {
+      color: var(--ink);
+      font-size: 18px;
+      font-weight: 850;
+    }
+
+    .category-card-meta {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .category-actions {
+      margin-top: 14px;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    @media (max-width: 1020px) {
+      .admin-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: static;
+        height: auto;
+      }
+
+      .nav-list {
+        flex-direction: row;
+        overflow-x: auto;
+        padding: 12px;
+      }
+
+      .nav-link {
+        flex: 0 0 auto;
+      }
+
+      .sidebar-footer {
+        display: none;
+      }
+
+      .metric-grid,
+      .dashboard-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .top-actions {
+        width: 100%;
+      }
+
+      .button {
+        flex: 1;
+      }
+
+      .metric-grid,
+      .dashboard-grid,
+      .route-grid,
+      .category-grid,
+      .form-grid,
+      .preview-config-grid,
+      .node-grid,
+      .option-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="admin-app">
+    <div class="admin-shell">
+      <aside class="sidebar">
+        <a class="brand" href="/admin" @click.prevent="navigateTo('/admin')">
+          <span class="brand-mark">RH</span>
+          <span>
+            <span class="brand-title">AI 工具後台</span>
+            <span class="brand-subtitle">Node.js 管理端</span>
+          </span>
+        </a>
+
+        <nav class="nav-list" aria-label="後台導航">
+          <a
+            v-for="item in navItems"
+            :key="item.path"
+            class="nav-link"
+            :class="{ 'is-active': isActiveRoute(item.path) }"
+            :href="item.path"
+            @click.prevent="navigateTo(item.path)"
+          >
+            <span class="nav-mark">{{ item.mark }}</span>
+            <span>{{ item.label }}</span>
+          </a>
+        </nav>
+
+        <div class="sidebar-footer">
+          後台介面固定中文。前台文案欄位需要錄入中文和英文，用於網站雙語展示。
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <h1 class="page-title">{{ currentPage.title }}</h1>
+            <p class="page-description">{{ currentPage.description }}</p>
+          </div>
+          <div class="top-actions">
+            <a class="button" href="/" target="_blank" rel="noreferrer">查看前台</a>
+            <button class="button button-primary" type="button" @click="handlePrimaryAction">
+              {{ currentPage.primaryAction }}
+            </button>
+          </div>
+        </header>
+
+        <section class="content">
+          <section v-if="currentRoute === '/admin'">
+            <div class="metric-grid">
+              <article v-for="metric in metrics" :key="metric.label" class="metric-card">
+                <div class="metric-label">{{ metric.label }}</div>
+                <div class="metric-value">{{ metric.value }}</div>
+                <div class="metric-note">{{ metric.note }}</div>
+              </article>
+            </div>
+
+            <div class="dashboard-grid">
+              <section class="panel">
+                <div class="panel-header">
+                  <h2 class="panel-title">後台導航路由</h2>
+                  <span class="status-pill status-active">已建立</span>
+                </div>
+                <div class="panel-body">
+                  <div class="route-grid">
+                    <article
+                      v-for="route in routeCards"
+                      :key="route.path"
+                      class="route-card"
+                      @click="navigateTo(route.path)"
+                    >
+                      <div class="route-title-row">
+                        <h3 class="route-title">{{ route.label }}</h3>
+                        <span class="route-path">{{ route.path }}</span>
+                      </div>
+                      <p class="route-description">{{ route.description }}</p>
+                    </article>
+                  </div>
+                </div>
+              </section>
+
+              <section class="panel">
+                <div class="panel-header">
+                  <h2 class="panel-title">近期任務</h2>
+                </div>
+                <div class="panel-body">
+                  <div class="hint-list">
+                    <div v-for="task in recentTasks" :key="task.id" class="hint-item">
+                      <strong>{{ task.name }}</strong>
+                      <div>{{ task.status }} · {{ task.time }}</div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </section>
+
+          <section v-else-if="currentRoute === '/admin/tools'" class="panel">
+            <div class="panel-header">
+              <h2 class="panel-title">工具列表</h2>
+              <span class="status-pill status-active">{{ tools.length }} 個工具</span>
+            </div>
+            <div class="panel-body">
+              <div class="toolbar">
+                <input class="search-input" v-model="toolKeyword" type="search" placeholder="搜尋工具名稱或 workflowID">
+                <button class="button button-primary" type="button" @click="openToolForm()">新增工具</button>
+              </div>
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>工具名稱</th>
+                    <th>分類</th>
+                    <th>預覽圖片</th>
+                    <th>workflowID</th>
+                    <th>圖片節點</th>
+                    <th>狀態</th>
+                    <th>排序</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="tool in filteredTools" :key="tool.key">
+                    <td>
+                      <div class="tool-summary">
+                        <div v-if="tool.previewImageUrl" class="tool-thumb">
+                          <img :src="tool.previewImageUrl" :alt="`${tool.name} 預覽圖片`">
+                        </div>
+                        <div v-else class="tool-thumb-empty">無圖片</div>
+                        <div>
+                          <div class="tool-name">{{ tool.name }}</div>
+                          <div class="tool-desc">{{ tool.shortDescription || tool.description || '尚未填寫工具說明' }}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>{{ tool.categoryName }}</td>
+                    <td>
+                      <a v-if="tool.previewImageUrl" :href="tool.previewImageUrl" target="_blank" rel="noreferrer">查看原圖</a>
+                      <span v-else>待配置</span>
+                    </td>
+                    <td>{{ tool.workflowId }}</td>
+                    <td>{{ tool.nodeId }}</td>
+                    <td><span class="status-pill" :class="tool.statusClass">{{ tool.statusLabel }}</span></td>
+                    <td>{{ tool.sortOrder }}</td>
+                    <td><button class="button" type="button" @click="openToolForm(tool)">配置</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section v-else-if="currentRoute === '/admin/workflows'" class="panel">
+            <div class="panel-header">
+              <h2 class="panel-title">{{ toolForm.id ? '編輯工具配置' : '新增工具配置' }}</h2>
+              <span class="status-pill status-draft">動態輸入節點</span>
+            </div>
+            <div class="panel-body">
+              <div class="preview-config-grid">
+                <div class="form-grid">
+                  <div class="field">
+                    <label for="tool-name">工具名稱</label>
+                    <input id="tool-name" v-model="toolForm.name" placeholder="例如：圖片背景移除">
+                  </div>
+                  <div class="field">
+                    <label for="tool-key">工具識別碼</label>
+                    <input id="tool-key" v-model="toolForm.key" placeholder="例如：remove-background">
+                  </div>
+                  <div class="field">
+                    <label for="tool-category">工具分類</label>
+                    <select id="tool-category" v-model="toolForm.categoryId">
+                      <option v-for="category in activeCategories" :key="category.id" :value="category.id">
+                        {{ category.name }}
+                      </option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="workflow-id">workflowID</label>
+                    <input id="workflow-id" v-model="toolForm.workflowId" placeholder="RunningHub workflowID">
+                  </div>
+                  <div class="field">
+                    <label for="instance-type">instanceType</label>
+                    <input id="instance-type" v-model="toolForm.instanceType" placeholder="default">
+                  </div>
+                  <div class="field field-full">
+                    <label for="preview-image-url">預覽圖片 URL</label>
+                    <input id="preview-image-url" v-model="toolForm.previewImageUrl" placeholder="https://example.com/tool-preview.webp">
+                  </div>
+                  <div class="field field-full">
+                    <label for="tool-description">工具說明</label>
+                    <textarea id="tool-description" v-model="toolForm.description" placeholder="後台備註，說明這個工具的用途和配置注意事項"></textarea>
+                  </div>
+                </div>
+
+                <aside class="preview-card" aria-label="工具預覽圖片">
+                  <img
+                    v-if="toolForm.previewImageUrl"
+                    :src="toolForm.previewImageUrl"
+                    :alt="`${toolForm.name || '工具'} 預覽圖片`"
+                  >
+                  <div v-else class="preview-placeholder">
+                    填入預覽圖片 URL 後，這裡會顯示工具卡片圖片。
+                  </div>
+                  <div class="preview-meta">
+                    建議使用橫向圖片，比例約 16:10 或 4:3，方便前台工具卡片裁切。
+                  </div>
+                </aside>
+              </div>
+
+              <div class="section-title">
+                <div>
+                  <h3>輸入節點配置</h3>
+                  <p>除 workflowID 外，輸入節點均可動態新增或刪除。每個節點都需要配置 nodeId、內容項欄位和資料類型。</p>
+                </div>
+                <button class="button button-primary" type="button" @click="addInputNode">新增輸入節點</button>
+              </div>
+
+              <div class="node-list">
+                <article v-for="(node, nodeIndex) in toolForm.inputNodes" :key="node.uid" class="node-card">
+                  <div class="node-card-header">
+                    <h4 class="node-card-title">輸入節點 {{ nodeIndex + 1 }}</h4>
+                    <button class="button button-danger" type="button" @click="removeInputNode(node.uid)">刪除節點</button>
+                  </div>
+                  <div class="node-card-body">
+                    <div class="node-grid">
+                      <div class="field">
+                        <label>nodeId</label>
+                        <input v-model="node.nodeId" placeholder="例如：9">
+                      </div>
+                      <div class="field">
+                        <label>內容項欄位</label>
+                        <input v-model="node.fieldName" placeholder="例如：image / video / prompt / value">
+                      </div>
+                      <div class="field">
+                        <label>後台欄位名</label>
+                        <input v-model="node.key" placeholder="例如：sourceImage">
+                      </div>
+                      <div class="field">
+                        <label>資料類型</label>
+                        <select v-model="node.dataType">
+                          <option v-for="type in inputDataTypes" :key="type.value" :value="type.value">{{ type.label }}</option>
+                        </select>
+                      </div>
+                      <div class="field">
+                        <label>前台標籤</label>
+                        <input v-model="node.label" placeholder="例如：上傳圖片 / 上傳影片">
+                      </div>
+                      <div class="field">
+                        <label>佔位提示</label>
+                        <input v-model="node.placeholder" placeholder="展示給使用者的提示">
+                      </div>
+                      <div class="field">
+                        <label>預設值</label>
+                        <input v-model="node.defaultValue" placeholder="可選">
+                      </div>
+                      <div class="field">
+                        <label>是否必填</label>
+                        <select v-model="node.required">
+                          <option :value="true">必填</option>
+                          <option :value="false">選填</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div v-if="node.dataType === 'select'" class="option-list">
+                      <div class="section-title">
+                        <div>
+                          <h3>下拉選項</h3>
+                          <p>下拉列表類型需要配置 value 和顯示文案。</p>
+                        </div>
+                        <button class="button" type="button" @click="addNodeOption(node)">新增選項</button>
+                      </div>
+                      <div v-for="option in node.options" :key="option.uid" class="option-row">
+                        <input v-model="option.label" placeholder="選項文案，例如：寫實風格">
+                        <input v-model="option.value" placeholder="傳給 RunningHub 的值">
+                        <button class="button button-danger" type="button" @click="removeNodeOption(node, option.uid)">刪除</button>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              </div>
+
+              <div class="form-actions">
+                <button class="button" type="button" @click="navigateTo('/admin/tools')">返回列表</button>
+                <button class="button" type="button" @click="addInputNode">繼續新增節點</button>
+                <button class="button button-primary" type="button" @click="saveToolDraft">儲存配置</button>
+              </div>
+            </div>
+          </section>
+
+          <section v-else-if="currentRoute === '/admin/categories'" class="panel">
+            <div class="panel-header">
+              <h2 class="panel-title">分類管理</h2>
+              <span class="status-pill status-active">{{ categories.length }} 個分類</span>
+            </div>
+            <div class="panel-body">
+              <div class="category-grid">
+                <article v-for="category in categories" :key="category.id" class="category-card">
+                  <div class="category-card-title">{{ category.name }}</div>
+                  <div class="category-card-meta">
+                    識別碼：{{ category.categoryKey }}<br>
+                    排序：{{ category.sortOrder }}
+                  </div>
+                  <div class="category-actions">
+                    <span class="status-pill" :class="category.statusClass">{{ category.statusLabel }}</span>
+                  </div>
+                </article>
+              </div>
+
+              <div class="section-title">
+                <div>
+                  <h3>新增 / 編輯分類</h3>
+                  <p>目前先使用圖像、視頻、音頻、文本四個主分類，後續可擴展二級分類和前台導航排序。</p>
+                </div>
+              </div>
+
+              <div class="form-grid">
+                <div class="field">
+                  <label for="category-name">分類名稱</label>
+                  <input id="category-name" v-model="categoryForm.name" placeholder="例如：圖像">
+                </div>
+                <div class="field">
+                  <label for="category-key">分類識別碼</label>
+                  <input id="category-key" v-model="categoryForm.categoryKey" placeholder="例如：image">
+                </div>
+                <div class="field">
+                  <label for="category-sort">排序</label>
+                  <input id="category-sort" v-model="categoryForm.sortOrder" type="number" min="0" step="1">
+                </div>
+                <div class="field">
+                  <label for="category-status">狀態</label>
+                  <select id="category-status" v-model="categoryForm.status">
+                    <option value="active">啟用</option>
+                    <option value="inactive">停用</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-actions">
+                <button class="button" type="button" @click="resetCategoryForm">清空</button>
+                <button class="button button-primary" type="button" @click="saveCategory">儲存分類</button>
+              </div>
+
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>分類名稱</th>
+                    <th>識別碼</th>
+                    <th>排序</th>
+                    <th>狀態</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="category in categories" :key="category.id">
+                    <td>{{ category.name }}</td>
+                    <td>{{ category.categoryKey }}</td>
+                    <td>{{ category.sortOrder }}</td>
+                    <td><span class="status-pill" :class="category.statusClass">{{ category.statusLabel }}</span></td>
+                    <td><button class="button" type="button" @click="editCategory(category)">編輯</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section v-else-if="currentRoute === '/admin/memberships'" class="panel">
+            <div class="panel-header">
+              <h2 class="panel-title">會員套餐</h2>
+              <span class="status-pill status-active">PRO+ 為主推套餐</span>
+            </div>
+            <div class="panel-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>套餐</th>
+                    <th>月付價格</th>
+                    <th>每日使用</th>
+                    <th>每月積分</th>
+                    <th>優先級</th>
+                    <th>狀態</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="plan in membershipPlans" :key="plan.key">
+                    <td>{{ plan.name }}</td>
+                    <td>{{ plan.price }}</td>
+                    <td>{{ plan.dailyUses }}</td>
+                    <td>{{ plan.credits }}</td>
+                    <td>{{ plan.priority }}</td>
+                    <td><span class="status-pill status-active">{{ plan.status }}</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section v-else class="panel">
+            <div class="panel-header">
+              <h2 class="panel-title">{{ currentPage.title }}</h2>
+              <span class="status-pill status-draft">頁面框架</span>
+            </div>
+            <div class="panel-body">
+              <div class="hint-list">
+                <div v-for="item in currentPage.todo" :key="item" class="hint-item">{{ item }}</div>
+              </div>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const { createApp, computed, onMounted, ref } = Vue;
+
+    const routeDefinitions = {
+      '/admin': {
+        title: '後台首頁',
+        description: '查看平台關鍵資料，並快速進入工具、工作流、會員和內容管理。',
+        primaryAction: '新增工具',
+        todo: []
+      },
+      '/admin/tools': {
+        title: '工具管理',
+        description: '維護前台 AI 工具、雙語文案、排序、上下線和基礎價格。',
+        primaryAction: '新增工具',
+        todo: []
+      },
+      '/admin/categories': {
+        title: '分類管理',
+        description: '管理工具主分類和前台工具導航，目前包含圖像、視頻、音頻、文本。',
+        primaryAction: '新增分類',
+        todo: []
+      },
+      '/admin/workflows': {
+        title: '新增工具配置',
+        description: '在工具管理中新增或編輯工具，配置 workflowID 和動態輸入節點。',
+        primaryAction: '儲存配置',
+        todo: []
+      },
+      '/admin/memberships': {
+        title: '會員套餐',
+        description: '配置 PRO、PRO+、PRO MAX 的價格、積分、額度、優先級和雲端硬碟權益。',
+        primaryAction: '新增套餐',
+        todo: []
+      },
+      '/admin/tasks': {
+        title: '任務記錄',
+        description: '查看 RunningHub taskId、執行狀態、消耗積分、失敗原因和重試操作。',
+        primaryAction: '匯出記錄',
+        todo: ['任務列表表格', '失敗原因詳情', '退款積分操作', '複製 taskId']
+      },
+      '/admin/content': {
+        title: '內容管理',
+        description: '維護首頁、FAQ、Blog、SEO、導航和前台雙語內容。',
+        primaryAction: '新增文章',
+        todo: ['Blog 文章管理', 'FAQ 管理', '首頁配置', 'SEO 預設配置']
+      },
+      '/admin/settings': {
+        title: '系統設定',
+        description: '管理語言、上傳限制、RunningHub API 基礎位址和安全策略。',
+        primaryAction: '儲存設定',
+        todo: ['語言設定', '上傳檔案限制', '佇列參數', '管理員權限']
+      }
+    };
+
+    createApp({
+      setup() {
+        const currentRoute = ref(normalizeRoute(window.location.pathname));
+        const toolKeyword = ref('');
+        const toolForm = ref(createEmptyToolForm());
+        const categoryForm = ref(createEmptyCategoryForm());
+        const categories = ref([]);
+        const tools = ref([]);
+
+        const navItems = [
+          { path: '/admin', label: '儀表板', mark: '總' },
+          { path: '/admin/tools', label: '工具管理', mark: '工' },
+          { path: '/admin/categories', label: '分類管理', mark: '類' },
+          { path: '/admin/memberships', label: '會員套餐', mark: '會' },
+          { path: '/admin/tasks', label: '任務記錄', mark: '任' },
+          { path: '/admin/content', label: '內容管理', mark: '文' },
+          { path: '/admin/settings', label: '系統設定', mark: '設' }
+        ];
+
+        const metrics = [
+          { label: '已上線工具', value: '3', note: '含圖片背景移除' },
+          { label: '今日任務', value: '128', note: '成功率 96.8%' },
+          { label: '會員套餐', value: '3', note: 'PRO+ 主推' },
+          { label: '待處理警報', value: '2', note: '需排查失敗任務' }
+        ];
+
+        const routeCards = navItems.slice(1).map((item) => ({
+          ...item,
+          description: routeDefinitions[item.path].description
+        }));
+
+        const inputDataTypes = [
+          { value: 'image', label: 'image' },
+          { value: 'video', label: 'video' },
+          { value: 'number', label: '數字' },
+          { value: 'textarea', label: '多行文字' },
+          { value: 'text', label: '單行文字' },
+          { value: 'select', label: '下拉列表' }
+        ];
+
+        const membershipPlans = [
+          { key: 'pro', name: 'PRO', price: 'US$9.99/月', dailyUses: '50', credits: '300', priority: 'Standard', status: '啟用' },
+          { key: 'pro_plus', name: 'PRO+', price: 'US$29.99/月', dailyUses: '300', credits: '1500', priority: 'High', status: '啟用' },
+          { key: 'pro_max', name: 'PRO MAX', price: 'US$49.99/月', dailyUses: '不限', credits: '5000', priority: 'Highest', status: '啟用' }
+        ];
+
+        const recentTasks = [
+          { id: 'task-1', name: '圖片背景移除', status: '成功', time: '2 分鐘前' },
+          { id: 'task-2', name: '圖片高清修復', status: '處理中', time: '8 分鐘前' },
+          { id: 'task-3', name: '消除筆', status: '失敗待排查', time: '18 分鐘前' }
+        ];
+
+        const currentPage = computed(() => routeDefinitions[currentRoute.value] || routeDefinitions['/admin']);
+        const activeCategories = computed(() => categories.value.filter((category) => category.status === 'active'));
+        const filteredTools = computed(() => {
+          const keyword = toolKeyword.value.trim().toLowerCase();
+          if (!keyword) return tools.value;
+
+          return tools.value.filter((tool) => (
+            tool.name.toLowerCase().includes(keyword) ||
+            String(tool.categoryName || '').toLowerCase().includes(keyword) ||
+            tool.workflowId.toLowerCase().includes(keyword) ||
+            String(tool.shortDescription || tool.description || '').toLowerCase().includes(keyword)
+          ));
+        });
+
+        function normalizeRoute(pathname) {
+          const trimmedPath = pathname.replace(/\/$/, '') || '/admin';
+          return routeDefinitions[trimmedPath] ? trimmedPath : '/admin';
+        }
+
+        function navigateTo(path) {
+          currentRoute.value = normalizeRoute(path);
+          window.history.pushState({}, '', currentRoute.value);
+        }
+
+        function isActiveRoute(path) {
+          return currentRoute.value === path;
+        }
+
+        function handlePrimaryAction() {
+          if (currentRoute.value === '/admin/workflows') {
+            saveToolDraft();
+            return;
+          }
+
+          if (currentRoute.value === '/admin/categories') {
+            resetCategoryForm();
+            return;
+          }
+
+          openToolForm();
+        }
+
+        function createInputNode(overrides = {}) {
+          return {
+            uid: `node-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            nodeId: '',
+            fieldName: '',
+            key: '',
+            dataType: 'image',
+            label: '',
+            placeholder: '',
+            defaultValue: '',
+            required: true,
+            options: [],
+            ...overrides
+          };
+        }
+
+        function createNodeOption(label = '', value = '') {
+          return {
+            uid: `option-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            label,
+            value
+          };
+        }
+
+        function createEmptyToolForm() {
+          return {
+            id: '',
+            name: '',
+            key: '',
+            categoryId: 'image',
+            previewImageUrl: '',
+            workflowId: '',
+            instanceType: 'default',
+            description: '',
+            inputNodes: [
+              createInputNode({
+                dataType: 'image',
+                fieldName: 'image',
+                key: 'sourceImage',
+                label: '上傳圖片',
+                placeholder: '資料類型使用 image；影片上傳請選 video'
+              })
+            ]
+          };
+        }
+
+        function createEmptyCategoryForm() {
+          return {
+            id: '',
+            name: '',
+            categoryKey: '',
+            sortOrder: 100,
+            status: 'active'
+          };
+        }
+
+        function cloneInputNode(node) {
+          return createInputNode({
+            ...node,
+            options: (node.options || []).map((option) => createNodeOption(option.label, option.value))
+          });
+        }
+
+        function openToolForm(tool) {
+          if (tool) {
+            toolForm.value = {
+              id: tool.id,
+              name: tool.name,
+              key: tool.toolKey || tool.key,
+              categoryId: tool.categoryId || 'image',
+              previewImageUrl: tool.previewImageUrl || '',
+              workflowId: tool.workflowId === '待配置' ? '' : tool.workflowId,
+              instanceType: tool.instanceType || 'default',
+              description: tool.shortDescription || tool.description || '',
+              inputNodes: (tool.inputNodes || []).map(cloneInputNode)
+            };
+          } else {
+            toolForm.value = createEmptyToolForm();
+          }
+
+          navigateTo('/admin/workflows');
+        }
+
+        function editCategory(category) {
+          categoryForm.value = {
+            id: category.id,
+            name: category.name,
+            categoryKey: category.categoryKey || category.key,
+            sortOrder: category.sortOrder,
+            status: category.status || 'active'
+          };
+        }
+
+        function resetCategoryForm() {
+          categoryForm.value = createEmptyCategoryForm();
+        }
+
+        function addInputNode() {
+          toolForm.value.inputNodes.push(createInputNode({
+            dataType: 'text',
+            fieldName: 'value',
+            key: `field${toolForm.value.inputNodes.length + 1}`,
+            label: `輸入項 ${toolForm.value.inputNodes.length + 1}`
+          }));
+        }
+
+        function removeInputNode(uid) {
+          if (toolForm.value.inputNodes.length === 1) return;
+          toolForm.value.inputNodes = toolForm.value.inputNodes.filter((node) => node.uid !== uid);
+        }
+
+        function addNodeOption(node) {
+          node.options.push(createNodeOption(`選項 ${node.options.length + 1}`, `option_${node.options.length + 1}`));
+        }
+
+        function removeNodeOption(node, uid) {
+          node.options = node.options.filter((option) => option.uid !== uid);
+        }
+
+        async function loadTools() {
+          const response = await fetch('/api/admin/tools');
+          const payload = await response.json();
+
+          if (!payload.success) {
+            throw new Error(payload.message || '工具列表載入失敗');
+          }
+
+          tools.value = payload.data.map((tool) => ({
+            ...tool,
+            nodeId: tool.inputNodes?.[0]?.nodeId || '待配置'
+          }));
+        }
+
+        async function loadCategories() {
+          const response = await fetch('/api/admin/categories');
+          const payload = await response.json();
+
+          if (!payload.success) {
+            throw new Error(payload.message || '分類列表載入失敗');
+          }
+
+          categories.value = payload.data;
+
+          if (!toolForm.value.categoryId && categories.value.length) {
+            toolForm.value.categoryId = categories.value[0].id;
+          }
+        }
+
+        async function saveCategory() {
+          const payload = {
+            id: categoryForm.value.id,
+            name: categoryForm.value.name,
+            categoryKey: categoryForm.value.categoryKey,
+            sortOrder: categoryForm.value.sortOrder,
+            status: categoryForm.value.status
+          };
+
+          const response = await fetch('/api/admin/categories', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const result = await response.json();
+
+          if (!result.success) {
+            window.alert(result.message || '分類儲存失敗');
+            return;
+          }
+
+          await loadCategories();
+          resetCategoryForm();
+        }
+
+        async function saveToolDraft() {
+          const payload = {
+            id: toolForm.value.id,
+            name: toolForm.value.name,
+            toolKey: toolForm.value.key,
+            slug: toolForm.value.key,
+            categoryId: toolForm.value.categoryId,
+            shortDescription: toolForm.value.description,
+            previewImageUrl: toolForm.value.previewImageUrl,
+            workflowId: toolForm.value.workflowId,
+            instanceType: toolForm.value.instanceType,
+            status: toolForm.value.id ? 'active' : 'draft',
+            sortOrder: 100,
+            inputNodes: toolForm.value.inputNodes.map((node) => ({
+              nodeId: node.nodeId,
+              fieldName: node.fieldName,
+              key: node.key,
+              dataType: node.dataType,
+              label: node.label,
+              placeholder: node.placeholder,
+              defaultValue: node.defaultValue,
+              required: node.required,
+              options: node.options
+            }))
+          };
+
+          const response = await fetch('/api/admin/tools', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const result = await response.json();
+
+          if (!result.success) {
+            window.alert(result.message || '工具配置儲存失敗');
+            return;
+          }
+
+          await loadTools();
+          navigateTo('/admin/tools');
+        }
+
+        onMounted(() => {
+          Promise.all([
+            loadCategories(),
+            loadTools()
+          ]).catch((error) => {
+            window.alert(error.message || '後台資料載入失敗');
+          });
+
+          window.addEventListener('popstate', () => {
+            currentRoute.value = normalizeRoute(window.location.pathname);
+          });
+        });
+
+        return {
+          currentPage,
+          currentRoute,
+          activeCategories,
+          categories,
+          categoryForm,
+          filteredTools,
+          addInputNode,
+          addNodeOption,
+          handlePrimaryAction,
+          inputDataTypes,
+          isActiveRoute,
+          membershipPlans,
+          metrics,
+          navItems,
+          navigateTo,
+          openToolForm,
+          editCategory,
+          removeInputNode,
+          removeNodeOption,
+          resetCategoryForm,
+          recentTasks,
+          routeCards,
+          saveCategory,
+          saveToolDraft,
+          toolForm,
+          toolKeyword,
+          tools
+        };
+      }
+    }).mount('#admin-app');
+  </script>
+</body>
+</html>

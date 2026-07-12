@@ -1,0 +1,18 @@
+services:
+  runninghub-app:
+    build:
+      context: .
+    container_name: runninghub-app
+    env_file:
+      - .env
+    environment:
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./server.js:/app/server.js:ro
+      - ./src:/app/src:ro
+      - ./frontend:/app/frontend:ro
+      - ./package.json:/app/package.json:ro
+      - ./data:/app/data
+    restart: unless-stopped

@@ -5,10 +5,13 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node --check server.js && sed -n '/<script>/,/<\\/script>/p' frontend/index.html | sed '1d;$d' | node --check"
+    "test": "node --check server.js && node --check src/database.js && node --check src/toolRepository.js && node --check src/categoryRepository.js && sed -n '/<script>/,/<\\/script>/p' frontend/index.html | sed '1d;$d' | node --check && sed -n '/<script>/,/<\\/script>/p' frontend/admin.html | sed '1d;$d' | node --check"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs"
+  "type": "commonjs",
+  "dependencies": {
+    "better-sqlite3": "^12.11.1"
+  }
 }
