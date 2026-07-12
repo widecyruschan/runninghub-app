@@ -59,6 +59,9 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 15;
       border-bottom: 1px solid rgba(217, 226, 236, 0.9);
       background: rgba(255, 255, 255, 0.92);
       padding: 0 clamp(20px, 4vw, 60px);
@@ -96,9 +99,157 @@
       font-weight: 600;
     }
 
-    .nav-links a {
+    .nav-links a,
+    .nav-trigger {
       color: inherit;
       text-decoration: none;
+    }
+
+    .nav-menu {
+      position: relative;
+      display: flex;
+      align-items: center;
+      min-height: 70px;
+    }
+
+    .nav-trigger {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: transparent;
+      color: #334155;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 750;
+    }
+
+    .nav-chevron {
+      color: #64748b;
+      font-size: 13px;
+    }
+
+    .tool-dropdown {
+      position: fixed;
+      left: clamp(20px, 4vw, 60px);
+      right: clamp(20px, 4vw, 60px);
+      top: 62px;
+      z-index: 30;
+      display: none;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 42px;
+      border: 1px solid #cfd9e5;
+      border-radius: 8px;
+      background: #ffffff;
+      padding: 28px 34px 34px;
+      box-shadow: 0 28px 80px rgba(15, 23, 42, 0.18);
+    }
+
+    .nav-menu:hover .tool-dropdown,
+    .nav-menu:focus-within .tool-dropdown {
+      display: grid;
+    }
+
+    .dropdown-column {
+      display: grid;
+      align-content: start;
+      gap: 14px;
+      min-width: 0;
+    }
+
+    .dropdown-heading {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      color: #64748b;
+      font-size: 14px;
+      font-weight: 850;
+    }
+
+    .dropdown-icon {
+      width: 20px;
+      color: #91a0b4;
+      text-align: center;
+    }
+
+    .dropdown-link {
+      width: 100%;
+      min-height: 28px;
+      background: transparent;
+      color: #25364d;
+      cursor: pointer;
+      overflow-wrap: anywhere;
+      text-align: left;
+      font-size: 17px;
+      line-height: 1.35;
+      font-weight: 700;
+    }
+
+    .dropdown-link:hover {
+      color: var(--accent);
+    }
+
+    .dropdown-link.is-placeholder {
+      color: #7a8798;
+      cursor: default;
+    }
+
+    .tool-page {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 244px minmax(0, 1fr);
+      min-height: calc(100vh - 70px);
+    }
+
+    .tool-sidebar {
+      border-right: 1px solid rgba(217, 226, 236, 0.9);
+      background: #ffffff;
+      padding: 28px 14px 18px;
+    }
+
+    .sidebar-inner {
+      position: sticky;
+      top: 98px;
+      display: grid;
+      gap: 28px;
+    }
+
+    .sidebar-section {
+      display: grid;
+      gap: 9px;
+    }
+
+    .sidebar-title {
+      color: #8a97a8;
+      font-size: 12px;
+      font-weight: 850;
+      padding: 0 12px;
+    }
+
+    .sidebar-link {
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-radius: 7px;
+      background: transparent;
+      color: #516176;
+      cursor: pointer;
+      padding: 0 12px;
+      text-align: left;
+      font-size: 14px;
+      font-weight: 750;
+    }
+
+    .sidebar-link:hover,
+    .sidebar-link.is-active {
+      background: #eef5ff;
+      color: #2f6bc5;
+    }
+
+    .sidebar-icon {
+      width: 18px;
+      color: inherit;
+      text-align: center;
     }
 
     .hero {
@@ -110,6 +261,10 @@
       gap: clamp(36px, 6vw, 72px);
       align-items: center;
       padding: clamp(42px, 8vw, 78px) clamp(20px, 4vw, 30px) 60px;
+    }
+
+    .tool-hero {
+      width: min(1180px, 100%);
     }
 
     .hero-copy {
@@ -716,6 +871,14 @@
         align-items: start;
       }
 
+      .tool-page {
+        grid-template-columns: 1fr;
+      }
+
+      .tool-sidebar {
+        display: none;
+      }
+
       .marketplace-header {
         grid-template-columns: 1fr;
       }
@@ -740,6 +903,24 @@
       .nav-links {
         gap: 14px;
         font-size: 13px;
+      }
+
+      .nav-menu {
+        min-height: 36px;
+      }
+
+      .tool-dropdown {
+        left: 12px;
+        right: 12px;
+        top: 64px;
+        grid-template-columns: 1fr;
+        max-height: calc(100vh - 84px);
+        overflow: auto;
+        padding: 22px;
+      }
+
+      .dropdown-link {
+        font-size: 15px;
       }
 
       .hero {
@@ -795,7 +976,33 @@
           <span>{{ toolTitle }}</span>
         </div>
         <nav class="nav-links" aria-label="頁面導航">
-          <a href="/" @click.prevent="goToMarketplace">工具</a>
+          <div class="nav-menu">
+            <button class="nav-trigger" type="button" @click="goToMarketplace">
+              工具 <span class="nav-chevron" aria-hidden="true">⌄</span>
+            </button>
+            <div class="tool-dropdown" aria-label="工具分類選單">
+              <section
+                v-for="group in toolMenuGroups"
+                :key="group.key"
+                class="dropdown-column"
+              >
+                <h2 class="dropdown-heading">
+                  <span class="dropdown-icon" aria-hidden="true">{{ group.icon }}</span>
+                  {{ group.name }}
+                </h2>
+                <button
+                  v-for="tool in group.tools"
+                  :key="`${group.key}-${tool.name}`"
+                  type="button"
+                  class="dropdown-link"
+                  :class="{ 'is-placeholder': !tool.slug }"
+                  @click="openMenuTool(tool)"
+                >
+                  {{ tool.name }}
+                </button>
+              </section>
+            </div>
+          </div>
           <a href="#faq">FAQ</a>
           <a href="#privacy">隱私</a>
         </nav>
@@ -865,166 +1072,191 @@
         <div v-else class="market-empty">暫時沒有符合條件的工具。</div>
       </section>
 
-      <section v-else class="hero">
-        <div class="hero-copy">
-          <p class="eyebrow">{{ toolCategoryLabel }}</p>
-          <h1 class="hero-title">{{ toolTitle }}</h1>
-          <p class="hero-description">{{ toolDescription }}</p>
-          <div class="tag-list" aria-label="適用場景">
-            <span class="tag">{{ toolCategoryLabel }}</span>
-            <span class="tag">RunningHub</span>
-            <span class="tag">動態配置</span>
-            <span class="tag">{{ estimatedTimeLabel }}</span>
-          </div>
-        </div>
-
-        <section class="tool-card" :aria-label="`${toolTitle} 操作區`">
-          <div class="workspace">
-            <div class="filebar">
-                <div>
-                  <div class="file-name">{{ currentFileName }}</div>
-                  <div class="file-meta">{{ currentFileMeta }}</div>
-              </div>
-              <div class="file-actions">
-                <button
-                  class="icon-button"
-                  type="button"
-                  title="重設"
-                  aria-label="重設"
-                  @click="resetTool"
-                >
-                  ↺
-                </button>
-                <button
-                  class="primary-button"
-                  type="button"
-                  :disabled="!canExecute || isExecuting"
-                  @click="executeWorkflow"
-                >
-                  ✨ {{ isExecuting ? '處理中' : '開始處理' }}
-                </button>
-              </div>
-            </div>
-
-            <div class="panel-grid">
-              <div
-                class="image-stage"
-                :class="{ 'is-empty': !displayImageUrl }"
-                :style="stageBackgroundStyle"
+      <div v-else class="tool-page">
+        <aside class="tool-sidebar" aria-label="工具側邊欄">
+          <div class="sidebar-inner">
+            <section
+              v-for="section in sidebarSections"
+              :key="section.title"
+              class="sidebar-section"
+            >
+              <h2 class="sidebar-title">{{ section.title }}</h2>
+              <button
+                v-for="item in section.items"
+                :key="`${section.title}-${item.name}`"
+                type="button"
+                class="sidebar-link"
+                :class="{ 'is-active': item.slug && item.slug === currentToolSlug }"
+                @click="openMenuTool(item)"
               >
-                <label
-                  v-if="!displayImageUrl"
-                  class="upload-target"
-                  :class="{ 'is-dragover': isDragover }"
-                  @dragover.prevent="isDragover = true"
-                  @dragleave="isDragover = false"
-                  @drop.prevent="handleDrop"
-                >
-                  <span class="upload-icon" aria-hidden="true">⇧</span>
-                  <span class="upload-title">{{ uploadFieldLabel }}</span>
-                  <span class="upload-hint">{{ uploadFieldPlaceholder }}</span>
-                  <input
-                    ref="fileInput"
-                    class="hidden-input"
-                    type="file"
-                    :accept="uploadAccept"
-                    @change="handleFileSelect"
-                  >
-                </label>
-                <img
-                  v-else
-                  class="preview-image"
-                  :src="displayImageUrl"
-                  :alt="resultImageUrl ? '工具處理結果' : '待處理圖片預覽'"
-                >
-              </div>
+                <span class="sidebar-icon" aria-hidden="true">{{ item.icon }}</span>
+                {{ item.name }}
+              </button>
+            </section>
+          </div>
+        </aside>
 
-              <aside class="settings-panel">
-                <h2 class="settings-title">背景</h2>
-                <button
-                  v-for="option in backgroundOptions"
-                  :key="option.value"
-                  type="button"
-                  class="background-option"
-                  :class="{ 'is-active': selectedBackground === option.value }"
-                  @click="selectedBackground = option.value"
-                >
-                  <span
-                    class="swatch"
-                    :class="option.value === 'transparent' ? 'swatch-transparent' : ''"
-                    :style="option.swatchStyle"
-                    aria-hidden="true"
-                  ></span>
-                  {{ option.label }}
-                </button>
-
-                <div v-if="selectedBackground === 'custom'" class="custom-color-row">
-                  <input v-model="customBackgroundColor" type="color" aria-label="自訂背景顏色">
-                  <span>{{ customBackgroundColor }}</span>
-                </div>
-
-                <button
-                  class="download-button"
-                  type="button"
-                  :disabled="!resultImageUrl"
-                  @click="downloadResult"
-                >
-                  ⇩ 下载 PNG
-                </button>
-
-                <button class="secondary-button" type="button" @click="openFileDialog">
-                  ⊕ 上傳新檔案
-                </button>
-
-                <div v-if="statusMessage" class="status-box" :class="statusClass">
-                  {{ statusMessage }}
-                </div>
-
-                <div v-if="dynamicInputFields.length" class="dynamic-field-list">
-                  <div
-                    v-for="field in dynamicInputFields"
-                    :key="field.key"
-                    class="dynamic-field"
-                  >
-                    <label :for="`field-${field.key}`">{{ field.label || field.key }}</label>
-                    <textarea
-                      v-if="field.dataType === 'textarea'"
-                      :id="`field-${field.key}`"
-                      v-model="formValues[field.key]"
-                      :placeholder="field.placeholder"
-                    ></textarea>
-                    <select
-                      v-else-if="field.dataType === 'select'"
-                      :id="`field-${field.key}`"
-                      v-model="formValues[field.key]"
-                    >
-                      <option
-                        v-for="option in field.options"
-                        :key="option.value"
-                        :value="option.value"
-                      >
-                        {{ option.label || option.value }}
-                      </option>
-                    </select>
-                    <input
-                      v-else
-                      :id="`field-${field.key}`"
-                      v-model="formValues[field.key]"
-                      :type="field.dataType === 'number' ? 'number' : 'text'"
-                      :placeholder="field.placeholder"
-                    >
-                  </div>
-                </div>
-
-                <div class="notice">
-                  <span aria-hidden="true">♢</span>
-                  <span>工具資料由後台配置載入；檔案經由本地後端代理提交到 RunningHub。</span>
-                </div>
-              </aside>
+        <section class="hero tool-hero">
+          <div class="hero-copy">
+            <p class="eyebrow">{{ toolCategoryLabel }}</p>
+            <h1 class="hero-title">{{ toolTitle }}</h1>
+            <p class="hero-description">{{ toolDescription }}</p>
+            <div class="tag-list" aria-label="適用場景">
+              <span class="tag">{{ toolCategoryLabel }}</span>
+              <span class="tag">RunningHub</span>
+              <span class="tag">動態配置</span>
+              <span class="tag">{{ estimatedTimeLabel }}</span>
             </div>
           </div>
+
+          <section class="tool-card" :aria-label="`${toolTitle} 操作區`">
+            <div class="workspace">
+              <div class="filebar">
+                  <div>
+                    <div class="file-name">{{ currentFileName }}</div>
+                    <div class="file-meta">{{ currentFileMeta }}</div>
+                </div>
+                <div class="file-actions">
+                  <button
+                    class="icon-button"
+                    type="button"
+                    title="重設"
+                    aria-label="重設"
+                    @click="resetTool"
+                  >
+                    ↺
+                  </button>
+                  <button
+                    class="primary-button"
+                    type="button"
+                    :disabled="!canExecute || isExecuting"
+                    @click="executeWorkflow"
+                  >
+                    ✨ {{ isExecuting ? '處理中' : '開始處理' }}
+                  </button>
+                </div>
+              </div>
+
+              <div class="panel-grid">
+                <div
+                  class="image-stage"
+                  :class="{ 'is-empty': !displayImageUrl }"
+                  :style="stageBackgroundStyle"
+                >
+                  <label
+                    v-if="!displayImageUrl"
+                    class="upload-target"
+                    :class="{ 'is-dragover': isDragover }"
+                    @dragover.prevent="isDragover = true"
+                    @dragleave="isDragover = false"
+                    @drop.prevent="handleDrop"
+                  >
+                    <span class="upload-icon" aria-hidden="true">⇧</span>
+                    <span class="upload-title">{{ uploadFieldLabel }}</span>
+                    <span class="upload-hint">{{ uploadFieldPlaceholder }}</span>
+                    <input
+                      ref="fileInput"
+                      class="hidden-input"
+                      type="file"
+                      :accept="uploadAccept"
+                      @change="handleFileSelect"
+                    >
+                  </label>
+                  <img
+                    v-else
+                    class="preview-image"
+                    :src="displayImageUrl"
+                    :alt="resultImageUrl ? '工具處理結果' : '待處理圖片預覽'"
+                  >
+                </div>
+
+                <aside class="settings-panel">
+                  <h2 class="settings-title">背景</h2>
+                  <button
+                    v-for="option in backgroundOptions"
+                    :key="option.value"
+                    type="button"
+                    class="background-option"
+                    :class="{ 'is-active': selectedBackground === option.value }"
+                    @click="selectedBackground = option.value"
+                  >
+                    <span
+                      class="swatch"
+                      :class="option.value === 'transparent' ? 'swatch-transparent' : ''"
+                      :style="option.swatchStyle"
+                      aria-hidden="true"
+                    ></span>
+                    {{ option.label }}
+                  </button>
+
+                  <div v-if="selectedBackground === 'custom'" class="custom-color-row">
+                    <input v-model="customBackgroundColor" type="color" aria-label="自訂背景顏色">
+                    <span>{{ customBackgroundColor }}</span>
+                  </div>
+
+                  <button
+                    class="download-button"
+                    type="button"
+                    :disabled="!resultImageUrl"
+                    @click="downloadResult"
+                  >
+                    ⇩ 下载 PNG
+                  </button>
+
+                  <button class="secondary-button" type="button" @click="openFileDialog">
+                    ⊕ 上傳新檔案
+                  </button>
+
+                  <div v-if="statusMessage" class="status-box" :class="statusClass">
+                    {{ statusMessage }}
+                  </div>
+
+                  <div v-if="dynamicInputFields.length" class="dynamic-field-list">
+                    <div
+                      v-for="field in dynamicInputFields"
+                      :key="field.key"
+                      class="dynamic-field"
+                    >
+                      <label :for="`field-${field.key}`">{{ field.label || field.key }}</label>
+                      <textarea
+                        v-if="field.dataType === 'textarea'"
+                        :id="`field-${field.key}`"
+                        v-model="formValues[field.key]"
+                        :placeholder="field.placeholder"
+                      ></textarea>
+                      <select
+                        v-else-if="field.dataType === 'select'"
+                        :id="`field-${field.key}`"
+                        v-model="formValues[field.key]"
+                      >
+                        <option
+                          v-for="option in field.options"
+                          :key="option.value"
+                          :value="option.value"
+                        >
+                          {{ option.label || option.value }}
+                        </option>
+                      </select>
+                      <input
+                        v-else
+                        :id="`field-${field.key}`"
+                        v-model="formValues[field.key]"
+                        :type="field.dataType === 'number' ? 'number' : 'text'"
+                        :placeholder="field.placeholder"
+                      >
+                    </div>
+                  </div>
+
+                  <div class="notice">
+                    <span aria-hidden="true">♢</span>
+                    <span>工具資料由後台配置載入；檔案經由本地後端代理提交到 RunningHub。</span>
+                  </div>
+                </aside>
+              </div>
+            </div>
+          </section>
         </section>
-      </section>
+      </div>
 
       <div v-if="isExecuting" class="loading-overlay">
         <div class="loading-dialog" role="status" aria-live="polite">
@@ -1052,6 +1284,32 @@
     const MAX_FILE_SIZE = 10 * 1024 * 1024;
     const POLLING_INTERVAL = 3000;
     const MAX_POLLING_COUNT = 120;
+    const CATEGORY_FALLBACKS = [
+      {
+        key: 'image',
+        name: '圖像',
+        icon: '▧',
+        tools: ['Image Generator', 'AI Image Variations', 'Photo Restoration', 'Image Sharpener', 'Colorize Photo', 'Uncrop Image', 'AI Photo Studio', 'AI Logo Maker', 'Image Enhance', 'Remove Background', 'Replace Background', 'Photo Face Enhancer']
+      },
+      {
+        key: 'video',
+        name: '視頻',
+        icon: '▷',
+        tools: ['Colorize Video', 'Change Video FPS', 'Video Speed Controller', 'Enhance Video Quality', 'Video Face Enhancer', 'Convert Image to Video', 'AI Hugging Generator', 'AI Video Generator', 'AI Animation Generator', 'Text to Video AI', 'AI Gif Generator']
+      },
+      {
+        key: 'audio',
+        name: '音頻',
+        icon: '♬',
+        tools: ['Enhance Audio Quality']
+      },
+      {
+        key: 'text',
+        name: '文本',
+        icon: '✎',
+        tools: ['Idea Generator', 'Blog Post Generator', 'Humanize AI text', 'Brand Name Generator', 'AI Marketer', 'AI Quote Generator', 'YouTube Script Writer', 'TikTok Scenario AI', 'Text Summarizer', 'Joke Generator', 'AI Poetry']
+      }
+    ];
 
     const app = createApp({
       setup() {
@@ -1083,6 +1341,60 @@
         });
 
         const activeCategories = computed(() => categories.value.filter((category) => category.status !== 'inactive'));
+
+        const toolMenuGroups = computed(() => CATEGORY_FALLBACKS.map((fallback) => {
+          const category = activeCategories.value.find((item) => (
+            item.categoryKey === fallback.key || item.id === fallback.key
+          ));
+          const matchedTools = marketplaceTools.value.filter((tool) => (
+            tool.categoryKey === fallback.key || tool.categoryId === fallback.key
+          ));
+          const fallbackTools = fallback.tools.map((name) => ({ name, slug: '' }));
+          const tools = matchedTools.length
+            ? matchedTools.map((tool) => ({ name: tool.name, slug: tool.slug, categoryKey: fallback.key }))
+            : fallbackTools;
+
+          return {
+            key: fallback.key,
+            name: category?.name || fallback.name,
+            icon: fallback.icon,
+            tools
+          };
+        }));
+
+        const sidebarSections = computed(() => [
+          {
+            title: '最近',
+            items: [
+              {
+                name: toolConfig.value?.name || '圖片背景移除',
+                slug: toolConfig.value?.slug || getCurrentToolSlug(),
+                icon: '◷'
+              }
+            ]
+          },
+          {
+            title: '工具',
+            items: [
+              { name: '所有 AI 工具', slug: '', icon: '▦', action: 'marketplace' },
+              ...toolMenuGroups.value.flatMap((group) => (
+                group.tools
+                  .filter((tool) => tool.slug)
+                  .slice(0, 6)
+                  .map((tool) => ({ ...tool, icon: group.icon }))
+              ))
+            ]
+          },
+          {
+            title: '主要工具',
+            items: [
+              { name: '編輯視頻', slug: '', icon: '▷' },
+              { name: '編輯圖片', slug: '', icon: '▧' },
+              { name: '價格', slug: '', icon: '$' },
+              { name: 'API', slug: '', icon: '⌁' }
+            ]
+          }
+        ]);
 
         const filteredTools = computed(() => {
           const keyword = toolKeyword.value.trim().toLowerCase();
@@ -1274,6 +1586,7 @@
           const toolMatch = pathname.match(/^\/tools\/([^/]+)$/);
           return toolMatch ? decodeURIComponent(toolMatch[1]) : 'remove-background';
         };
+        const currentToolSlug = computed(() => getCurrentToolSlug());
 
         const loadMarketplaceData = async () => {
           isLoadingMarketplace.value = true;
@@ -1315,6 +1628,16 @@
             console.error('工具配置載入失敗:', error);
             setStatus(error.message || '工具配置載入失敗', 'error');
           });
+        };
+
+        const openMenuTool = (tool) => {
+          if (tool?.action === 'marketplace') {
+            goToMarketplace();
+            return;
+          }
+
+          if (!tool?.slug) return;
+          openTool(tool);
         };
 
         const goToMarketplace = () => {
@@ -1511,6 +1834,7 @@
             return;
           }
 
+          loadMarketplaceData();
           loadToolConfig().catch((error) => {
             console.error('工具配置載入失敗:', error);
             setStatus(error.message || '工具配置載入失敗', 'error');
@@ -1533,10 +1857,13 @@
           selectedCategory,
           currentFileName,
           currentFileMeta,
+          currentToolSlug,
           toolKeyword,
           toolTitle,
+          toolMenuGroups,
           toolDescription,
           toolCategoryLabel,
+          sidebarSections,
           uploadFieldLabel,
           uploadFieldPlaceholder,
           uploadAccept,
@@ -1552,6 +1879,7 @@
           handleFileSelect,
           handleDrop,
           openTool,
+          openMenuTool,
           goToMarketplace,
           openFileDialog,
           resetTool,
