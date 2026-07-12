@@ -40,6 +40,10 @@ function migrateDatabase(database) {
       workflow_id TEXT NOT NULL,
       instance_type TEXT NOT NULL DEFAULT 'default',
       status TEXT NOT NULL DEFAULT 'draft',
+      last_test_status TEXT NOT NULL DEFAULT 'untested',
+      last_test_task_id TEXT NOT NULL DEFAULT '',
+      last_test_error TEXT NOT NULL DEFAULT '',
+      last_tested_at TEXT,
       sort_order INTEGER NOT NULL DEFAULT 100,
       input_nodes_json TEXT NOT NULL DEFAULT '[]',
       output_config_json TEXT NOT NULL DEFAULT '{}',
@@ -82,6 +86,10 @@ function migrateDatabase(database) {
 
   ensureColumn(database, 'tools', 'category_id', "TEXT NOT NULL DEFAULT 'image'");
   ensureColumn(database, 'tools', 'preview_image_url', "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(database, 'tools', 'last_test_status', "TEXT NOT NULL DEFAULT 'untested'");
+  ensureColumn(database, 'tools', 'last_test_task_id', "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(database, 'tools', 'last_test_error', "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(database, 'tools', 'last_tested_at', 'TEXT');
   seedDefaultCategories(database);
 
   database.prepare(`

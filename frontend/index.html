@@ -683,7 +683,7 @@
                     ref="fileInput"
                     class="hidden-input"
                     type="file"
-                    accept="image/*"
+                    :accept="uploadAccept"
                     @change="handleFileSelect"
                   >
                 </label>
@@ -729,7 +729,7 @@
                 </button>
 
                 <button class="secondary-button" type="button" @click="openFileDialog">
-                  ⊕ 上傳新圖片
+                  ⊕ 上傳新檔案
                 </button>
 
                 <div v-if="statusMessage" class="status-box" :class="statusClass">
@@ -774,7 +774,7 @@
 
                 <div class="notice">
                   <span aria-hidden="true">♢</span>
-                  <span>工具資料由後台配置載入；圖片經由本地後端代理提交到 RunningHub。</span>
+                  <span>工具資料由後台配置載入；檔案經由本地後端代理提交到 RunningHub。</span>
                 </div>
               </aside>
             </div>
@@ -794,7 +794,7 @@
         ref="replacementFileInput"
         class="hidden-input"
         type="file"
-        accept="image/*"
+        :accept="uploadAccept"
         @change="handleFileSelect"
       >
     </main>
@@ -851,20 +851,20 @@
         });
 
         const currentFileMeta = computed(() => {
-          if (!uploadedFile.value) return 'JPG / PNG / WebP · 最大 10MB';
+          if (!uploadedFile.value) return uploadMetaHint.value;
 
           const sizeKb = Math.max(1, Math.round(uploadedFile.value.size / 1024));
-          const fileType = uploadedFile.value.type ? uploadedFile.value.type.replace('image/', '').toUpperCase() : 'IMAGE';
+          const fileType = uploadedFile.value.type ? uploadedFile.value.type.split('/').pop().toUpperCase() : 'FILE';
           return fileType + ' · ' + sizeKb + ' KB';
         });
 
         const displayImageUrl = computed(() => resultImageUrl.value || previewImageUrl.value);
-        const imageInputNode = computed(() => {
+        const uploadInputNode = computed(() => {
           const inputNodes = toolConfig.value?.inputNodes || [];
-          return inputNodes.find((node) => node.dataType === 'image') || inputNodes[0] || null;
+          return inputNodes.find((node) => node.dataType === 'image' || node.dataType === 'video') || null;
         });
 
-        const dynamicInputFields = computed(() => (toolConfig.value?.inputNodes || []).filter((node) => node.dataType !== 'image'));
+        const dynamicInputFields = computed(() => (toolConfig.value?.inputNodes || []).filter((node) => node.key !== uploadInputNode.value?.key));
         const toolTitle = computed(() => toolConfig.value?.name || '圖片背景移除');
         const toolDescription = computed(() => (
           toolConfig.value?.shortDescription
@@ -876,10 +876,12 @@
           const seconds = toolConfig.value?.estimatedSeconds;
           return seconds ? `約 ${seconds} 秒` : 'AI 工具';
         });
-        const uploadFieldLabel = computed(() => imageInputNode.value?.label || '上傳圖片');
-        const uploadFieldPlaceholder = computed(() => imageInputNode.value?.placeholder || '支援 JPG、PNG、WebP，單張最大 10MB');
+        const uploadFieldLabel = computed(() => uploadInputNode.value?.label || '上傳檔案');
+        const uploadFieldPlaceholder = computed(() => uploadInputNode.value?.placeholder || uploadMetaHint.value);
+        const uploadAccept = computed(() => (uploadInputNode.value?.dataType === 'video' ? 'video/*' : 'image/*'));
+        const uploadMetaHint = computed(() => (uploadInputNode.value?.dataType === 'video' ? 'MP4 / WebM / MOV · 最大 10MB' : 'JPG / PNG / WebP · 最大 10MB'));
 
-        const canExecute = computed(() => Boolean(uploadedFile.value) && !isExecuting.value);
+        const canExecute = computed(() => (!uploadInputNode.value || Boolean(uploadedFile.value)) && !isExecuting.value);
 
         const stageBackgroundStyle = computed(() => {
           if (selectedBackground.value === 'white') {
@@ -907,13 +909,17 @@
 
         const handleDrop = (event) => {
           isDragover.value = false;
-          const file = Array.from(event.dataTransfer.files).find(item => item.type.startsWith('image/'));
+          const expectedPrefix = uploadInputNode.value?.dataType === 'video' ? 'video/' : 'image/';
+          const file = Array.from(event.dataTransfer.files).find(item => item.type.startsWith(expectedPrefix));
           if (file) setImageFile(file);
         };
 
         const setImageFile = (file) => {
-          if (!file.type.startsWith('image/')) {
-            setStatus('請上傳圖片檔案', 'error');
+          const expectedPrefix = uploadInputNode.value?.dataType === 'video' ? 'video/' : 'image/';
+          const expectedLabel = uploadInputNode.value?.dataType === 'video' ? '影片' : '圖片';
+
+          if (!file.type.startsWith(expectedPrefix)) {
+            setStatus(`請上傳${expectedLabel}檔案`, 'error');
             return;
           }
 
@@ -925,13 +931,17 @@
           uploadedFile.value = file;
           resultImageUrl.value = '';
           latestTaskId.value = '';
-          setStatus('圖片已載入，可以開始處理', 'success');
+          setStatus(`${expectedLabel}已載入，可以開始處理`, 'success');
 
-          const reader = new FileReader();
-          reader.onload = (event) => {
-            previewImageUrl.value = event.target.result;
-          };
-          reader.readAsDataURL(file);
+          if (file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              previewImageUrl.value = event.target.result;
+            };
+            reader.readAsDataURL(file);
+          } else {
+            previewImageUrl.value = '';
+          }
         };
 
         const openFileDialog = () => {
@@ -1012,15 +1022,15 @@
         });
 
         const createToolTask = async () => {
-          if (!toolConfig.value || !imageInputNode.value) {
+          if (!toolConfig.value) {
             throw new Error('工具配置未載入，請刷新頁面後重試');
           }
 
-          const imageDataUrl = await readFileAsDataUrl(uploadedFile.value);
-          const inputValues = {
-            ...formValues.value,
-            [imageInputNode.value.key]: imageDataUrl
-          };
+          const inputValues = { ...formValues.value };
+
+          if (uploadInputNode.value) {
+            inputValues[uploadInputNode.value.key] = await readFileAsDataUrl(uploadedFile.value);
+          }
 
           const response = await axios.post(TOOLS_API_BASE_URL + '/' + encodeURIComponent(toolConfig.value.slug) + '/execute', {
             inputValues
@@ -1162,6 +1172,7 @@
           toolCategoryLabel,
           uploadFieldLabel,
           uploadFieldPlaceholder,
+          uploadAccept,
           displayImageUrl,
           resultImageUrl,
           isDragover,

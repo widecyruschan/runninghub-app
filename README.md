@@ -94,10 +94,12 @@ docker compose down
 - 统一工具执行 API
 - 本地 `execution_tasks` 任务记录
 - 本地任务状态轮询与输出查询 API
+- 后台工具测试执行面板
+- 测试成功后才允许工具上线
 
 ### 🔧 待配置
-- 后台测试执行与上线流程
 - 管理后台登录鉴权
+- 前台工具市场首页、分类筛选与搜索
 - 用户、积分、会员、批量与云盘能力
 
 ## 📝 API 配置
@@ -195,7 +197,8 @@ curl --location --request POST 'http://127.0.0.1:3000/api/runninghub/workflow/${
 - [x] 前台动态工具页基础
 - [x] 统一工具执行 API
 - [x] 本地任务记录
-- [ ] 后台测试执行与上线流程
+- [x] 后台测试执行与上线流程
+- [ ] 前台工具市场首页
 
 ### 第二阶段：完整版
 - [ ] Vue 3 + TypeScript + Vite 项目重构
@@ -502,3 +505,13 @@ A: 支持 JPG、PNG、WebP 等常见格式，单个文件最大 10MB。
 - **新增或修改文件**：修改 `.github/workflows/deploy.yml`；追加更新 `README.md` 會話總結。
 - **測試結果**：本地已通過 `npm ci` 和 `npm test`。
 - **後續建議**：推送後由 GitHub Actions 自動重新執行；若未來引入 Vite 前端工程化，再新增正式 build 步驟。
+
+### 2026-07-12 21:50 HKT - 後台工具測試執行與前台動態頁增強
+
+- **會話主要目的**：完成「後台工具測試執行 + 上線狀態」階段，並補強前台動態工具頁對不同輸入類型的支援。
+- **完成的主要任務**：新增工具測試狀態欄位 `last_test_status`、`last_test_task_id`、`last_test_error`、`last_tested_at`；新增 `POST /api/admin/tools/:id/test` 和 `PATCH /api/admin/tools/:id/status`；後台工具配置頁新增測試面板，可根據輸入節點動態填寫測試值、上傳測試圖片/影片、發起測試、輪詢本地任務並展示輸出；工具列表新增測試狀態和上線/停用操作；前台工具頁主上傳節點從圖片泛化為 image/video，上傳提示和 accept 會按配置切換。
+- **關鍵決策和解決方案**：後台測試執行復用統一工具執行 API；測試任務先返回本地 taskId，由後台頁面輪詢 `/api/tasks/:taskId` 和 `/api/tasks/:taskId/outputs`；只有 `last_test_status=success` 的工具才能切換為 `active`，測試失敗保留草稿或停用狀態。
+- **使用的技術棧**：Node.js 原生 HTTP、SQLite、better-sqlite3、Vue 3 CDN、Axios、RunningHub OpenAPI。
+- **新增或修改文件**：修改 `src/database.js`、`src/toolRepository.js`、`server.js`、`frontend/admin.html`、`frontend/index.html`、`docs/DEVELOPMENT_ROADMAP.md`、`README.md`。
+- **測試結果**：已通過 `npm test`；已用臨時 SQLite 和假 RunningHub 地址驗證未測試工具上線返回 `409 TOOL_TEST_REQUIRED`；測試執行網絡失敗時會寫回 `lastTestStatus=failed` 和可讀錯誤。
+- **後續建議**：下一步建議做前台工具市場首頁、分類篩選和搜索，讓前台從單工具頁升級為多工具入口。

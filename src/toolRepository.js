@@ -45,6 +45,16 @@ function createToolRepository(database) {
         ON tool_categories.id = tools.category_id
       WHERE tools.id = ? OR tools.slug = ?
     `),
+    findByLastTestTaskId: database.prepare(`
+      SELECT
+        tools.*,
+        tool_categories.name AS category_name,
+        tool_categories.category_key AS category_key
+      FROM tools
+      LEFT JOIN tool_categories
+        ON tool_categories.id = tools.category_id
+      WHERE tools.last_test_task_id = ?
+    `),
     listActive: database.prepare(`
       SELECT
         tools.*,
@@ -115,6 +125,23 @@ function createToolRepository(database) {
         updated_at = @updatedAt
       WHERE id = @id
     `),
+    updateTestResult: database.prepare(`
+      UPDATE tools
+      SET
+        last_test_status = @lastTestStatus,
+        last_test_task_id = @lastTestTaskId,
+        last_test_error = @lastTestError,
+        last_tested_at = @lastTestedAt,
+        updated_at = @updatedAt
+      WHERE id = @id
+    `),
+    updateStatus: database.prepare(`
+      UPDATE tools
+      SET
+        status = @status,
+        updated_at = @updatedAt
+      WHERE id = @id
+    `),
     count: database.prepare('SELECT COUNT(*) AS count FROM tools')
   };
 
@@ -141,6 +168,11 @@ function createToolRepository(database) {
     const record = statements.findByIdOrSlug.get(idOrSlug, idOrSlug);
     if (!record || record.status !== 'active') return null;
     return mapPublicToolRecord(record);
+  }
+
+  function getToolByLastTestTaskId(taskId) {
+    const record = statements.findByLastTestTaskId.get(taskId);
+    return record ? mapToolRecord(record) : null;
   }
 
   function saveTool(rawTool) {
@@ -174,6 +206,50 @@ function createToolRepository(database) {
 
       throw error;
     }
+
+    return getToolById(id);
+  }
+
+  function saveToolTestResult(id, testResult) {
+    const now = new Date().toISOString();
+
+    statements.updateTestResult.run({
+      id,
+      lastTestStatus: testResult.status,
+      lastTestTaskId: testResult.taskId || '',
+      lastTestError: testResult.error || '',
+      lastTestedAt: now,
+      updatedAt: now
+    });
+
+    return getToolById(id);
+  }
+
+  function updateToolStatus(id, status) {
+    if (!VALID_TOOL_STATUS.has(status)) {
+      throwValidationError('工具狀態不正確', 'TOOL_STATUS_INVALID');
+    }
+
+    const tool = getToolById(id);
+    if (!tool) {
+      const error = new Error('工具不存在');
+      error.statusCode = 404;
+      error.code = 'TOOL_NOT_FOUND';
+      throw error;
+    }
+
+    if (status === 'active' && tool.lastTestStatus !== 'success') {
+      const error = new Error('工具需測試成功後才能上線');
+      error.statusCode = 409;
+      error.code = 'TOOL_TEST_REQUIRED';
+      throw error;
+    }
+
+    statements.updateStatus.run({
+      id,
+      status,
+      updatedAt: new Date().toISOString()
+    });
 
     return getToolById(id);
   }
@@ -215,11 +291,14 @@ function createToolRepository(database) {
 
   return {
     getToolById,
+    getToolByLastTestTaskId,
     getActiveToolByIdOrSlug,
     getActiveToolBySlug,
     listActiveTools,
     listTools,
+    saveToolTestResult,
     saveTool,
+    updateToolStatus,
     seedDefaultTools
   };
 }
@@ -345,6 +424,12 @@ function mapToolRecord(record) {
     status: record.status,
     statusLabel: getStatusLabel(record.status),
     statusClass: getStatusClass(record.status),
+    lastTestStatus: record.last_test_status || 'untested',
+    lastTestStatusLabel: getTestStatusLabel(record.last_test_status || 'untested'),
+    lastTestStatusClass: getTestStatusClass(record.last_test_status || 'untested'),
+    lastTestTaskId: record.last_test_task_id || '',
+    lastTestError: record.last_test_error || '',
+    lastTestedAt: record.last_tested_at,
     sortOrder: record.sort_order,
     inputNodes: parseJson(record.input_nodes_json, []),
     outputConfig: parseJson(record.output_config_json, {}),
@@ -412,6 +497,28 @@ function getStatusClass(status) {
     active: 'status-active',
     draft: 'status-draft',
     inactive: 'status-error'
+  };
+
+  return classes[status] || 'status-draft';
+}
+
+function getTestStatusLabel(status) {
+  const labels = {
+    success: '測試成功',
+    failed: '測試失敗',
+    running: '測試中',
+    untested: '未測試'
+  };
+
+  return labels[status] || '未測試';
+}
+
+function getTestStatusClass(status) {
+  const classes = {
+    success: 'status-success',
+    failed: 'status-error',
+    running: 'status-processing',
+    untested: 'status-draft'
   };
 
   return classes[status] || 'status-draft';

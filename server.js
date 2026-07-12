@@ -190,6 +190,34 @@ async function handleAdminApi(request, response) {
     return;
   }
 
+  const toolTestMatch = url.pathname.match(/^\/api\/admin\/tools\/([^/]+)\/test$/);
+  if (toolTestMatch && request.method === 'POST') {
+    const toolId = decodeURIComponent(toolTestMatch[1]);
+    const requestBody = await readJsonBody(request);
+    const result = await testAdminTool(toolId, requestBody);
+
+    sendJson(response, 201, {
+      success: true,
+      message: '測試任務已建立',
+      data: result
+    });
+    return;
+  }
+
+  const toolStatusMatch = url.pathname.match(/^\/api\/admin\/tools\/([^/]+)\/status$/);
+  if (toolStatusMatch && request.method === 'PATCH') {
+    const toolId = decodeURIComponent(toolStatusMatch[1]);
+    const requestBody = await readJsonBody(request);
+    const savedTool = toolRepository.updateToolStatus(toolId, String(requestBody.status || '').trim());
+
+    sendJson(response, 200, {
+      success: true,
+      message: '工具狀態已更新',
+      data: savedTool
+    });
+    return;
+  }
+
   if (url.pathname === '/api/admin/categories' && request.method === 'GET') {
     sendJson(response, 200, {
       success: true,
@@ -330,6 +358,50 @@ async function executeConfiguredTool(idOrSlug, requestBody) {
     throwHttpError('工具不存在或未上線', 'TOOL_NOT_FOUND', 404);
   }
 
+  return executeToolWithConfig(tool, requestBody);
+}
+
+async function testAdminTool(toolId, requestBody) {
+  ensureRunningHubConfigured();
+
+  const tool = toolRepository.getToolById(toolId);
+  if (!tool) {
+    throwHttpError('工具不存在', 'TOOL_NOT_FOUND', 404);
+  }
+
+  toolRepository.saveToolTestResult(tool.id, {
+    status: 'running',
+    taskId: '',
+    error: ''
+  });
+
+  try {
+    const result = await executeToolWithConfig(tool, requestBody);
+    const savedTool = toolRepository.saveToolTestResult(tool.id, {
+      status: 'running',
+      taskId: result.taskId,
+      error: ''
+    });
+
+    return {
+      ...result,
+      status: 'RUNNING',
+      outputUrls: [],
+      tool: savedTool
+    };
+  } catch (error) {
+    const savedTool = toolRepository.saveToolTestResult(tool.id, {
+      status: 'failed',
+      taskId: '',
+      error: error.message || '工具測試失敗'
+    });
+
+    error.testTool = savedTool;
+    throw error;
+  }
+}
+
+async function executeToolWithConfig(tool, requestBody) {
   const rawInputValues = requestBody?.inputValues && typeof requestBody.inputValues === 'object'
     ? requestBody.inputValues
     : {};
@@ -485,14 +557,18 @@ async function syncTaskStatus(taskId) {
   const runningHubStatus = extractRunningHubStatus(statusResponse);
 
   if (runningHubStatus === 'FAILED') {
-    return taskRepository.markTaskStatus(task.id, 'FAILED', {
+    const failedTask = taskRepository.markTaskStatus(task.id, 'FAILED', {
       code: 'RUNNINGHUB_TASK_FAILED',
       message: statusResponse.msg || statusResponse.errorMessage || 'RunningHub 任務執行失敗'
     });
+    syncToolTestResult(failedTask);
+    return failedTask;
   }
 
   if (runningHubStatus === 'SUCCESS') {
-    return taskRepository.markTaskStatus(task.id, 'SUCCESS');
+    const successTask = taskRepository.markTaskStatus(task.id, 'SUCCESS');
+    syncToolTestResult(successTask);
+    return successTask;
   }
 
   return taskRepository.markTaskStatus(task.id, normalizeRunningStatus(runningHubStatus));
@@ -522,7 +598,32 @@ async function getTaskOutputs(taskId) {
   const tool = toolRepository.getToolById(task.toolId);
   const outputUrls = extractOutputUrls(outputs, tool?.outputConfig);
 
-  return taskRepository.completeTask(task.id, outputs, outputUrls);
+  const completedTask = taskRepository.completeTask(task.id, outputs, outputUrls);
+  syncToolTestResult(completedTask);
+
+  return completedTask;
+}
+
+function syncToolTestResult(task) {
+  const tool = toolRepository.getToolByLastTestTaskId(task.id);
+  if (!tool) return;
+
+  if (task.status === 'SUCCESS') {
+    toolRepository.saveToolTestResult(tool.id, {
+      status: 'success',
+      taskId: task.id,
+      error: ''
+    });
+    return;
+  }
+
+  if (task.status === 'FAILED') {
+    toolRepository.saveToolTestResult(tool.id, {
+      status: 'failed',
+      taskId: task.id,
+      error: task.errorMessage || '工具測試失敗'
+    });
+  }
 }
 
 async function proxyUploadImage(request, response) {

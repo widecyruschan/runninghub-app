@@ -596,6 +596,12 @@
       color: var(--danger);
     }
 
+    .button-success {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      color: #08635d;
+    }
+
     .option-list {
       display: grid;
       gap: 8px;
@@ -635,6 +641,44 @@
       border-radius: 8px;
       background: var(--surface-soft);
       padding: 12px;
+    }
+
+    .test-panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #ffffff;
+      margin-top: 18px;
+      overflow: hidden;
+    }
+
+    .test-panel-header {
+      min-height: 54px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface-soft);
+      padding: 0 14px;
+    }
+
+    .test-panel-body {
+      padding: 14px;
+    }
+
+    .test-result-grid {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+      color: #3f5066;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .test-output-list {
+      display: grid;
+      gap: 6px;
+      margin-top: 8px;
     }
 
     .category-grid {
@@ -843,6 +887,7 @@
                     <th>workflowID</th>
                     <th>圖片節點</th>
                     <th>狀態</th>
+                    <th>測試</th>
                     <th>排序</th>
                     <th>操作</th>
                   </tr>
@@ -869,8 +914,27 @@
                     <td>{{ tool.workflowId }}</td>
                     <td>{{ tool.nodeId }}</td>
                     <td><span class="status-pill" :class="tool.statusClass">{{ tool.statusLabel }}</span></td>
+                    <td><span class="status-pill" :class="tool.lastTestStatusClass">{{ tool.lastTestStatusLabel }}</span></td>
                     <td>{{ tool.sortOrder }}</td>
-                    <td><button class="button" type="button" @click="openToolForm(tool)">配置</button></td>
+                    <td>
+                      <button class="button" type="button" @click="openToolForm(tool)">配置</button>
+                      <button
+                        class="button button-success"
+                        type="button"
+                        :disabled="tool.status === 'active'"
+                        @click="updateToolStatus(tool, 'active')"
+                      >
+                        上線
+                      </button>
+                      <button
+                        class="button button-danger"
+                        type="button"
+                        :disabled="tool.status === 'inactive'"
+                        @click="updateToolStatus(tool, 'inactive')"
+                      >
+                        停用
+                      </button>
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -1007,10 +1071,85 @@
                 </article>
               </div>
 
+              <section v-if="toolForm.id" class="test-panel">
+                <div class="test-panel-header">
+                  <div>
+                    <h3 class="panel-title">測試執行</h3>
+                    <p class="page-description">上線前請先使用測試輸入執行一次，確認 workflowID、nodeId、fieldName 和輸出解析可用。</p>
+                  </div>
+                  <span class="status-pill" :class="toolForm.lastTestStatusClass">{{ toolForm.lastTestStatusLabel }}</span>
+                </div>
+                <div class="test-panel-body">
+                  <div class="form-grid">
+                    <div
+                      v-for="node in toolForm.inputNodes"
+                      :key="`test-${node.uid}`"
+                      class="field"
+                      :class="{ 'field-full': node.dataType === 'textarea' || node.dataType === 'image' || node.dataType === 'video' }"
+                    >
+                      <label>{{ node.label || node.key || node.fieldName }}</label>
+                      <input
+                        v-if="node.dataType === 'image' || node.dataType === 'video'"
+                        :accept="node.dataType === 'image' ? 'image/*' : 'video/*'"
+                        type="file"
+                        @change="handleTestFileChange(node, $event)"
+                      >
+                      <textarea
+                        v-else-if="node.dataType === 'textarea'"
+                        v-model="toolTestValues[node.key]"
+                        :placeholder="node.placeholder"
+                      ></textarea>
+                      <select
+                        v-else-if="node.dataType === 'select'"
+                        v-model="toolTestValues[node.key]"
+                      >
+                        <option v-for="option in node.options" :key="option.uid" :value="option.value">
+                          {{ option.label || option.value }}
+                        </option>
+                      </select>
+                      <input
+                        v-else
+                        v-model="toolTestValues[node.key]"
+                        :type="node.dataType === 'number' ? 'number' : 'text'"
+                        :placeholder="node.placeholder"
+                      >
+                    </div>
+                  </div>
+
+                  <div class="form-actions">
+                    <button class="button" type="button" @click="resetToolTestValues">重設測試值</button>
+                    <button class="button button-primary" type="button" :disabled="isTestingTool" @click="runToolTest">
+                      {{ isTestingTool ? '測試中' : '發起測試' }}
+                    </button>
+                  </div>
+
+                  <div v-if="toolTestResult.message" class="test-result-grid">
+                    <div class="hint-item">{{ toolTestResult.message }}</div>
+                    <div v-if="toolTestResult.taskId" class="hint-item">本地任務 ID：{{ toolTestResult.taskId }}</div>
+                    <div v-if="toolTestResult.runningHubTaskId" class="hint-item">RunningHub taskId：{{ toolTestResult.runningHubTaskId }}</div>
+                    <div v-if="toolTestResult.outputUrls.length" class="hint-item">
+                      輸出結果
+                      <div class="test-output-list">
+                        <a v-for="url in toolTestResult.outputUrls" :key="url" :href="url" target="_blank" rel="noreferrer">{{ url }}</a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
               <div class="form-actions">
                 <button class="button" type="button" @click="navigateTo('/admin/tools')">返回列表</button>
                 <button class="button" type="button" @click="addInputNode">繼續新增節點</button>
                 <button class="button button-primary" type="button" @click="saveToolDraft">儲存配置</button>
+                <button
+                  v-if="toolForm.id"
+                  class="button button-success"
+                  type="button"
+                  :disabled="toolForm.lastTestStatus !== 'success' || toolForm.status === 'active'"
+                  @click="updateCurrentToolStatus('active')"
+                >
+                  測試成功後上線
+                </button>
               </div>
             </div>
           </section>
@@ -1197,6 +1336,9 @@
         const currentRoute = ref(normalizeRoute(window.location.pathname));
         const toolKeyword = ref('');
         const toolForm = ref(createEmptyToolForm());
+        const toolTestValues = ref({});
+        const toolTestResult = ref(createEmptyToolTestResult());
+        const isTestingTool = ref(false);
         const categoryForm = ref(createEmptyCategoryForm());
         const categories = ref([]);
         const tools = ref([]);
@@ -1320,6 +1462,13 @@
             workflowId: '',
             instanceType: 'default',
             description: '',
+            status: 'draft',
+            lastTestStatus: 'untested',
+            lastTestStatusLabel: '未測試',
+            lastTestStatusClass: 'status-draft',
+            lastTestTaskId: '',
+            lastTestError: '',
+            lastTestedAt: '',
             inputNodes: [
               createInputNode({
                 dataType: 'image',
@@ -1329,6 +1478,15 @@
                 placeholder: '資料類型使用 image；影片上傳請選 video'
               })
             ]
+          };
+        }
+
+        function createEmptyToolTestResult() {
+          return {
+            message: '',
+            taskId: '',
+            runningHubTaskId: '',
+            outputUrls: []
           };
         }
 
@@ -1360,12 +1518,20 @@
               workflowId: tool.workflowId === '待配置' ? '' : tool.workflowId,
               instanceType: tool.instanceType || 'default',
               description: tool.shortDescription || tool.description || '',
+              status: tool.status || 'draft',
+              lastTestStatus: tool.lastTestStatus || 'untested',
+              lastTestStatusLabel: tool.lastTestStatusLabel || '未測試',
+              lastTestStatusClass: tool.lastTestStatusClass || 'status-draft',
+              lastTestTaskId: tool.lastTestTaskId || '',
+              lastTestError: tool.lastTestError || '',
+              lastTestedAt: tool.lastTestedAt || '',
               inputNodes: (tool.inputNodes || []).map(cloneInputNode)
             };
           } else {
             toolForm.value = createEmptyToolForm();
           }
 
+          resetToolTestValues();
           navigateTo('/admin/workflows');
         }
 
@@ -1403,6 +1569,44 @@
 
         function removeNodeOption(node, uid) {
           node.options = node.options.filter((option) => option.uid !== uid);
+        }
+
+        function resetToolTestValues() {
+          const nextValues = {};
+
+          toolForm.value.inputNodes.forEach((node) => {
+            if (node.dataType === 'image' || node.dataType === 'video') {
+              nextValues[node.key] = '';
+              return;
+            }
+
+            if (node.dataType === 'select' && node.options?.[0]) {
+              nextValues[node.key] = node.defaultValue || node.options[0].value;
+              return;
+            }
+
+            nextValues[node.key] = node.defaultValue || '';
+          });
+
+          toolTestValues.value = nextValues;
+          toolTestResult.value = createEmptyToolTestResult();
+        }
+
+        async function handleTestFileChange(node, event) {
+          const file = event.target.files && event.target.files[0];
+          if (!file) return;
+
+          toolTestValues.value[node.key] = await readFileAsDataUrl(file);
+          event.target.value = '';
+        }
+
+        function readFileAsDataUrl(file) {
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (event) => resolve(event.target.result);
+            reader.onerror = () => reject(new Error('讀取測試檔案失敗'));
+            reader.readAsDataURL(file);
+          });
         }
 
         async function loadTools() {
@@ -1470,7 +1674,7 @@
             previewImageUrl: toolForm.value.previewImageUrl,
             workflowId: toolForm.value.workflowId,
             instanceType: toolForm.value.instanceType,
-            status: toolForm.value.id ? 'active' : 'draft',
+            status: toolForm.value.status || 'draft',
             sortOrder: 100,
             inputNodes: toolForm.value.inputNodes.map((node) => ({
               nodeId: node.nodeId,
@@ -1501,6 +1705,126 @@
           navigateTo('/admin/tools');
         }
 
+        async function runToolTest() {
+          if (!toolForm.value.id || isTestingTool.value) return;
+
+          isTestingTool.value = true;
+          toolTestResult.value = {
+            message: '測試任務建立中...',
+            taskId: '',
+            runningHubTaskId: '',
+            outputUrls: []
+          };
+
+          try {
+            const response = await fetch(`/api/admin/tools/${encodeURIComponent(toolForm.value.id)}/test`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ inputValues: toolTestValues.value })
+            });
+            const result = await response.json();
+
+            if (!result.success) {
+              throw new Error(result.message || '工具測試建立失敗');
+            }
+
+            toolTestResult.value = {
+              message: '測試任務已建立，正在等待 RunningHub 結果...',
+              taskId: result.data.taskId,
+              runningHubTaskId: result.data.runningHubTaskId || '',
+              outputUrls: []
+            };
+
+            await pollToolTestTask(result.data.taskId);
+            await loadTools();
+            const latestTool = tools.value.find((tool) => tool.id === toolForm.value.id);
+            if (latestTool) {
+              const latestResult = { ...toolTestResult.value };
+              openToolForm(latestTool);
+              toolTestResult.value = latestResult;
+            }
+          } catch (error) {
+            toolTestResult.value.message = error.message || '工具測試失敗';
+            await loadTools().catch(() => {});
+          } finally {
+            isTestingTool.value = false;
+          }
+        }
+
+        async function pollToolTestTask(taskId) {
+          for (let retryCount = 0; retryCount < 120; retryCount += 1) {
+            const statusResponse = await fetch(`/api/tasks/${encodeURIComponent(taskId)}`);
+            const statusPayload = await statusResponse.json();
+
+            if (!statusPayload.success) {
+              throw new Error(statusPayload.message || '測試狀態查詢失敗');
+            }
+
+            const task = statusPayload.data;
+            toolTestResult.value.message = `測試任務狀態：${getTaskStatusLabel(task.status)}`;
+            toolTestResult.value.runningHubTaskId = task.runningHubTaskId || toolTestResult.value.runningHubTaskId;
+
+            if (task.status === 'SUCCESS') {
+              const outputsResponse = await fetch(`/api/tasks/${encodeURIComponent(taskId)}/outputs`);
+              const outputsPayload = await outputsResponse.json();
+
+              if (!outputsPayload.success) {
+                throw new Error(outputsPayload.message || '測試輸出查詢失敗');
+              }
+
+              toolTestResult.value.message = '測試成功，可以上線工具';
+              toolTestResult.value.outputUrls = outputsPayload.data.outputUrls || [];
+              return;
+            }
+
+            if (task.status === 'FAILED') {
+              throw new Error(task.errorMessage || '測試任務失敗');
+            }
+
+            await delay(3000);
+          }
+
+          throw new Error('測試等待逾時，請稍後查看任務記錄');
+        }
+
+        function getTaskStatusLabel(status) {
+          const labels = {
+            CREATED: '已建立',
+            QUEUED: '排隊中',
+            RUNNING: '處理中',
+            SUCCESS: '成功',
+            FAILED: '失敗'
+          };
+
+          return labels[status] || status || '處理中';
+        }
+
+        function delay(milliseconds) {
+          return new Promise((resolve) => setTimeout(resolve, milliseconds));
+        }
+
+        async function updateCurrentToolStatus(status) {
+          const updatedTool = await updateToolStatus(toolForm.value, status);
+          if (updatedTool) openToolForm(updatedTool);
+        }
+
+        async function updateToolStatus(tool, status) {
+          const response = await fetch(`/api/admin/tools/${encodeURIComponent(tool.id)}/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status })
+          });
+          const result = await response.json();
+
+          if (!result.success) {
+            window.alert(result.message || '工具狀態更新失敗');
+            return null;
+          }
+
+          await loadTools();
+          return result.data;
+        }
+
         onMounted(() => {
           Promise.all([
             loadCategories(),
@@ -1521,6 +1845,7 @@
           categories,
           categoryForm,
           filteredTools,
+          isTestingTool,
           addInputNode,
           addNodeOption,
           handlePrimaryAction,
@@ -1535,10 +1860,17 @@
           removeInputNode,
           removeNodeOption,
           resetCategoryForm,
+          resetToolTestValues,
+          handleTestFileChange,
+          runToolTest,
           recentTasks,
           routeCards,
           saveCategory,
           saveToolDraft,
+          toolTestResult,
+          toolTestValues,
+          updateCurrentToolStatus,
+          updateToolStatus,
           toolForm,
           toolKeyword,
           tools
