@@ -11,7 +11,7 @@
   "author": "",
   "license": "ISC",
   "type": "commonjs",
-  "dependencies": {
+  "optionalDependencies": {
     "better-sqlite3": "^12.11.1"
   }
 }
