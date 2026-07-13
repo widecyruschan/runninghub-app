@@ -5,13 +5,29 @@ const RUNNING_STATUSES = new Set(['CREATED', 'QUEUED', 'RUNNING']);
 function createTaskRepository(database) {
   const statements = {
     findById: database.prepare(`
-      SELECT *
+      SELECT
+        execution_tasks.*,
+        app_users.email AS user_email,
+        app_users.display_name AS user_display_name
       FROM execution_tasks
-      WHERE id = ?
+      LEFT JOIN app_users
+        ON app_users.id = execution_tasks.user_id
+      WHERE execution_tasks.id = ?
+    `),
+    list: database.prepare(`
+      SELECT
+        execution_tasks.*,
+        app_users.email AS user_email,
+        app_users.display_name AS user_display_name
+      FROM execution_tasks
+      LEFT JOIN app_users
+        ON app_users.id = execution_tasks.user_id
+      ORDER BY execution_tasks.created_at DESC
     `),
     insert: database.prepare(`
       INSERT INTO execution_tasks (
         id,
+        user_id,
         tool_id,
         tool_key,
         tool_name,
@@ -30,6 +46,7 @@ function createTaskRepository(database) {
       )
       VALUES (
         @id,
+        @userId,
         @toolId,
         @toolKey,
         @toolName,
@@ -94,6 +111,7 @@ function createTaskRepository(database) {
 
     statements.insert.run({
       id,
+      userId: payload.userId || '',
       toolId: payload.tool.id,
       toolKey: payload.tool.toolKey,
       toolName: payload.tool.name,
@@ -117,6 +135,10 @@ function createTaskRepository(database) {
   function getTaskById(id) {
     const record = statements.findById.get(id);
     return record ? mapTaskRecord(record) : null;
+  }
+
+  function listTasks() {
+    return statements.list.all().map(mapTaskRecord);
   }
 
   function attachRunningHubTask(id, runningHubTaskId, status = 'QUEUED') {
@@ -182,6 +204,7 @@ function createTaskRepository(database) {
     completeTask,
     createTask,
     getTaskById,
+    listTasks,
     markTaskStatus,
     updateTaskPayload
   };
@@ -190,6 +213,9 @@ function createTaskRepository(database) {
 function mapTaskRecord(record) {
   return {
     id: record.id,
+    userId: record.user_id,
+    userEmail: record.user_email || '',
+    userDisplayName: record.user_display_name || '',
     toolId: record.tool_id,
     toolKey: record.tool_key,
     toolName: record.tool_name,

@@ -1298,6 +1298,127 @@
             </div>
           </section>
 
+          <section v-else-if="currentRoute === '/admin/users'" class="panel">
+            <div class="panel-header">
+              <h2 class="panel-title">用戶列表</h2>
+              <span class="status-pill status-active">{{ users.length }} 個用戶</span>
+            </div>
+            <div class="panel-body">
+              <div class="toolbar">
+                <input class="search-input" v-model="userKeyword" type="search" placeholder="搜尋用戶、角色或會員分組">
+                <button class="button button-primary" type="button" @click="openUserForm()">新增用戶</button>
+              </div>
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>用戶</th>
+                    <th>角色</th>
+                    <th>會員分組</th>
+                    <th>積分</th>
+                    <th>狀態</th>
+                    <th>備註</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="user in filteredUsers" :key="user.id">
+                    <td>
+                      <div class="tool-name">{{ user.displayName }}</div>
+                      <div class="tool-desc">{{ user.email }}</div>
+                    </td>
+                    <td>{{ user.roleLabel }}</td>
+                    <td>{{ user.membershipGroupLabel }}</td>
+                    <td>{{ user.creditBalance }}</td>
+                    <td><span class="status-pill" :class="user.statusClass">{{ user.statusLabel }}</span></td>
+                    <td>{{ user.notes || '—' }}</td>
+                    <td>
+                      <button class="button" type="button" @click="openUserForm(user)">編輯</button>
+                      <button class="button button-success" type="button" @click="openCreditForm(user)">調整積分</button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div class="section-title">
+                <div>
+                  <h3>{{ userForm.id ? '編輯用戶' : '新增用戶' }}</h3>
+                  <p>角色先支援管理員、文章錄入員、普通免費用戶和會員用戶；會員分組用於後續額度和扣費。</p>
+                </div>
+              </div>
+              <div class="form-grid">
+                <div class="field">
+                  <label for="user-email">Email</label>
+                  <input id="user-email" v-model="userForm.email" placeholder="user@example.com">
+                </div>
+                <div class="field">
+                  <label for="user-name">顯示名稱</label>
+                  <input id="user-name" v-model="userForm.displayName" placeholder="用戶名稱">
+                </div>
+                <div class="field">
+                  <label for="user-role">角色</label>
+                  <select id="user-role" v-model="userForm.role">
+                    <option v-for="role in userRoleOptions" :key="role.value" :value="role.value">{{ role.label }}</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="user-group">會員分組</label>
+                  <select id="user-group" v-model="userForm.membershipGroup">
+                    <option v-for="group in membershipGroupOptions" :key="group.value" :value="group.value">{{ group.label }}</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="user-credit">積分餘額</label>
+                  <input id="user-credit" v-model="userForm.creditBalance" type="number" min="0" step="1">
+                </div>
+                <div class="field">
+                  <label for="user-status">狀態</label>
+                  <select id="user-status" v-model="userForm.status">
+                    <option value="active">啟用</option>
+                    <option value="disabled">停用</option>
+                  </select>
+                </div>
+                <div class="field field-full">
+                  <label for="user-notes">備註</label>
+                  <textarea id="user-notes" v-model="userForm.notes" placeholder="內部備註"></textarea>
+                </div>
+              </div>
+              <div class="form-actions">
+                <button class="button" type="button" @click="resetUserForm">清空</button>
+                <button class="button button-primary" type="button" @click="saveUser">儲存用戶</button>
+              </div>
+
+              <section v-if="creditForm.userId" class="test-panel">
+                <div class="test-panel-header">
+                  <div>
+                    <h3 class="panel-title">積分調整：{{ creditForm.displayName }}</h3>
+                    <p class="page-description">正數為加分，負數為扣分；每次調整會寫入積分流水。</p>
+                  </div>
+                  <button class="button" type="button" @click="resetCreditForm">關閉</button>
+                </div>
+                <div class="test-panel-body">
+                  <div class="form-grid">
+                    <div class="field">
+                      <label for="credit-amount">調整數量</label>
+                      <input id="credit-amount" v-model="creditForm.amount" type="number" step="1">
+                    </div>
+                    <div class="field">
+                      <label for="credit-reason">原因</label>
+                      <input id="credit-reason" v-model="creditForm.reason" placeholder="例如：後台補償">
+                    </div>
+                  </div>
+                  <div class="form-actions">
+                    <button class="button button-primary" type="button" @click="adjustUserCredits">確認調整</button>
+                  </div>
+                  <div v-if="creditLedger.length" class="test-result-grid">
+                    <div v-for="record in creditLedger" :key="record.id" class="hint-item">
+                      {{ record.createdAt }} · {{ record.amount > 0 ? '+' : '' }}{{ record.amount }} · 餘額 {{ record.balanceAfter }} · {{ record.reason }}
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </section>
+
           <section v-else-if="currentRoute === '/admin/memberships'" class="panel">
             <div class="panel-header">
               <h2 class="panel-title">會員套餐</h2>
@@ -1323,6 +1444,39 @@
                     <td>{{ plan.credits }}</td>
                     <td>{{ plan.priority }}</td>
                     <td><span class="status-pill status-active">{{ plan.status }}</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section v-else-if="currentRoute === '/admin/tasks'" class="panel">
+            <div class="panel-header">
+              <h2 class="panel-title">執行歷史</h2>
+              <span class="status-pill status-active">{{ tasks.length }} 筆任務</span>
+            </div>
+            <div class="panel-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>任務 ID</th>
+                    <th>工具</th>
+                    <th>用戶</th>
+                    <th>狀態</th>
+                    <th>RunningHub taskId</th>
+                    <th>錯誤</th>
+                    <th>建立時間</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="task in tasks" :key="task.id">
+                    <td>{{ task.id }}</td>
+                    <td>{{ task.toolName }}</td>
+                    <td>{{ task.userDisplayName || task.userEmail || '訪客' }}</td>
+                    <td><span class="status-pill" :class="getTaskStatusClass(task.status)">{{ getTaskStatusLabel(task.status) }}</span></td>
+                    <td>{{ task.runningHubTaskId || '—' }}</td>
+                    <td>{{ task.errorMessage || '—' }}</td>
+                    <td>{{ task.createdAt }}</td>
                   </tr>
                 </tbody>
               </table>
@@ -1367,6 +1521,12 @@
         primaryAction: '新增分類',
         todo: []
       },
+      '/admin/users': {
+        title: '用戶管理',
+        description: '管理後台角色、普通免費用戶、會員分組、積分餘額和帳號狀態。',
+        primaryAction: '新增用戶',
+        todo: []
+      },
       '/admin/workflows': {
         title: '新增工具配置',
         description: '在工具管理中新增或編輯工具，配置 workflowID 和動態輸入節點。',
@@ -1383,7 +1543,7 @@
         title: '任務記錄',
         description: '查看 RunningHub taskId、執行狀態、消耗積分、失敗原因和重試操作。',
         primaryAction: '匯出記錄',
-        todo: ['任務列表表格', '失敗原因詳情', '退款積分操作', '複製 taskId']
+        todo: []
       },
       '/admin/content': {
         title: '內容管理',
@@ -1415,13 +1575,20 @@
         const toolTestResult = ref(createEmptyToolTestResult());
         const isTestingTool = ref(false);
         const categoryForm = ref(createEmptyCategoryForm());
+        const userKeyword = ref('');
+        const userForm = ref(createEmptyUserForm());
+        const creditForm = ref(createEmptyCreditForm());
         const categories = ref([]);
         const tools = ref([]);
+        const users = ref([]);
+        const tasks = ref([]);
+        const creditLedger = ref([]);
 
         const navItems = [
           { path: '/admin', label: '儀表板', mark: '總' },
           { path: '/admin/tools', label: '工具管理', mark: '工' },
           { path: '/admin/categories', label: '分類管理', mark: '類' },
+          { path: '/admin/users', label: '用戶管理', mark: '用' },
           { path: '/admin/memberships', label: '會員套餐', mark: '會' },
           { path: '/admin/tasks', label: '任務記錄', mark: '任' },
           { path: '/admin/content', label: '內容管理', mark: '文' },
@@ -1449,6 +1616,20 @@
           { value: 'select', label: '下拉列表' }
         ];
 
+        const userRoleOptions = [
+          { value: 'admin', label: '管理員' },
+          { value: 'content_editor', label: '文章錄入員' },
+          { value: 'free_user', label: '普通免費用戶' },
+          { value: 'member', label: '會員用戶' }
+        ];
+
+        const membershipGroupOptions = [
+          { value: 'free', label: '免費組' },
+          { value: 'pro', label: 'PRO' },
+          { value: 'pro_plus', label: 'PRO+' },
+          { value: 'pro_max', label: 'PRO MAX' }
+        ];
+
         const membershipPlans = [
           { key: 'pro', name: 'PRO', price: 'US$9.99/月', dailyUses: '50', credits: '300', priority: 'Standard', status: '啟用' },
           { key: 'pro_plus', name: 'PRO+', price: 'US$29.99/月', dailyUses: '300', credits: '1500', priority: 'High', status: '啟用' },
@@ -1463,6 +1644,17 @@
 
         const currentPage = computed(() => routeDefinitions[currentRoute.value] || routeDefinitions['/admin']);
         const activeCategories = computed(() => categories.value.filter((category) => category.status === 'active'));
+        const filteredUsers = computed(() => {
+          const keyword = userKeyword.value.trim().toLowerCase();
+          if (!keyword) return users.value;
+
+          return users.value.filter((user) => (
+            user.email.toLowerCase().includes(keyword) ||
+            user.displayName.toLowerCase().includes(keyword) ||
+            user.roleLabel.toLowerCase().includes(keyword) ||
+            user.membershipGroupLabel.toLowerCase().includes(keyword)
+          ));
+        });
         const filteredTools = computed(() => {
           const keyword = toolKeyword.value.trim().toLowerCase();
           if (!keyword) return tools.value;
@@ -1497,6 +1689,16 @@
 
           if (currentRoute.value === '/admin/categories') {
             resetCategoryForm();
+            return;
+          }
+
+          if (currentRoute.value === '/admin/users') {
+            openUserForm();
+            return;
+          }
+
+          if (currentRoute.value === '/admin/tasks') {
+            loadTasks().catch((error) => window.alert(error.message || '任務記錄載入失敗'));
             return;
           }
 
@@ -1575,6 +1777,28 @@
           };
         }
 
+        function createEmptyUserForm() {
+          return {
+            id: '',
+            email: '',
+            displayName: '',
+            role: 'free_user',
+            membershipGroup: 'free',
+            creditBalance: 0,
+            status: 'active',
+            notes: ''
+          };
+        }
+
+        function createEmptyCreditForm() {
+          return {
+            userId: '',
+            displayName: '',
+            amount: 0,
+            reason: '後台調整'
+          };
+        }
+
         function cloneInputNode(node) {
           return createInputNode({
             ...node,
@@ -1622,6 +1846,43 @@
 
         function resetCategoryForm() {
           categoryForm.value = createEmptyCategoryForm();
+        }
+
+        function openUserForm(user) {
+          if (user) {
+            userForm.value = {
+              id: user.id,
+              email: user.email,
+              displayName: user.displayName,
+              role: user.role,
+              membershipGroup: user.membershipGroup,
+              creditBalance: user.creditBalance,
+              status: user.status,
+              notes: user.notes || ''
+            };
+            return;
+          }
+
+          userForm.value = createEmptyUserForm();
+        }
+
+        function resetUserForm() {
+          userForm.value = createEmptyUserForm();
+        }
+
+        async function openCreditForm(user) {
+          creditForm.value = {
+            userId: user.id,
+            displayName: user.displayName,
+            amount: 0,
+            reason: '後台調整'
+          };
+          await loadCreditLedger(user.id);
+        }
+
+        function resetCreditForm() {
+          creditForm.value = createEmptyCreditForm();
+          creditLedger.value = [];
         }
 
         function addInputNode() {
@@ -1713,6 +1974,39 @@
           }
         }
 
+        async function loadUsers() {
+          const response = await adminFetch('/api/admin/users');
+          const payload = await response.json();
+
+          if (!payload.success) {
+            throw new Error(payload.message || '用戶列表載入失敗');
+          }
+
+          users.value = payload.data;
+        }
+
+        async function loadTasks() {
+          const response = await adminFetch('/api/admin/tasks');
+          const payload = await response.json();
+
+          if (!payload.success) {
+            throw new Error(payload.message || '任務記錄載入失敗');
+          }
+
+          tasks.value = payload.data;
+        }
+
+        async function loadCreditLedger(userId) {
+          const response = await adminFetch(`/api/admin/users/${encodeURIComponent(userId)}/ledger`);
+          const payload = await response.json();
+
+          if (!payload.success) {
+            throw new Error(payload.message || '積分流水載入失敗');
+          }
+
+          creditLedger.value = payload.data;
+        }
+
         async function saveCategory() {
           const payload = {
             id: categoryForm.value.id,
@@ -1736,6 +2030,48 @@
 
           await loadCategories();
           resetCategoryForm();
+        }
+
+        async function saveUser() {
+          const response = await adminFetch('/api/admin/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(userForm.value)
+          });
+          const result = await response.json();
+
+          if (!result.success) {
+            window.alert(result.message || '用戶儲存失敗');
+            return;
+          }
+
+          await loadUsers();
+          resetUserForm();
+        }
+
+        async function adjustUserCredits() {
+          if (!creditForm.value.userId) return;
+
+          const response = await adminFetch(`/api/admin/users/${encodeURIComponent(creditForm.value.userId)}/credits`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              amount: creditForm.value.amount,
+              reason: creditForm.value.reason
+            })
+          });
+          const result = await response.json();
+
+          if (!result.success) {
+            window.alert(result.message || '積分調整失敗');
+            return;
+          }
+
+          await Promise.all([
+            loadUsers(),
+            loadCreditLedger(creditForm.value.userId)
+          ]);
+          creditForm.value.amount = 0;
         }
 
         async function saveToolDraft() {
@@ -1874,6 +2210,13 @@
           return labels[status] || status || '處理中';
         }
 
+        function getTaskStatusClass(status) {
+          if (status === 'SUCCESS') return 'status-success';
+          if (status === 'FAILED') return 'status-error';
+          if (status === 'CREATED' || status === 'QUEUED' || status === 'RUNNING') return 'status-processing';
+          return 'status-draft';
+        }
+
         function delay(milliseconds) {
           return new Promise((resolve) => setTimeout(resolve, milliseconds));
         }
@@ -1984,7 +2327,9 @@
         async function loadAdminData() {
           await Promise.all([
             loadCategories(),
-            loadTools()
+            loadTools(),
+            loadUsers(),
+            loadTasks()
           ]);
         }
 
@@ -2008,38 +2353,55 @@
           activeCategories,
           categories,
           categoryForm,
+          creditForm,
+          creditLedger,
           filteredTools,
+          filteredUsers,
+          getTaskStatusClass,
+          getTaskStatusLabel,
           isTestingTool,
           addInputNode,
           addNodeOption,
+          adjustUserCredits,
           handlePrimaryAction,
           inputDataTypes,
           isActiveRoute,
           loginAdmin,
           logoutAdmin,
           membershipPlans,
+          membershipGroupOptions,
           metrics,
           navItems,
           navigateTo,
+          openCreditForm,
           openToolForm,
+          openUserForm,
           editCategory,
           removeInputNode,
           removeNodeOption,
+          resetCreditForm,
           resetCategoryForm,
           resetToolTestValues,
+          resetUserForm,
           handleTestFileChange,
           runToolTest,
           recentTasks,
           routeCards,
           saveCategory,
           saveToolDraft,
+          saveUser,
+          tasks,
           toolTestResult,
           toolTestValues,
           updateCurrentToolStatus,
           updateToolStatus,
           toolForm,
           toolKeyword,
-          tools
+          tools,
+          userForm,
+          userKeyword,
+          userRoleOptions,
+          users
         };
       }
     }).mount('#admin-app');

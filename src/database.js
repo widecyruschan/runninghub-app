@@ -98,6 +98,7 @@ function migrateDatabase(database) {
 
     CREATE TABLE IF NOT EXISTS execution_tasks (
       id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL DEFAULT '',
       tool_id TEXT NOT NULL,
       tool_key TEXT NOT NULL,
       tool_name TEXT NOT NULL,
@@ -116,6 +117,30 @@ function migrateDatabase(database) {
       FOREIGN KEY (tool_id) REFERENCES tools(id)
     );
 
+    CREATE TABLE IF NOT EXISTS app_users (
+      id TEXT PRIMARY KEY,
+      email TEXT NOT NULL UNIQUE,
+      display_name TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'free_user',
+      membership_group TEXT NOT NULL DEFAULT 'free',
+      credit_balance INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'active',
+      notes TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS credit_ledger (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      amount INTEGER NOT NULL,
+      balance_after INTEGER NOT NULL,
+      reason TEXT NOT NULL,
+      related_task_id TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES app_users(id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_tools_status_sort
       ON tools(status, sort_order);
 
@@ -127,6 +152,15 @@ function migrateDatabase(database) {
 
     CREATE INDEX IF NOT EXISTS idx_execution_tasks_tool_created
       ON execution_tasks(tool_id, created_at);
+
+    CREATE INDEX IF NOT EXISTS idx_execution_tasks_user_created
+      ON execution_tasks(user_id, created_at);
+
+    CREATE INDEX IF NOT EXISTS idx_app_users_role_group
+      ON app_users(role, membership_group);
+
+    CREATE INDEX IF NOT EXISTS idx_credit_ledger_user_created
+      ON credit_ledger(user_id, created_at);
   `);
 
   ensureColumn(database, 'tools', 'category_id', "TEXT NOT NULL DEFAULT 'image'");
@@ -135,7 +169,9 @@ function migrateDatabase(database) {
   ensureColumn(database, 'tools', 'last_test_task_id', "TEXT NOT NULL DEFAULT ''");
   ensureColumn(database, 'tools', 'last_test_error', "TEXT NOT NULL DEFAULT ''");
   ensureColumn(database, 'tools', 'last_tested_at', 'TEXT');
+  ensureColumn(database, 'execution_tasks', 'user_id', "TEXT NOT NULL DEFAULT ''");
   seedDefaultCategories(database);
+  seedDefaultUsers(database);
 
   database.prepare(`
     UPDATE tools
@@ -177,7 +213,9 @@ class JsonFileDatabase {
       return {
         tool_categories: Array.isArray(state.tool_categories) ? state.tool_categories : [],
         tools: Array.isArray(state.tools) ? state.tools : [],
-        execution_tasks: Array.isArray(state.execution_tasks) ? state.execution_tasks : []
+        execution_tasks: Array.isArray(state.execution_tasks) ? state.execution_tasks : [],
+        app_users: Array.isArray(state.app_users) ? state.app_users : [],
+        credit_ledger: Array.isArray(state.credit_ledger) ? state.credit_ledger : []
       };
     } catch (error) {
       console.warn('JSON 資料庫讀取失敗，將使用空白資料庫。', error.message);
@@ -220,7 +258,15 @@ class JsonStatement {
     }
 
     if (this.normalizedSql.includes('FROM execution_tasks')) {
-      return this.database.state.execution_tasks.filter((task) => task.id === params[0]);
+      return this.queryTasks(params);
+    }
+
+    if (this.normalizedSql.includes('FROM app_users')) {
+      return this.queryUsers(params);
+    }
+
+    if (this.normalizedSql.includes('FROM credit_ledger')) {
+      return this.queryCreditLedger(params);
     }
 
     return [];
@@ -229,6 +275,10 @@ class JsonStatement {
   get(...params) {
     if (this.normalizedSql === 'SELECT COUNT(*) AS count FROM tools') {
       return { count: this.database.state.tools.length };
+    }
+
+    if (this.normalizedSql === 'SELECT COUNT(*) AS count FROM app_users') {
+      return { count: this.database.state.app_users.length };
     }
 
     return this.all(...params)[0];
@@ -369,6 +419,33 @@ class JsonStatement {
       return { changes: task ? 1 : 0 };
     }
 
+    if (this.normalizedSql.startsWith('INSERT OR IGNORE INTO app_users')) {
+      if (!this.database.state.app_users.some((user) => user.id === payload.id || user.email === payload.email)) {
+        this.database.state.app_users.push(toUserRecord(payload));
+        this.database.persist();
+      }
+      return { changes: 1 };
+    }
+
+    if (this.normalizedSql.startsWith('INSERT INTO app_users')) {
+      this.ensureUniqueUser(payload);
+      this.database.state.app_users.push(toUserRecord(payload));
+      this.database.persist();
+      return { changes: 1 };
+    }
+
+    if (this.normalizedSql.startsWith('UPDATE app_users')) {
+      this.ensureUniqueUser(payload);
+      this.updateRecord('app_users', payload.id, toUserRecord(payload));
+      return { changes: 1 };
+    }
+
+    if (this.normalizedSql.startsWith('INSERT INTO credit_ledger')) {
+      this.database.state.credit_ledger.push(toCreditLedgerRecord(payload));
+      this.database.persist();
+      return { changes: 1 };
+    }
+
     return { changes: 0 };
   }
 
@@ -390,6 +467,36 @@ class JsonStatement {
     }
 
     return tools.sort(compareToolRecords);
+  }
+
+  queryTasks(params) {
+    let tasks = this.database.state.execution_tasks.map((task) => withUserFields(task, this.database.state.app_users));
+
+    if (this.normalizedSql.includes('WHERE id = ?') || this.normalizedSql.includes('WHERE execution_tasks.id = ?')) {
+      tasks = tasks.filter((task) => task.id === params[0]);
+    }
+
+    return tasks.sort(compareCreatedAtDesc);
+  }
+
+  queryUsers(params) {
+    let users = [...this.database.state.app_users];
+
+    if (this.normalizedSql.includes('WHERE id = ?')) {
+      users = users.filter((user) => user.id === params[0]);
+    }
+
+    return users.sort(compareCreatedAtDesc);
+  }
+
+  queryCreditLedger(params) {
+    let records = [...this.database.state.credit_ledger];
+
+    if (this.normalizedSql.includes('WHERE user_id = ?')) {
+      records = records.filter((record) => record.user_id === params[0]);
+    }
+
+    return records.sort(compareCreatedAtDesc);
   }
 
   findRecord(collectionName, id) {
@@ -420,13 +527,22 @@ class JsonStatement {
     ));
     if (exists) throwSqliteUniqueError();
   }
+
+  ensureUniqueUser(payload) {
+    const exists = this.database.state.app_users.some((user) => (
+      user.id !== payload.id && user.email === payload.email
+    ));
+    if (exists) throwSqliteUniqueError();
+  }
 }
 
 function createEmptyState() {
   return {
     tool_categories: [],
     tools: [],
-    execution_tasks: []
+    execution_tasks: [],
+    app_users: [],
+    credit_ledger: []
   };
 }
 
@@ -456,6 +572,7 @@ function getJsonTableColumns(tableName) {
     ],
     execution_tasks: [
       'id',
+      'user_id',
       'tool_id',
       'tool_key',
       'tool_name',
@@ -471,6 +588,27 @@ function getJsonTableColumns(tableName) {
       'completed_at',
       'created_at',
       'updated_at'
+    ],
+    app_users: [
+      'id',
+      'email',
+      'display_name',
+      'role',
+      'membership_group',
+      'credit_balance',
+      'status',
+      'notes',
+      'created_at',
+      'updated_at'
+    ],
+    credit_ledger: [
+      'id',
+      'user_id',
+      'amount',
+      'balance_after',
+      'reason',
+      'related_task_id',
+      'created_at'
     ]
   };
 
@@ -516,6 +654,7 @@ function toToolRecord(payload) {
 function toTaskRecord(payload) {
   return {
     id: payload.id,
+    user_id: payload.userId || '',
     tool_id: payload.toolId,
     tool_key: payload.toolKey,
     tool_name: payload.toolName,
@@ -534,6 +673,33 @@ function toTaskRecord(payload) {
   };
 }
 
+function toUserRecord(payload) {
+  return {
+    id: payload.id,
+    email: payload.email,
+    display_name: payload.displayName,
+    role: payload.role,
+    membership_group: payload.membershipGroup,
+    credit_balance: payload.creditBalance,
+    status: payload.status,
+    notes: payload.notes || '',
+    created_at: payload.createdAt,
+    updated_at: payload.updatedAt
+  };
+}
+
+function toCreditLedgerRecord(payload) {
+  return {
+    id: payload.id,
+    user_id: payload.userId,
+    amount: payload.amount,
+    balance_after: payload.balanceAfter,
+    reason: payload.reason,
+    related_task_id: payload.relatedTaskId || '',
+    created_at: payload.createdAt
+  };
+}
+
 function withCategoryFields(tool, categories) {
   const category = categories.find((item) => item.id === tool.category_id);
   return {
@@ -549,6 +715,19 @@ function compareCategoryRecords(left, right) {
 
 function compareToolRecords(left, right) {
   return (left.sort_order - right.sort_order) || String(right.created_at).localeCompare(String(left.created_at));
+}
+
+function compareCreatedAtDesc(left, right) {
+  return String(right.created_at).localeCompare(String(left.created_at));
+}
+
+function withUserFields(task, users) {
+  const user = users.find((item) => item.id === task.user_id);
+  return {
+    ...task,
+    user_email: user?.email || '',
+    user_display_name: user?.display_name || ''
+  };
 }
 
 function throwSqliteUniqueError() {
@@ -588,6 +767,88 @@ function seedDefaultCategories(database) {
   ].forEach((category) => {
     insertCategory.run({
       ...category,
+      createdAt: now,
+      updatedAt: now
+    });
+  });
+}
+
+function seedDefaultUsers(database) {
+  const { count } = database.prepare('SELECT COUNT(*) AS count FROM app_users').get();
+  if (count > 0) return;
+
+  const now = new Date().toISOString();
+  const insertUser = database.prepare(`
+    INSERT OR IGNORE INTO app_users (
+      id,
+      email,
+      display_name,
+      role,
+      membership_group,
+      credit_balance,
+      status,
+      notes,
+      created_at,
+      updated_at
+    )
+    VALUES (
+      @id,
+      @email,
+      @displayName,
+      @role,
+      @membershipGroup,
+      @creditBalance,
+      @status,
+      @notes,
+      @createdAt,
+      @updatedAt
+    )
+  `);
+
+  [
+    {
+      id: 'admin-user',
+      email: 'admin@example.com',
+      displayName: '管理員',
+      role: 'admin',
+      membershipGroup: 'pro_max',
+      creditBalance: 5000,
+      status: 'active',
+      notes: '系統預設管理員資料'
+    },
+    {
+      id: 'editor-user',
+      email: 'editor@example.com',
+      displayName: '文章錄入員',
+      role: 'content_editor',
+      membershipGroup: 'free',
+      creditBalance: 100,
+      status: 'active',
+      notes: '可管理內容，後續接入內容權限'
+    },
+    {
+      id: 'free-user',
+      email: 'free@example.com',
+      displayName: '免費用戶',
+      role: 'free_user',
+      membershipGroup: 'free',
+      creditBalance: 20,
+      status: 'active',
+      notes: '普通免費用戶示例'
+    },
+    {
+      id: 'member-user',
+      email: 'member@example.com',
+      displayName: '會員用戶',
+      role: 'member',
+      membershipGroup: 'pro_plus',
+      creditBalance: 1500,
+      status: 'active',
+      notes: '會員分組示例'
+    }
+  ].forEach((user) => {
+    insertUser.run({
+      ...user,
       createdAt: now,
       updatedAt: now
     });

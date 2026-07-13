@@ -6,6 +6,7 @@ const { createDatabase } = require('./src/database');
 const { createToolRepository } = require('./src/toolRepository');
 const { createCategoryRepository } = require('./src/categoryRepository');
 const { createTaskRepository } = require('./src/taskRepository');
+const { createUserRepository } = require('./src/userRepository');
 
 const PUBLIC_DIR = path.join(__dirname, 'frontend');
 const DEFAULT_PORT = 3000;
@@ -26,6 +27,7 @@ const database = createDatabase();
 const toolRepository = createToolRepository(database);
 const categoryRepository = createCategoryRepository(database);
 const taskRepository = createTaskRepository(database);
+const userRepository = createUserRepository(database);
 
 toolRepository.seedDefaultTools();
 
@@ -47,6 +49,7 @@ const adminRoutePrefixes = [
   '/admin/',
   '/admin/tools',
   '/admin/categories',
+  '/admin/users',
   '/admin/workflows',
   '/admin/memberships',
   '/admin/tasks',
@@ -60,6 +63,12 @@ const frontendRoutePrefixes = [
 const adminSessions = new Map();
 const ADMIN_SESSION_COOKIE = 'runninghub_admin_session';
 const ADMIN_SESSION_MAX_AGE_SECONDS = 60 * 60 * 8;
+const ADMIN_ROLE_PERMISSIONS = {
+  admin: new Set(['manage_tools', 'manage_users', 'manage_content', 'view_tasks', 'manage_credits']),
+  content_editor: new Set(['manage_content']),
+  free_user: new Set([]),
+  member: new Set([])
+};
 
 const server = http.createServer(async (request, response) => {
   try {
@@ -195,7 +204,11 @@ async function handleAdminApi(request, response) {
     sendJson(response, 200, {
       success: true,
       message: '登入成功',
-      data: { username }
+      data: {
+        username,
+        role: 'admin',
+        permissions: Array.from(ADMIN_ROLE_PERMISSIONS.admin)
+      }
     }, {
       'Set-Cookie': createSessionCookie(request, sessionId)
     });
@@ -226,13 +239,38 @@ async function handleAdminApi(request, response) {
     sendJson(response, 200, {
       success: true,
       message: '操作成功',
-      data: { username: session.username }
+      data: {
+        username: session.username,
+        role: session.role,
+        permissions: Array.from(getRolePermissions(session.role))
+      }
     });
     return;
   }
 
-  if (!getAdminSession(request)) {
+  const adminSession = getAdminSession(request);
+  if (!adminSession) {
     sendUnauthorized(response);
+    return;
+  }
+
+  if (url.pathname.startsWith('/api/admin/tools') && !hasPermission(adminSession, 'manage_tools')) {
+    sendForbidden(response);
+    return;
+  }
+
+  if (url.pathname.startsWith('/api/admin/categories') && !hasPermission(adminSession, 'manage_tools')) {
+    sendForbidden(response);
+    return;
+  }
+
+  if (url.pathname.startsWith('/api/admin/users') && !hasPermission(adminSession, 'manage_users')) {
+    sendForbidden(response);
+    return;
+  }
+
+  if (url.pathname.startsWith('/api/admin/tasks') && !hasPermission(adminSession, 'view_tasks')) {
+    sendForbidden(response);
     return;
   }
 
@@ -302,6 +340,80 @@ async function handleAdminApi(request, response) {
       success: true,
       message: '分類已儲存',
       data: savedCategory
+    });
+    return;
+  }
+
+  if (url.pathname === '/api/admin/users' && request.method === 'GET') {
+    sendJson(response, 200, {
+      success: true,
+      message: '操作成功',
+      data: userRepository.listUsers()
+    });
+    return;
+  }
+
+  if (url.pathname === '/api/admin/users' && request.method === 'POST') {
+    const requestBody = await readJsonBody(request);
+    const initialCreditBalance = Number(requestBody.creditBalance ?? requestBody.credit_balance ?? 0);
+    if (!requestBody.id && initialCreditBalance > 0 && !hasPermission(adminSession, 'manage_credits')) {
+      sendForbidden(response);
+      return;
+    }
+
+    const savedUser = userRepository.saveUser(requestBody);
+    const responseUser = !requestBody.id && initialCreditBalance > 0
+      ? userRepository.adjustCredits(savedUser.id, initialCreditBalance, '初始積分')
+      : savedUser;
+
+    sendJson(response, requestBody.id ? 200 : 201, {
+      success: true,
+      message: '用戶已儲存',
+      data: responseUser
+    });
+    return;
+  }
+
+  const userCreditsMatch = url.pathname.match(/^\/api\/admin\/users\/([^/]+)\/credits$/);
+  if (userCreditsMatch && request.method === 'POST') {
+    if (!hasPermission(adminSession, 'manage_credits')) {
+      sendForbidden(response);
+      return;
+    }
+
+    const userId = decodeURIComponent(userCreditsMatch[1]);
+    const requestBody = await readJsonBody(request);
+    const savedUser = userRepository.adjustCredits(
+      userId,
+      requestBody.amount,
+      requestBody.reason || '後台調整',
+      requestBody.relatedTaskId || ''
+    );
+
+    sendJson(response, 200, {
+      success: true,
+      message: '積分已調整',
+      data: savedUser
+    });
+    return;
+  }
+
+  const userLedgerMatch = url.pathname.match(/^\/api\/admin\/users\/([^/]+)\/ledger$/);
+  if (userLedgerMatch && request.method === 'GET') {
+    const userId = decodeURIComponent(userLedgerMatch[1]);
+    sendJson(response, 200, {
+      success: true,
+      message: '操作成功',
+      data: userRepository.listCreditLedgerByUser(userId)
+    });
+    return;
+  }
+
+  if (url.pathname === '/api/admin/tasks' && request.method === 'GET') {
+    sendJson(response, 200, {
+      success: true,
+      message: '操作成功',
+      data: taskRepository.listTasks()
     });
     return;
   }
@@ -955,10 +1067,19 @@ function createAdminSession(username) {
 
   adminSessions.set(sessionId, {
     username,
+    role: 'admin',
     expiresAt: now + ADMIN_SESSION_MAX_AGE_SECONDS * 1000
   });
 
   return sessionId;
+}
+
+function getRolePermissions(role) {
+  return ADMIN_ROLE_PERMISSIONS[role] || new Set();
+}
+
+function hasPermission(session, permission) {
+  return getRolePermissions(session.role).has(permission);
 }
 
 function getAdminSession(request) {
@@ -1024,6 +1145,14 @@ function sendUnauthorized(response) {
     success: false,
     message: '請先登入後台',
     error: { code: 'ADMIN_AUTH_REQUIRED' }
+  });
+}
+
+function sendForbidden(response) {
+  sendJson(response, 403, {
+    success: false,
+    message: '沒有操作權限',
+    error: { code: 'ADMIN_PERMISSION_DENIED' }
   });
 }
 
