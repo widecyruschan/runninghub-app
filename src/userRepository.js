@@ -1,7 +1,10 @@
 const crypto = require('crypto');
 
 const VALID_USER_ROLES = new Set(['admin', 'content_editor', 'free_user', 'member']);
-const VALID_MEMBERSHIP_GROUPS = new Set(['free', 'pro', 'pro_plus', 'pro_max']);
+const BACKEND_USER_ROLES = new Set(['admin', 'content_editor']);
+const FRONTEND_USER_ROLES = new Set(['free_user', 'member']);
+const MEMBER_PLAN_GROUPS = new Set(['pro', 'pro_plus', 'pro_max']);
+const VALID_MEMBERSHIP_GROUPS = new Set(['staff', 'free', 'pro', 'pro_plus', 'pro_max']);
 const VALID_USER_STATUS = new Set(['active', 'disabled']);
 
 function createUserRepository(database) {
@@ -129,6 +132,10 @@ function createUserRepository(database) {
       throwValidationError('用戶不存在', 'USER_NOT_FOUND', 404);
     }
 
+    if (user.accountType !== 'frontend') {
+      throwValidationError('後台帳號不使用前台積分', 'USER_CREDIT_BACKEND_ACCOUNT_INVALID', 422);
+    }
+
     const creditDelta = parseInteger(amount, '積分調整數量不正確', 'USER_CREDIT_AMOUNT_INVALID');
     if (creditDelta === 0) {
       throwValidationError('積分調整數量不能為 0', 'USER_CREDIT_AMOUNT_ZERO', 422);
@@ -188,7 +195,7 @@ function getSaveUserCreditBalance(normalizedUser, existingUser, options) {
 function normalizeUserPayload(rawUser) {
   const user = rawUser && typeof rawUser === 'object' ? rawUser : {};
   const role = String(user.role || 'free_user').trim();
-  const membershipGroup = String(user.membershipGroup || user.membership_group || 'free').trim();
+  const requestedMembershipGroup = String(user.membershipGroup || user.membership_group || '').trim();
   const status = String(user.status || 'active').trim();
   const email = String(user.email || '').trim().toLowerCase();
   const creditBalance = parseInteger(
@@ -209,6 +216,7 @@ function normalizeUserPayload(rawUser) {
     throwValidationError('用戶角色不正確', 'USER_ROLE_INVALID', 422);
   }
 
+  const membershipGroup = normalizeMembershipGroup(role, requestedMembershipGroup);
   if (!VALID_MEMBERSHIP_GROUPS.has(membershipGroup)) {
     throwValidationError('會員分組不正確', 'USER_MEMBERSHIP_INVALID', 422);
   }
@@ -234,10 +242,14 @@ function normalizeUserPayload(rawUser) {
 }
 
 function mapUserRecord(record) {
+  const accountType = getAccountType(record.role);
+
   return {
     id: record.id,
     email: record.email,
     displayName: record.display_name,
+    accountType,
+    accountTypeLabel: accountType === 'backend' ? '後台帳號' : '前台用戶',
     role: record.role,
     roleLabel: getRoleLabel(record.role),
     membershipGroup: record.membership_group,
@@ -264,6 +276,32 @@ function mapCreditLedgerRecord(record) {
   };
 }
 
+function normalizeMembershipGroup(role, requestedMembershipGroup) {
+  if (BACKEND_USER_ROLES.has(role)) {
+    return 'staff';
+  }
+
+  if (role === 'free_user') {
+    return 'free';
+  }
+
+  if (role === 'member') {
+    if (!requestedMembershipGroup) return 'pro';
+    if (!MEMBER_PLAN_GROUPS.has(requestedMembershipGroup)) {
+      throwValidationError('會員用戶必須選擇會員套餐', 'USER_MEMBER_PLAN_REQUIRED', 422);
+    }
+    return requestedMembershipGroup;
+  }
+
+  return requestedMembershipGroup || 'free';
+}
+
+function getAccountType(role) {
+  if (BACKEND_USER_ROLES.has(role)) return 'backend';
+  if (FRONTEND_USER_ROLES.has(role)) return 'frontend';
+  return 'frontend';
+}
+
 function getRoleLabel(role) {
   const labels = {
     admin: '管理員',
@@ -277,6 +315,7 @@ function getRoleLabel(role) {
 
 function getMembershipGroupLabel(group) {
   const labels = {
+    staff: '後台人員',
     free: '免費組',
     pro: 'PRO',
     pro_plus: 'PRO+',

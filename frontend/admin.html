@@ -1300,20 +1300,60 @@
 
           <section v-else-if="currentRoute === '/admin/users'" class="panel">
             <div class="panel-header">
-              <h2 class="panel-title">用戶列表</h2>
-              <span class="status-pill status-active">{{ users.length }} 個用戶</span>
+              <h2 class="panel-title">帳號與用戶</h2>
+              <span class="status-pill status-active">{{ backendUsers.length }} 個後台帳號 · {{ frontendUsers.length }} 個前台用戶</span>
             </div>
             <div class="panel-body">
               <div class="toolbar">
-                <input class="search-input" v-model="userKeyword" type="search" placeholder="搜尋用戶、角色或會員分組">
-                <button class="button button-primary" type="button" @click="openUserForm()">新增用戶</button>
+                <input class="search-input" v-model="userKeyword" type="search" placeholder="搜尋帳號、角色或會員套餐">
+                <button class="button" type="button" @click="openBackendUserForm()">新增後台帳號</button>
+                <button class="button button-primary" type="button" @click="openFrontendUserForm()">新增前台用戶</button>
+              </div>
+
+              <div class="section-title">
+                <div>
+                  <h3>後台帳號</h3>
+                  <p>只用於管理後台登入和內容運營，包含管理員與文章錄入員，不參與前台會員套餐。</p>
+                </div>
+              </div>
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>帳號</th>
+                    <th>角色</th>
+                    <th>狀態</th>
+                    <th>備註</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="user in filteredBackendUsers" :key="user.id">
+                    <td>
+                      <div class="tool-name">{{ user.displayName }}</div>
+                      <div class="tool-desc">{{ user.email }}</div>
+                    </td>
+                    <td>{{ user.roleLabel }}</td>
+                    <td><span class="status-pill" :class="user.statusClass">{{ user.statusLabel }}</span></td>
+                    <td>{{ user.notes || '—' }}</td>
+                    <td>
+                      <button class="button" type="button" @click="openUserForm(user)">編輯</button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div class="section-title">
+                <div>
+                  <h3>前台用戶</h3>
+                  <p>只用於前台工具使用、積分和會員套餐，包含普通免費用戶與會員用戶。</p>
+                </div>
               </div>
               <table class="table">
                 <thead>
                   <tr>
                     <th>用戶</th>
-                    <th>角色</th>
-                    <th>會員分組</th>
+                    <th>用戶類型</th>
+                    <th>會員套餐</th>
                     <th>積分</th>
                     <th>狀態</th>
                     <th>備註</th>
@@ -1321,7 +1361,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="user in filteredUsers" :key="user.id">
+                  <tr v-for="user in filteredFrontendUsers" :key="user.id">
                     <td>
                       <div class="tool-name">{{ user.displayName }}</div>
                       <div class="tool-desc">{{ user.email }}</div>
@@ -1341,11 +1381,18 @@
 
               <div class="section-title">
                 <div>
-                  <h3>{{ userForm.id ? '編輯用戶' : '新增用戶' }}</h3>
-                  <p>角色先支援管理員、文章錄入員、普通免費用戶和會員用戶；會員分組用於後續額度和扣費。</p>
+                  <h3>{{ userForm.id ? '編輯帳號' : '新增帳號' }}</h3>
+                  <p>後台帳號和前台用戶分開管理；會員用戶需要選擇對應套餐。</p>
                 </div>
               </div>
               <div class="form-grid">
+                <div class="field">
+                  <label for="user-account-type">帳號類型</label>
+                  <select id="user-account-type" v-model="userForm.accountType" @change="handleUserAccountTypeChange">
+                    <option value="backend">後台帳號</option>
+                    <option value="frontend">前台用戶</option>
+                  </select>
+                </div>
                 <div class="field">
                   <label for="user-email">Email</label>
                   <input id="user-email" v-model="userForm.email" placeholder="user@example.com">
@@ -1357,16 +1404,16 @@
                 <div class="field">
                   <label for="user-role">角色</label>
                   <select id="user-role" v-model="userForm.role">
-                    <option v-for="role in userRoleOptions" :key="role.value" :value="role.value">{{ role.label }}</option>
+                    <option v-for="role in availableUserRoleOptions" :key="role.value" :value="role.value">{{ role.label }}</option>
                   </select>
                 </div>
-                <div class="field">
-                  <label for="user-group">會員分組</label>
+                <div v-if="userForm.accountType === 'frontend' && userForm.role === 'member'" class="field">
+                  <label for="user-group">會員套餐</label>
                   <select id="user-group" v-model="userForm.membershipGroup">
-                    <option v-for="group in membershipGroupOptions" :key="group.value" :value="group.value">{{ group.label }}</option>
+                    <option v-for="group in memberPlanOptions" :key="group.value" :value="group.value">{{ group.label }}</option>
                   </select>
                 </div>
-                <div class="field">
+                <div v-if="userForm.accountType === 'frontend'" class="field">
                   <label for="user-credit">積分餘額</label>
                   <input id="user-credit" v-model="userForm.creditBalance" type="number" min="0" step="1">
                 </div>
@@ -1616,15 +1663,17 @@
           { value: 'select', label: '下拉列表' }
         ];
 
-        const userRoleOptions = [
+        const backendUserRoleOptions = [
           { value: 'admin', label: '管理員' },
-          { value: 'content_editor', label: '文章錄入員' },
+          { value: 'content_editor', label: '文章錄入員' }
+        ];
+
+        const frontendUserRoleOptions = [
           { value: 'free_user', label: '普通免費用戶' },
           { value: 'member', label: '會員用戶' }
         ];
 
-        const membershipGroupOptions = [
-          { value: 'free', label: '免費組' },
+        const memberPlanOptions = [
           { value: 'pro', label: 'PRO' },
           { value: 'pro_plus', label: 'PRO+' },
           { value: 'pro_max', label: 'PRO MAX' }
@@ -1644,17 +1693,26 @@
 
         const currentPage = computed(() => routeDefinitions[currentRoute.value] || routeDefinitions['/admin']);
         const activeCategories = computed(() => categories.value.filter((category) => category.status === 'active'));
-        const filteredUsers = computed(() => {
-          const keyword = userKeyword.value.trim().toLowerCase();
-          if (!keyword) return users.value;
+        const backendUsers = computed(() => users.value.filter((user) => user.accountType === 'backend'));
+        const frontendUsers = computed(() => users.value.filter((user) => user.accountType === 'frontend'));
+        const availableUserRoleOptions = computed(() => (
+          userForm.value.accountType === 'backend' ? backendUserRoleOptions : frontendUserRoleOptions
+        ));
+        const filteredBackendUsers = computed(() => filterUsersByKeyword(backendUsers.value));
+        const filteredFrontendUsers = computed(() => filterUsersByKeyword(frontendUsers.value));
 
-          return users.value.filter((user) => (
+        function filterUsersByKeyword(userList) {
+          const keyword = userKeyword.value.trim().toLowerCase();
+          if (!keyword) return userList;
+
+          return userList.filter((user) => (
             user.email.toLowerCase().includes(keyword) ||
             user.displayName.toLowerCase().includes(keyword) ||
             user.roleLabel.toLowerCase().includes(keyword) ||
             user.membershipGroupLabel.toLowerCase().includes(keyword)
           ));
-        });
+        }
+
         const filteredTools = computed(() => {
           const keyword = toolKeyword.value.trim().toLowerCase();
           if (!keyword) return tools.value;
@@ -1693,7 +1751,7 @@
           }
 
           if (currentRoute.value === '/admin/users') {
-            openUserForm();
+            openFrontendUserForm();
             return;
           }
 
@@ -1780,6 +1838,7 @@
         function createEmptyUserForm() {
           return {
             id: '',
+            accountType: 'frontend',
             email: '',
             displayName: '',
             role: 'free_user',
@@ -1852,6 +1911,7 @@
           if (user) {
             userForm.value = {
               id: user.id,
+              accountType: user.accountType || inferAccountTypeFromRole(user.role),
               email: user.email,
               displayName: user.displayName,
               role: user.role,
@@ -1864,6 +1924,36 @@
           }
 
           userForm.value = createEmptyUserForm();
+        }
+
+        function openBackendUserForm() {
+          userForm.value = {
+            ...createEmptyUserForm(),
+            accountType: 'backend',
+            role: 'content_editor',
+            membershipGroup: 'staff',
+            creditBalance: 0
+          };
+        }
+
+        function openFrontendUserForm() {
+          userForm.value = createEmptyUserForm();
+        }
+
+        function handleUserAccountTypeChange() {
+          if (userForm.value.accountType === 'backend') {
+            userForm.value.role = 'content_editor';
+            userForm.value.membershipGroup = 'staff';
+            userForm.value.creditBalance = 0;
+            return;
+          }
+
+          userForm.value.role = 'free_user';
+          userForm.value.membershipGroup = 'free';
+        }
+
+        function inferAccountTypeFromRole(role) {
+          return role === 'admin' || role === 'content_editor' ? 'backend' : 'frontend';
         }
 
         function resetUserForm() {
@@ -2036,7 +2126,7 @@
           const response = await adminFetch('/api/admin/users', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(userForm.value)
+            body: JSON.stringify(normalizeUserFormForSave())
           });
           const result = await response.json();
 
@@ -2047,6 +2137,25 @@
 
           await loadUsers();
           resetUserForm();
+        }
+
+        function normalizeUserFormForSave() {
+          if (userForm.value.accountType === 'backend') {
+            return {
+              ...userForm.value,
+              membershipGroup: 'staff',
+              creditBalance: 0
+            };
+          }
+
+          if (userForm.value.role === 'free_user') {
+            return {
+              ...userForm.value,
+              membershipGroup: 'free'
+            };
+          }
+
+          return userForm.value;
         }
 
         async function adjustUserCredits() {
@@ -2367,10 +2476,15 @@
           categoryForm,
           creditForm,
           creditLedger,
+          backendUsers,
+          frontendUsers,
+          availableUserRoleOptions,
+          filteredBackendUsers,
+          filteredFrontendUsers,
           filteredTools,
-          filteredUsers,
           getTaskStatusClass,
           getTaskStatusLabel,
+          handleUserAccountTypeChange,
           isTestingTool,
           addInputNode,
           addNodeOption,
@@ -2381,11 +2495,13 @@
           loginAdmin,
           logoutAdmin,
           membershipPlans,
-          membershipGroupOptions,
+          memberPlanOptions,
           metrics,
           navItems,
           navigateTo,
           openCreditForm,
+          openBackendUserForm,
+          openFrontendUserForm,
           openToolForm,
           openUserForm,
           editCategory,
@@ -2412,7 +2528,6 @@
           tools,
           userForm,
           userKeyword,
-          userRoleOptions,
           users
         };
       }

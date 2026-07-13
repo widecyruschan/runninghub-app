@@ -173,6 +173,16 @@ function migrateDatabase(database) {
       ON execution_tasks(user_id, created_at);
   `);
 
+  database.prepare(`
+    UPDATE app_users
+    SET
+      membership_group = 'staff',
+      credit_balance = 0,
+      updated_at = ?
+    WHERE role IN ('admin', 'content_editor')
+      AND (membership_group != 'staff' OR credit_balance != 0)
+  `).run(new Date().toISOString());
+
   seedDefaultCategories(database);
   seedDefaultUsers(database);
 
@@ -814,7 +824,7 @@ function seedDefaultUsers(database) {
       email: 'admin@example.com',
       displayName: '管理員',
       role: 'admin',
-      membershipGroup: 'pro_max',
+      membershipGroup: 'staff',
       creditBalance: 5000,
       status: 'active',
       notes: '系統預設管理員資料'
@@ -824,7 +834,7 @@ function seedDefaultUsers(database) {
       email: 'editor@example.com',
       displayName: '文章錄入員',
       role: 'content_editor',
-      membershipGroup: 'free',
+      membershipGroup: 'staff',
       creditBalance: 100,
       status: 'active',
       notes: '可管理內容，後續接入內容權限'

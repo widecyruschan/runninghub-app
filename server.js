@@ -386,13 +386,15 @@ async function handleAdminApi(request, response) {
   if (url.pathname === '/api/admin/users' && request.method === 'POST') {
     const requestBody = await readJsonBody(request);
     const initialCreditBalance = Number(requestBody.creditBalance ?? requestBody.credit_balance ?? 0);
-    if (!requestBody.id && initialCreditBalance > 0 && !hasPermission(adminSession, 'manage_credits')) {
+    const requestedRole = String(requestBody.role || '').trim();
+    const canSetInitialCredits = requestedRole === 'free_user' || requestedRole === 'member';
+    if (!requestBody.id && canSetInitialCredits && initialCreditBalance > 0 && !hasPermission(adminSession, 'manage_credits')) {
       sendForbidden(response);
       return;
     }
 
     const savedUser = userRepository.saveUser(requestBody);
-    const responseUser = !requestBody.id && initialCreditBalance > 0
+    const responseUser = !requestBody.id && canSetInitialCredits && initialCreditBalance > 0
       ? userRepository.adjustCredits(savedUser.id, initialCreditBalance, '初始積分')
       : savedUser;
 
