@@ -254,7 +254,7 @@
     }
 
     .content {
-      width: min(1220px, 100%);
+      width: min(1480px, 100%);
       margin: 0 auto;
       padding: 24px clamp(18px, 3vw, 34px) 42px;
     }
@@ -485,6 +485,13 @@
       margin-bottom: 16px;
     }
 
+    .toolbar-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+
     .search-input {
       min-height: 40px;
       width: min(320px, 100%);
@@ -494,6 +501,59 @@
       color: var(--ink);
       padding: 0 12px;
       outline: none;
+    }
+
+    .filter-select {
+      min-height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #ffffff;
+      color: var(--ink);
+      padding: 0 12px;
+      outline: none;
+    }
+
+    .task-detail-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .task-detail-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface-soft);
+      padding: 14px;
+    }
+
+    .task-detail-card.is-full {
+      grid-column: 1 / -1;
+    }
+
+    .detail-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 850;
+      margin-bottom: 6px;
+    }
+
+    .detail-value {
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 750;
+      overflow-wrap: anywhere;
+    }
+
+    .json-preview {
+      max-height: 260px;
+      overflow: auto;
+      border-radius: 7px;
+      background: #111827;
+      color: #e5e7eb;
+      padding: 12px;
+      font-size: 12px;
+      line-height: 1.55;
+      white-space: pre-wrap;
     }
 
     .form-grid {
@@ -823,6 +883,7 @@
       .form-grid,
       .preview-config-grid,
       .node-grid,
+      .task-detail-grid,
       .option-row {
         grid-template-columns: 1fr;
       }
@@ -1407,6 +1468,7 @@
                     <td>
                       <button class="button" type="button" @click="openUserForm(user)">編輯</button>
                       <button class="button button-success" type="button" @click="openCreditForm(user)">調整積分</button>
+                      <button class="button" type="button" @click="openUserTaskHistory(user)">查看歷史</button>
                     </td>
                   </tr>
                 </tbody>
@@ -1533,9 +1595,32 @@
           <section v-else-if="currentRoute === '/admin/tasks'" class="panel">
             <div class="panel-header">
               <h2 class="panel-title">執行歷史</h2>
-              <span class="status-pill status-active">{{ tasks.length }} 筆任務</span>
+              <span class="status-pill status-active">{{ filteredTasks.length }} / {{ tasks.length }} 筆任務</span>
             </div>
             <div class="panel-body">
+              <div class="toolbar">
+                <div class="toolbar-group">
+                  <input class="search-input" v-model="taskKeyword" type="search" placeholder="搜尋任務、工具、用戶或錯誤">
+                  <select class="filter-select" v-model="taskStatusFilter">
+                    <option value="all">全部狀態</option>
+                    <option v-for="status in taskStatusOptions" :key="status.value" :value="status.value">
+                      {{ status.label }}
+                    </option>
+                  </select>
+                  <select class="filter-select" v-model="taskUserFilter">
+                    <option value="all">全部用戶</option>
+                    <option value="guest">訪客任務</option>
+                    <option
+                      v-for="user in frontendUsers"
+                      :key="user.id"
+                      :value="user.id"
+                    >
+                      {{ user.displayName }} · {{ user.email }}
+                    </option>
+                  </select>
+                </div>
+                <button class="button" type="button" @click="loadTasks">刷新任務</button>
+              </div>
               <table class="table">
                 <thead>
                   <tr>
@@ -1546,20 +1631,81 @@
                     <th>RunningHub taskId</th>
                     <th>錯誤</th>
                     <th>建立時間</th>
+                    <th>操作</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="task in tasks" :key="task.id">
+                  <tr v-for="task in filteredTasks" :key="task.id">
                     <td>{{ task.id }}</td>
                     <td>{{ task.toolName }}</td>
-                    <td>{{ task.userDisplayName || task.userEmail || '訪客' }}</td>
+                    <td>{{ getTaskUserLabel(task) }}</td>
                     <td><span class="status-pill" :class="getTaskStatusClass(task.status)">{{ getTaskStatusLabel(task.status) }}</span></td>
                     <td>{{ task.runningHubTaskId || '—' }}</td>
                     <td>{{ task.errorMessage || '—' }}</td>
                     <td>{{ task.createdAt }}</td>
+                    <td>
+                      <button class="button" type="button" @click="openTaskDetail(task)">詳情</button>
+                    </td>
+                  </tr>
+                  <tr v-if="!filteredTasks.length">
+                    <td colspan="8">暫時沒有符合條件的任務。</td>
                   </tr>
                 </tbody>
               </table>
+
+              <section v-if="selectedTask" class="test-panel">
+                <div class="test-panel-header">
+                  <div>
+                    <h3 class="panel-title">任務詳情</h3>
+                    <p class="page-description">用於排查工具輸入、RunningHub 狀態、輸出解析和失敗原因。</p>
+                  </div>
+                  <button class="button" type="button" @click="selectedTask = null">關閉</button>
+                </div>
+                <div class="test-panel-body">
+                  <div class="task-detail-grid">
+                    <div class="task-detail-card">
+                      <div class="detail-label">本地任務 ID</div>
+                      <div class="detail-value">{{ selectedTask.id }}</div>
+                    </div>
+                    <div class="task-detail-card">
+                      <div class="detail-label">RunningHub taskId</div>
+                      <div class="detail-value">{{ selectedTask.runningHubTaskId || '—' }}</div>
+                    </div>
+                    <div class="task-detail-card">
+                      <div class="detail-label">工具</div>
+                      <div class="detail-value">{{ selectedTask.toolName }} · {{ selectedTask.toolKey }}</div>
+                    </div>
+                    <div class="task-detail-card">
+                      <div class="detail-label">用戶</div>
+                      <div class="detail-value">{{ getTaskUserLabel(selectedTask) }}</div>
+                    </div>
+                    <div class="task-detail-card">
+                      <div class="detail-label">狀態</div>
+                      <div class="detail-value">{{ getTaskStatusLabel(selectedTask.status) }}</div>
+                    </div>
+                    <div class="task-detail-card">
+                      <div class="detail-label">建立 / 更新</div>
+                      <div class="detail-value">{{ selectedTask.createdAt }} / {{ selectedTask.updatedAt }}</div>
+                    </div>
+                    <div class="task-detail-card is-full">
+                      <div class="detail-label">錯誤摘要</div>
+                      <div class="detail-value">{{ selectedTask.errorMessage || selectedTask.errorCode || '—' }}</div>
+                    </div>
+                    <div class="task-detail-card is-full">
+                      <div class="detail-label">輸入值</div>
+                      <pre class="json-preview">{{ formatJson(selectedTask.inputValues) }}</pre>
+                    </div>
+                    <div class="task-detail-card is-full">
+                      <div class="detail-label">節點參數</div>
+                      <pre class="json-preview">{{ formatJson(selectedTask.nodeInfoList) }}</pre>
+                    </div>
+                    <div class="task-detail-card is-full">
+                      <div class="detail-label">輸出 URL</div>
+                      <pre class="json-preview">{{ formatJson(selectedTask.outputUrls) }}</pre>
+                    </div>
+                  </div>
+                </div>
+              </section>
             </div>
           </section>
 
@@ -1663,6 +1809,10 @@
         const tools = ref([]);
         const users = ref([]);
         const tasks = ref([]);
+        const taskKeyword = ref('');
+        const taskStatusFilter = ref('all');
+        const taskUserFilter = ref('all');
+        const selectedTask = ref(null);
         const creditLedger = ref([]);
 
         const navItems = [
@@ -1713,6 +1863,14 @@
           { value: 'pro_max', label: 'PRO MAX' }
         ];
 
+        const taskStatusOptions = [
+          { value: 'CREATED', label: '已建立' },
+          { value: 'QUEUED', label: '排隊中' },
+          { value: 'RUNNING', label: '處理中' },
+          { value: 'SUCCESS', label: '成功' },
+          { value: 'FAILED', label: '失敗' }
+        ];
+
         const membershipPlans = [
           { key: 'pro', name: 'PRO', price: 'US$9.99/月', dailyUses: '50', credits: '300', priority: 'Standard', status: '啟用' },
           { key: 'pro_plus', name: 'PRO+', price: 'US$29.99/月', dailyUses: '300', credits: '1500', priority: 'High', status: '啟用' },
@@ -1734,6 +1892,32 @@
         ));
         const filteredBackendUsers = computed(() => filterUsersByKeyword(backendUsers.value));
         const filteredFrontendUsers = computed(() => filterUsersByKeyword(frontendUsers.value));
+        const filteredTasks = computed(() => {
+          const keyword = taskKeyword.value.trim().toLowerCase();
+          const status = taskStatusFilter.value;
+          const userId = taskUserFilter.value;
+
+          return tasks.value.filter((task) => {
+            const matchesStatus = status === 'all' || task.status === status;
+            const matchesUser = userId === 'all'
+              || (userId === 'guest' && !task.userId)
+              || task.userId === userId;
+            const searchableText = [
+              task.id,
+              task.toolName,
+              task.toolKey,
+              task.runningHubTaskId,
+              task.userEmail,
+              task.userDisplayName,
+              task.status,
+              task.errorCode,
+              task.errorMessage
+            ].filter(Boolean).join(' ').toLowerCase();
+            const matchesKeyword = !keyword || searchableText.includes(keyword);
+
+            return matchesStatus && matchesUser && matchesKeyword;
+          });
+        });
 
         function filterUsersByKeyword(userList) {
           const keyword = userKeyword.value.trim().toLowerCase();
@@ -2012,6 +2196,14 @@
           await loadCreditLedger(user.id);
         }
 
+        function openUserTaskHistory(user) {
+          taskUserFilter.value = user.id;
+          taskStatusFilter.value = 'all';
+          taskKeyword.value = '';
+          selectedTask.value = null;
+          navigateTo('/admin/tasks');
+        }
+
         function resetCreditForm() {
           creditForm.value = createEmptyCreditForm();
           creditLedger.value = [];
@@ -2126,6 +2318,9 @@
           }
 
           tasks.value = payload.data;
+          if (selectedTask.value) {
+            selectedTask.value = tasks.value.find((task) => task.id === selectedTask.value.id) || null;
+          }
         }
 
         async function loadCreditLedger(userId) {
@@ -2487,6 +2682,22 @@
           return 'status-draft';
         }
 
+        function getTaskUserLabel(task) {
+          return task.userDisplayName || task.userEmail || '訪客';
+        }
+
+        function openTaskDetail(task) {
+          selectedTask.value = task;
+        }
+
+        function formatJson(value) {
+          try {
+            return JSON.stringify(value ?? null, null, 2);
+          } catch (error) {
+            return String(value || '');
+          }
+        }
+
         function delay(milliseconds) {
           return new Promise((resolve) => setTimeout(resolve, milliseconds));
         }
@@ -2662,6 +2873,9 @@
           availableUserRoleOptions,
           filteredBackendUsers,
           filteredFrontendUsers,
+          filteredTasks,
+          formatJson,
+          getTaskUserLabel,
           filteredTools,
           getTaskStatusClass,
           getTaskStatusLabel,
@@ -2682,8 +2896,10 @@
           navigateTo,
           openCreditForm,
           openBackendUserForm,
+          openTaskDetail,
           openToolForm,
           openUserForm,
+          openUserTaskHistory,
           editCategory,
           removeInputNode,
           removeNodeOption,
@@ -2698,7 +2914,12 @@
           saveCategory,
           saveToolDraft,
           saveUser,
+          selectedTask,
           tasks,
+          taskKeyword,
+          taskStatusFilter,
+          taskStatusOptions,
+          taskUserFilter,
           toolTestResult,
           toolTestValues,
           updateCurrentToolStatus,

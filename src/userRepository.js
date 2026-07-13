@@ -19,6 +19,11 @@ function createUserRepository(database) {
       FROM app_users
       WHERE id = ?
     `),
+    findByEmail: database.prepare(`
+      SELECT *
+      FROM app_users
+      WHERE email = ?
+    `),
     insert: database.prepare(`
       INSERT INTO app_users (
         id,
@@ -92,6 +97,11 @@ function createUserRepository(database) {
 
   function getUserById(id) {
     const record = statements.findById.get(id);
+    return record ? mapUserRecord(record) : null;
+  }
+
+  function getUserByEmail(email) {
+    const record = statements.findByEmail.get(String(email || '').trim().toLowerCase());
     return record ? mapUserRecord(record) : null;
   }
 
@@ -173,6 +183,7 @@ function createUserRepository(database) {
 
   return {
     adjustCredits,
+    getUserByEmail,
     getUserById,
     listCreditLedgerByUser,
     listUsers,

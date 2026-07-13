@@ -143,6 +143,17 @@ function migrateDatabase(database) {
       FOREIGN KEY (user_id) REFERENCES app_users(id)
     );
 
+    CREATE TABLE IF NOT EXISTS app_user_sessions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      provider TEXT NOT NULL DEFAULT 'google',
+      provider_subject TEXT NOT NULL DEFAULT '',
+      expires_at TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES app_users(id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_tools_status_sort
       ON tools(status, sort_order);
 
@@ -160,6 +171,9 @@ function migrateDatabase(database) {
 
     CREATE INDEX IF NOT EXISTS idx_credit_ledger_user_created
       ON credit_ledger(user_id, created_at);
+
+    CREATE INDEX IF NOT EXISTS idx_app_user_sessions_user_expires
+      ON app_user_sessions(user_id, expires_at);
   `);
 
   ensureColumn(database, 'tools', 'category_id', "TEXT NOT NULL DEFAULT 'image'");
@@ -232,7 +246,8 @@ class JsonFileDatabase {
         tools: Array.isArray(state.tools) ? state.tools : [],
         execution_tasks: Array.isArray(state.execution_tasks) ? state.execution_tasks : [],
         app_users: Array.isArray(state.app_users) ? state.app_users : [],
-        credit_ledger: Array.isArray(state.credit_ledger) ? state.credit_ledger : []
+        credit_ledger: Array.isArray(state.credit_ledger) ? state.credit_ledger : [],
+        app_user_sessions: Array.isArray(state.app_user_sessions) ? state.app_user_sessions : []
       };
     } catch (error) {
       console.warn('JSON 資料庫讀取失敗，將使用空白資料庫。', error.message);
@@ -284,6 +299,10 @@ class JsonStatement {
 
     if (this.normalizedSql.includes('FROM credit_ledger')) {
       return this.queryCreditLedger(params);
+    }
+
+    if (this.normalizedSql.includes('FROM app_user_sessions')) {
+      return this.queryUserSessions(params);
     }
 
     return [];
@@ -463,6 +482,26 @@ class JsonStatement {
       return { changes: 1 };
     }
 
+    if (this.normalizedSql.startsWith('INSERT INTO app_user_sessions')) {
+      this.database.state.app_user_sessions.push(toUserSessionRecord(payload));
+      this.database.persist();
+      return { changes: 1 };
+    }
+
+    if (this.normalizedSql.startsWith('DELETE FROM app_user_sessions WHERE id')) {
+      const beforeCount = this.database.state.app_user_sessions.length;
+      this.database.state.app_user_sessions = this.database.state.app_user_sessions.filter((session) => session.id !== payload);
+      this.database.persist();
+      return { changes: beforeCount - this.database.state.app_user_sessions.length };
+    }
+
+    if (this.normalizedSql.startsWith('DELETE FROM app_user_sessions WHERE expires_at')) {
+      const beforeCount = this.database.state.app_user_sessions.length;
+      this.database.state.app_user_sessions = this.database.state.app_user_sessions.filter((session) => session.expires_at > payload);
+      this.database.persist();
+      return { changes: beforeCount - this.database.state.app_user_sessions.length };
+    }
+
     return { changes: 0 };
   }
 
@@ -491,6 +530,8 @@ class JsonStatement {
 
     if (this.normalizedSql.includes('WHERE id = ?') || this.normalizedSql.includes('WHERE execution_tasks.id = ?')) {
       tasks = tasks.filter((task) => task.id === params[0]);
+    } else if (this.normalizedSql.includes('WHERE execution_tasks.user_id = ?')) {
+      tasks = tasks.filter((task) => task.user_id === params[0]);
     }
 
     return tasks.sort(compareCreatedAtDesc);
@@ -514,6 +555,16 @@ class JsonStatement {
     }
 
     return records.sort(compareCreatedAtDesc);
+  }
+
+  queryUserSessions(params) {
+    let sessions = this.database.state.app_user_sessions.map((session) => withSessionUserFields(session, this.database.state.app_users));
+
+    if (this.normalizedSql.includes('WHERE app_user_sessions.id = ?')) {
+      sessions = sessions.filter((session) => session.id === params[0]);
+    }
+
+    return sessions.sort(compareCreatedAtDesc);
   }
 
   findRecord(collectionName, id) {
@@ -559,7 +610,8 @@ function createEmptyState() {
     tools: [],
     execution_tasks: [],
     app_users: [],
-    credit_ledger: []
+    credit_ledger: [],
+    app_user_sessions: []
   };
 }
 
@@ -628,6 +680,15 @@ function getJsonTableColumns(tableName) {
       'reason',
       'related_task_id',
       'created_at'
+    ],
+    app_user_sessions: [
+      'id',
+      'user_id',
+      'provider',
+      'provider_subject',
+      'expires_at',
+      'created_at',
+      'updated_at'
     ]
   };
 
@@ -721,12 +782,37 @@ function toCreditLedgerRecord(payload) {
   };
 }
 
+function toUserSessionRecord(payload) {
+  return {
+    id: payload.id,
+    user_id: payload.userId,
+    provider: payload.provider,
+    provider_subject: payload.providerSubject || '',
+    expires_at: payload.expiresAt,
+    created_at: payload.createdAt,
+    updated_at: payload.updatedAt
+  };
+}
+
 function withCategoryFields(tool, categories) {
   const category = categories.find((item) => item.id === tool.category_id);
   return {
     ...tool,
     category_name: category?.name || '',
     category_key: category?.category_key || tool.category_id
+  };
+}
+
+function withSessionUserFields(session, users) {
+  const user = users.find((item) => item.id === session.user_id) || {};
+  return {
+    ...session,
+    user_email: user.email || '',
+    user_display_name: user.display_name || '',
+    user_role: user.role || '',
+    user_membership_group: user.membership_group || '',
+    user_credit_balance: user.credit_balance || 0,
+    user_status: user.status || ''
   };
 }
 

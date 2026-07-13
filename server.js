@@ -7,6 +7,7 @@ const { createToolRepository } = require('./src/toolRepository');
 const { createCategoryRepository } = require('./src/categoryRepository');
 const { createTaskRepository } = require('./src/taskRepository');
 const { createUserRepository } = require('./src/userRepository');
+const { createMemberSessionRepository } = require('./src/memberSessionRepository');
 
 const PUBLIC_DIR = path.join(__dirname, 'frontend');
 const UPLOAD_DIR = path.join(__dirname, 'data', 'uploads');
@@ -32,6 +33,9 @@ const runningHubTaskApiBaseUrl = process.env.RUNNINGHUB_TASK_API_BASE_URL || 'ht
 const adminUsername = process.env.ADMIN_USERNAME || 'admin';
 const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
 const adminSessionSecret = process.env.ADMIN_SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+const googleClientId = process.env.GOOGLE_CLIENT_ID || '';
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET || '';
+const googleOauthRedirectUri = process.env.GOOGLE_OAUTH_REDIRECT_URI || '';
 const port = Number(process.env.PORT || DEFAULT_PORT);
 const host = process.env.HOST || '0.0.0.0';
 const database = createDatabase();
@@ -39,6 +43,7 @@ const toolRepository = createToolRepository(database);
 const categoryRepository = createCategoryRepository(database);
 const taskRepository = createTaskRepository(database);
 const userRepository = createUserRepository(database);
+const memberSessionRepository = createMemberSessionRepository(database);
 
 toolRepository.seedDefaultTools();
 
@@ -73,11 +78,17 @@ const adminRoutePrefixes = [
 ];
 
 const frontendRoutePrefixes = [
+  '/login',
+  '/member',
+  '/register',
   '/tools'
 ];
 const adminSessions = new Map();
 const ADMIN_SESSION_COOKIE = 'runninghub_admin_session';
 const ADMIN_SESSION_MAX_AGE_SECONDS = 60 * 60 * 8;
+const MEMBER_SESSION_COOKIE = 'runninghub_member_session';
+const MEMBER_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+const GOOGLE_OAUTH_SCOPE = 'openid email profile';
 const ADMIN_ROLE_PERMISSIONS = {
   admin: new Set(['manage_tools', 'manage_users', 'manage_content', 'view_tasks', 'manage_credits']),
   content_editor: new Set(['manage_content']),
@@ -104,6 +115,11 @@ const server = http.createServer(async (request, response) => {
 
     if (requestPathname.startsWith('/api/admin/')) {
       await handleAdminApi(request, response);
+      return;
+    }
+
+    if (requestPathname.startsWith('/api/auth/')) {
+      await handleAuthApi(request, response);
       return;
     }
 
@@ -482,6 +498,17 @@ async function handleAdminApi(request, response) {
     return;
   }
 
+  const userTasksMatch = url.pathname.match(/^\/api\/admin\/users\/([^/]+)\/tasks$/);
+  if (userTasksMatch && request.method === 'GET') {
+    const userId = decodeURIComponent(userTasksMatch[1]);
+    sendJson(response, 200, {
+      success: true,
+      message: '操作成功',
+      data: taskRepository.listTasksByUser(userId)
+    });
+    return;
+  }
+
   if (url.pathname === '/api/admin/tasks' && request.method === 'GET') {
     sendJson(response, 200, {
       success: true,
@@ -551,6 +578,64 @@ async function handlePublicApi(request, response) {
       success: true,
       message: '操作成功',
       data: categoryRepository.listCategories().filter((category) => category.status === 'active')
+    });
+    return;
+  }
+
+  sendJson(response, 404, {
+    success: false,
+    message: '介面不存在',
+    error: { code: 'API_NOT_FOUND' }
+  });
+}
+
+async function handleAuthApi(request, response) {
+  const url = new URL(request.url, `http://${request.headers.host}`);
+
+  if (url.pathname === '/api/auth/google' && request.method === 'GET') {
+    ensureGoogleOAuthConfigured();
+    const state = crypto.randomBytes(16).toString('hex');
+    const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+    authUrl.searchParams.set('client_id', googleClientId);
+    authUrl.searchParams.set('redirect_uri', getGoogleRedirectUri(request));
+    authUrl.searchParams.set('response_type', 'code');
+    authUrl.searchParams.set('scope', GOOGLE_OAUTH_SCOPE);
+    authUrl.searchParams.set('state', state);
+    authUrl.searchParams.set('prompt', 'select_account');
+
+    response.writeHead(302, {
+      Location: authUrl.toString(),
+      'Set-Cookie': createOAuthStateCookie(request, state)
+    });
+    response.end();
+    return;
+  }
+
+  if (url.pathname === '/api/auth/google/callback' && request.method === 'GET') {
+    await handleGoogleOAuthCallback(request, response, url);
+    return;
+  }
+
+  if (url.pathname === '/api/auth/me' && request.method === 'GET') {
+    const memberSession = getMemberSession(request);
+    sendJson(response, 200, {
+      success: true,
+      message: '操作成功',
+      data: memberSession ? memberSession.user : null
+    });
+    return;
+  }
+
+  if (url.pathname === '/api/auth/logout' && request.method === 'POST') {
+    const sessionId = getCookieValue(request, MEMBER_SESSION_COOKIE);
+    if (sessionId) memberSessionRepository.deleteSession(sessionId);
+
+    sendJson(response, 200, {
+      success: true,
+      message: '已登出',
+      data: null
+    }, {
+      'Set-Cookie': createExpiredCookie(request, MEMBER_SESSION_COOKIE)
     });
     return;
   }
@@ -1146,6 +1231,124 @@ function isValidAdminCredential(username, password) {
   return timingSafeEqual(username, adminUsername) && timingSafeEqual(password, adminPassword);
 }
 
+function ensureGoogleOAuthConfigured() {
+  if (!googleClientId || !googleClientSecret) {
+    throwHttpError('Google 登入尚未配置', 'GOOGLE_OAUTH_NOT_CONFIGURED', 500);
+  }
+}
+
+async function handleGoogleOAuthCallback(request, response, url) {
+  ensureGoogleOAuthConfigured();
+
+  const code = url.searchParams.get('code');
+  const state = url.searchParams.get('state');
+  const savedState = getCookieValue(request, 'runninghub_google_oauth_state');
+
+  if (!code || !state || !savedState || state !== savedState) {
+    redirectWithExpiredOAuthState(request, response, '/login?oauth=invalid_state');
+    return;
+  }
+
+  try {
+    const tokenPayload = await exchangeGoogleCodeForToken(request, code);
+    const googleProfile = await fetchGoogleUserProfile(tokenPayload.access_token);
+    const memberUser = saveGoogleMemberUser(googleProfile);
+    const memberSession = memberSessionRepository.createSession({
+      userId: memberUser.id,
+      provider: 'google',
+      providerSubject: googleProfile.sub,
+      maxAgeSeconds: MEMBER_SESSION_MAX_AGE_SECONDS
+    });
+
+    response.writeHead(302, {
+      Location: '/member/files',
+      'Set-Cookie': [
+        createMemberSessionCookie(request, memberSession.id),
+        createExpiredCookie(request, 'runninghub_google_oauth_state')
+      ]
+    });
+    response.end();
+  } catch (error) {
+    console.error('Google 登入失敗:', error);
+    redirectWithExpiredOAuthState(request, response, '/login?oauth=failed');
+  }
+}
+
+async function exchangeGoogleCodeForToken(request, code) {
+  const response = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: new URLSearchParams({
+      code,
+      client_id: googleClientId,
+      client_secret: googleClientSecret,
+      redirect_uri: getGoogleRedirectUri(request),
+      grant_type: 'authorization_code'
+    })
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload.access_token) {
+    const message = payload.error_description || payload.error || 'Google token 換取失敗';
+    throwHttpError(message, 'GOOGLE_TOKEN_EXCHANGE_FAILED', 502);
+  }
+
+  return payload;
+}
+
+async function fetchGoogleUserProfile(accessToken) {
+  const response = await fetch('https://openidconnect.googleapis.com/v1/userinfo', {
+    headers: {
+      Authorization: `Bearer ${accessToken}`
+    }
+  });
+
+  const profile = await response.json().catch(() => ({}));
+  if (!response.ok || !profile.email) {
+    throwHttpError('Google 用戶資料讀取失敗', 'GOOGLE_PROFILE_FAILED', 502);
+  }
+
+  return profile;
+}
+
+function saveGoogleMemberUser(profile) {
+  const email = String(profile.email || '').trim().toLowerCase();
+  const existingUser = userRepository.getUserByEmail(email);
+  const displayName = String(profile.name || profile.given_name || email.split('@')[0] || 'Member').trim();
+  const userPayload = {
+    id: existingUser?.id || '',
+    email,
+    displayName,
+    role: existingUser?.role === 'member' ? 'member' : 'free_user',
+    membershipGroup: existingUser?.membershipGroup || 'free',
+    creditBalance: existingUser?.creditBalance || 0,
+    status: 'active',
+    notes: existingUser?.notes || 'Google 登入'
+  };
+
+  return userRepository.saveUser(userPayload, {
+    allowInitialCreditBalance: true
+  });
+}
+
+function getGoogleRedirectUri(request) {
+  if (googleOauthRedirectUri) return googleOauthRedirectUri;
+
+  const protocol = request.headers['x-forwarded-proto'] || (shouldUseSecureCookie(request) ? 'https' : 'http');
+  const hostHeader = request.headers.host || `127.0.0.1:${port}`;
+  return `${protocol}://${hostHeader}/api/auth/google/callback`;
+}
+
+function redirectWithExpiredOAuthState(request, response, location) {
+  response.writeHead(302, {
+    Location: location,
+    'Set-Cookie': createExpiredCookie(request, 'runninghub_google_oauth_state')
+  });
+  response.end();
+}
+
 function timingSafeEqual(leftValue, rightValue) {
   const left = Buffer.from(String(leftValue));
   const right = Buffer.from(String(rightValue));
@@ -1196,6 +1399,12 @@ function getAdminSession(request) {
   return session;
 }
 
+function getMemberSession(request) {
+  const sessionId = getCookieValue(request, MEMBER_SESSION_COOKIE);
+  if (!sessionId) return null;
+  return memberSessionRepository.getSessionById(sessionId);
+}
+
 function pruneExpiredAdminSessions(now = Date.now()) {
   for (const [sessionId, session] of adminSessions.entries()) {
     if (session.expiresAt <= now) {
@@ -1224,9 +1433,35 @@ function createSessionCookie(request, sessionId) {
   ].filter(Boolean).join('; ');
 }
 
-function createExpiredSessionCookie(request) {
+function createMemberSessionCookie(request, sessionId) {
   return [
-    `${ADMIN_SESSION_COOKIE}=`,
+    `${MEMBER_SESSION_COOKIE}=${encodeURIComponent(sessionId)}`,
+    'Path=/',
+    'HttpOnly',
+    'SameSite=Lax',
+    `Max-Age=${MEMBER_SESSION_MAX_AGE_SECONDS}`,
+    shouldUseSecureCookie(request) ? 'Secure' : ''
+  ].filter(Boolean).join('; ');
+}
+
+function createOAuthStateCookie(request, state) {
+  return [
+    `runninghub_google_oauth_state=${encodeURIComponent(state)}`,
+    'Path=/',
+    'HttpOnly',
+    'SameSite=Lax',
+    'Max-Age=600',
+    shouldUseSecureCookie(request) ? 'Secure' : ''
+  ].filter(Boolean).join('; ');
+}
+
+function createExpiredSessionCookie(request) {
+  return createExpiredCookie(request, ADMIN_SESSION_COOKIE);
+}
+
+function createExpiredCookie(request, cookieName) {
+  return [
+    `${cookieName}=`,
     'Path=/',
     'HttpOnly',
     'SameSite=Lax',

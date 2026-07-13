@@ -193,6 +193,346 @@
       cursor: default;
     }
 
+    .notification-nav,
+    .member-nav {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 70px;
+    }
+
+    .round-icon-button {
+      width: 46px;
+      height: 46px;
+      display: grid;
+      place-items: center;
+      position: relative;
+      border-radius: 999px;
+      background: #eef0f7;
+      color: #555c74;
+      cursor: pointer;
+      font-size: 20px;
+      font-weight: 800;
+    }
+
+    .round-icon-button svg {
+      width: 21px;
+      height: 21px;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+    }
+
+    .notification-dot {
+      width: 9px;
+      height: 9px;
+      position: absolute;
+      top: 3px;
+      right: 8px;
+      border-radius: 999px;
+      background: #ff4f7c;
+    }
+
+    .notification-dropdown,
+    .member-dropdown {
+      position: absolute;
+      right: 0;
+      top: 62px;
+      z-index: 35;
+      width: min(420px, calc(100vw - 24px));
+      display: none;
+      border: 1px solid #dfe4f1;
+      border-radius: 8px;
+      background: #ffffff;
+      box-shadow: 0 26px 70px rgba(33, 42, 68, 0.18);
+      overflow: hidden;
+    }
+
+    .notification-dropdown {
+      width: min(470px, calc(100vw - 24px));
+    }
+
+    .notification-nav:hover .notification-dropdown,
+    .notification-nav:focus-within .notification-dropdown,
+    .member-nav:hover .member-dropdown,
+    .member-nav:focus-within .member-dropdown {
+      display: block;
+    }
+
+    .notification-dropdown-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      border-bottom: 1px solid #e5e9f2;
+      padding: 20px 22px;
+    }
+
+    .notification-dropdown-title {
+      color: var(--strong);
+      font-size: 22px;
+      font-weight: 900;
+    }
+
+    .notification-read-button {
+      background: transparent;
+      color: var(--accent);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+
+    .notification-list {
+      display: grid;
+      gap: 0;
+    }
+
+    .notification-item {
+      display: grid;
+      grid-template-columns: 38px minmax(0, 1fr) 8px;
+      gap: 14px;
+      align-items: start;
+      border-bottom: 1px solid #edf1f7;
+      padding: 18px 22px;
+      text-align: left;
+    }
+
+    .notification-item:last-child {
+      border-bottom: 0;
+    }
+
+    .notification-mark {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      background: #f4f6fb;
+      color: #65708a;
+      font-size: 18px;
+      font-weight: 900;
+    }
+
+    .notification-title {
+      display: block;
+      color: var(--strong);
+      font-size: 14px;
+      font-weight: 850;
+      line-height: 1.35;
+    }
+
+    .notification-description,
+    .notification-time {
+      display: block;
+      margin-top: 4px;
+      color: #707b91;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .notification-status {
+      width: 8px;
+      height: 8px;
+      margin-top: 6px;
+      border-radius: 999px;
+      background: #ff4f7c;
+    }
+
+    .member-dropdown-header {
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr);
+      gap: 14px;
+      align-items: center;
+      border-bottom: 1px solid #e5e9f2;
+      padding: 24px 28px;
+      color: #7a8198;
+      font-size: 18px;
+      line-height: 1.5;
+    }
+
+    .member-provider-mark {
+      color: #737c96;
+      font-size: 24px;
+      font-weight: 900;
+    }
+
+    .member-dropdown-email {
+      color: #5b627c;
+      font-weight: 800;
+      overflow-wrap: anywhere;
+    }
+
+    .member-menu-list {
+      display: grid;
+      gap: 4px;
+      padding: 18px 20px 22px;
+    }
+
+    .member-menu-item {
+      min-height: 48px;
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr);
+      gap: 14px;
+      align-items: center;
+      border-radius: 7px;
+      background: transparent;
+      color: #555c74;
+      cursor: pointer;
+      padding: 0 14px;
+      text-align: left;
+      font-size: 17px;
+      font-weight: 750;
+    }
+
+    .member-menu-item:hover {
+      background: #f5f7fb;
+      color: var(--accent);
+    }
+
+    .member-page {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+      padding: clamp(34px, 7vw, 72px) clamp(20px, 4vw, 30px) 74px;
+    }
+
+    .member-page-header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 22px;
+      align-items: end;
+      margin-bottom: 24px;
+    }
+
+    .member-title {
+      color: var(--strong);
+      font-size: clamp(34px, 5vw, 58px);
+      line-height: 1.02;
+      font-weight: 900;
+      letter-spacing: 0;
+    }
+
+    .member-description {
+      max-width: 720px;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.7;
+    }
+
+    .member-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 0.95fr) minmax(360px, 0.7fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .member-panel {
+      border: 1px solid #dfe7f2;
+      border-radius: 8px;
+      background: var(--surface);
+      box-shadow: 0 20px 55px rgba(27, 39, 52, 0.08);
+      padding: 22px;
+    }
+
+    .member-panel-title {
+      color: var(--strong);
+      font-size: 20px;
+      font-weight: 880;
+      margin-bottom: 14px;
+    }
+
+    .member-form {
+      display: grid;
+      gap: 14px;
+    }
+
+    .member-field {
+      display: grid;
+      gap: 7px;
+    }
+
+    .member-field label {
+      color: #405168;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .member-field input,
+    .member-field select {
+      min-height: 44px;
+      border: 1px solid #d6dfeb;
+      border-radius: 7px;
+      background: #ffffff;
+      color: var(--ink);
+      padding: 0 12px;
+      outline: none;
+    }
+
+    .member-stat-grid,
+    .member-card-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .member-stat,
+    .member-card {
+      min-height: 114px;
+      border: 1px solid #dfe7f2;
+      border-radius: 8px;
+      background: #f8fbff;
+      padding: 16px;
+    }
+
+    .member-stat-value {
+      color: var(--strong);
+      font-size: 30px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .member-stat-label,
+    .member-card-meta {
+      margin-top: 9px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .member-empty {
+      min-height: 220px;
+      display: grid;
+      place-items: center;
+      border: 1px dashed #cbd8e6;
+      border-radius: 8px;
+      color: #64748b;
+      text-align: center;
+      padding: 24px;
+    }
+
+    .member-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    .member-table th,
+    .member-table td {
+      border-bottom: 1px solid #e5edf5;
+      padding: 14px 12px;
+      text-align: left;
+    }
+
+    .member-table th {
+      color: #64748b;
+      background: #f8fbff;
+      font-weight: 850;
+    }
+
     .tool-page {
       flex: 1;
       display: grid;
@@ -945,7 +1285,9 @@
 
       .compare-grid,
       .form-action-row,
-      .dynamic-field-list {
+      .dynamic-field-list,
+      .member-grid,
+      .member-page-header {
         grid-template-columns: 1fr;
       }
 
@@ -1004,6 +1346,16 @@
       .tool-grid {
         grid-template-columns: 1fr;
       }
+
+      .member-stat-grid,
+      .member-card-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .notification-dropdown,
+      .member-dropdown {
+        right: -12px;
+      }
     }
   </style>
 </head>
@@ -1045,10 +1397,216 @@
           </div>
           <a href="#faq">FAQ</a>
           <a href="#privacy">隱私</a>
+          <div class="notification-nav">
+            <button class="round-icon-button" type="button" aria-label="Notifications">
+              <span class="notification-dot" aria-hidden="true"></span>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+              </svg>
+            </button>
+            <div class="notification-dropdown" aria-label="Notifications">
+              <div class="notification-dropdown-header">
+                <div class="notification-dropdown-title">Notifications</div>
+                <button class="notification-read-button" type="button">Mark all as read</button>
+              </div>
+              <div class="notification-list">
+                <article
+                  v-for="item in notificationItems"
+                  :key="item.id"
+                  class="notification-item"
+                >
+                  <span class="notification-mark" aria-hidden="true">✦</span>
+                  <span>
+                    <span class="notification-title">{{ item.title }}</span>
+                    <span class="notification-description">{{ item.description }}</span>
+                    <span class="notification-time">{{ item.time }}</span>
+                  </span>
+                  <span class="notification-status" aria-hidden="true"></span>
+                </article>
+              </div>
+            </div>
+          </div>
+          <div class="member-nav">
+            <button class="round-icon-button" type="button" aria-label="User menu">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M20 21a8 8 0 0 0-16 0"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+            </button>
+            <span class="nav-chevron" aria-hidden="true">⌄</span>
+            <div class="member-dropdown" aria-label="會員選單">
+              <div class="member-dropdown-header">
+                <span class="member-provider-mark">G</span>
+                <div>
+                  <div>{{ memberLoggedIn ? 'Logged in with Google' : 'Create your account' }}</div>
+                  <div class="member-dropdown-email">{{ memberEmail }}</div>
+                </div>
+              </div>
+              <div class="member-menu-list">
+                <button
+                  v-for="item in memberMenuItems"
+                  :key="item.path"
+                  class="member-menu-item"
+                  type="button"
+                  @click="openMemberPage(item.path)"
+                >
+                  <span aria-hidden="true">{{ item.icon }}</span>
+                  <span>{{ item.label }}</span>
+                </button>
+                <button class="member-menu-item" type="button" @click="handleMemberLogout">
+                  <span aria-hidden="true">↪</span>
+                  <span>{{ memberLoggedIn ? 'Log Out' : 'Register / Log In' }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </nav>
       </header>
 
-      <section v-if="isMarketplace" class="marketplace">
+      <section v-if="isMemberPage" class="member-page">
+        <div class="member-page-header">
+          <div>
+            <p class="eyebrow">MEMBER CENTER</p>
+            <h1 class="member-title">{{ memberPageTitle }}</h1>
+            <p class="member-description">{{ memberPageDescription }}</p>
+          </div>
+          <button class="primary-button" type="button" @click="openMemberPage('/register')">
+            {{ memberLoggedIn ? '升級會員' : '免費註冊' }}
+          </button>
+        </div>
+
+        <div v-if="currentMemberPath === '/register' || currentMemberPath === '/login'" class="member-grid">
+          <section class="member-panel">
+            <h2 class="member-panel-title">建立會員帳號</h2>
+            <div class="member-form">
+              <div class="member-field">
+                <label for="member-name">暱稱</label>
+                <input id="member-name" v-model="memberForm.displayName" type="text" placeholder="輸入你的暱稱">
+              </div>
+              <div class="member-field">
+                <label for="member-email">Email</label>
+                <input id="member-email" v-model="memberForm.email" type="email" placeholder="name@example.com">
+              </div>
+              <div class="member-field">
+                <label for="member-password">密碼</label>
+                <input id="member-password" v-model="memberForm.password" type="password" placeholder="至少 6 位">
+              </div>
+              <button class="primary-button" type="button" @click="registerMember">註冊並登入</button>
+              <button class="secondary-button" type="button" @click="loginWithGoogle">使用 Google 登入</button>
+            </div>
+          </section>
+          <aside class="member-panel">
+            <h2 class="member-panel-title">會員權益</h2>
+            <div class="member-stat-grid">
+              <div class="member-stat">
+                <div class="member-stat-value">20</div>
+                <div class="member-stat-label">免費試用積分</div>
+              </div>
+              <div class="member-stat">
+                <div class="member-stat-value">HD</div>
+                <div class="member-stat-label">高清結果下載</div>
+              </div>
+              <div class="member-stat">
+                <div class="member-stat-value">History</div>
+                <div class="member-stat-label">保存執行記錄</div>
+              </div>
+            </div>
+          </aside>
+        </div>
+
+        <div v-else-if="currentMemberPath === '/member/files'" class="member-panel">
+          <h2 class="member-panel-title">My Files</h2>
+          <div class="member-card-grid">
+            <article v-for="file in memberFiles" :key="file.id" class="member-card">
+              <div class="tool-name">{{ file.name }}</div>
+              <div class="member-card-meta">{{ file.type }} · {{ file.createdAt }}</div>
+            </article>
+          </div>
+          <div v-if="!memberFiles.length" class="member-empty">你的生成文件會顯示在這裡。</div>
+        </div>
+
+        <div v-else-if="currentMemberPath === '/member/likes'" class="member-panel">
+          <h2 class="member-panel-title">My Likes</h2>
+          <div class="member-card-grid">
+            <article v-for="item in memberLikes" :key="item.id" class="member-card">
+              <div class="tool-name">{{ item.name }}</div>
+              <div class="member-card-meta">{{ item.category }} · 已收藏</div>
+            </article>
+          </div>
+          <div v-if="!memberLikes.length" class="member-empty">收藏工具後會在這裡快速打開。</div>
+        </div>
+
+        <div v-else-if="currentMemberPath === '/member/settings'" class="member-grid">
+          <section class="member-panel">
+            <h2 class="member-panel-title">Settings</h2>
+            <div class="member-form">
+              <div class="member-field">
+                <label for="settings-name">顯示名稱</label>
+                <input id="settings-name" v-model="memberProfile.displayName" type="text">
+              </div>
+              <div class="member-field">
+                <label for="settings-email">Email</label>
+                <input id="settings-email" v-model="memberProfile.email" type="email">
+              </div>
+              <div class="member-field">
+                <label for="settings-plan">會員套餐</label>
+                <select id="settings-plan" v-model="memberProfile.plan">
+                  <option value="free">Free</option>
+                  <option value="pro">PRO</option>
+                  <option value="pro_plus">PRO+</option>
+                  <option value="pro_max">PRO MAX</option>
+                </select>
+              </div>
+              <button class="primary-button" type="button" @click="saveMemberSettings">保存設定</button>
+            </div>
+          </section>
+          <aside class="member-panel">
+            <h2 class="member-panel-title">帳戶狀態</h2>
+            <div class="member-stat-grid">
+              <div class="member-stat">
+                <div class="member-stat-value">{{ memberProfile.credits }}</div>
+                <div class="member-stat-label">可用積分</div>
+              </div>
+              <div class="member-stat">
+                <div class="member-stat-value">{{ memberProfile.plan.toUpperCase() }}</div>
+                <div class="member-stat-label">當前套餐</div>
+              </div>
+              <div class="member-stat">
+                <div class="member-stat-value">Active</div>
+                <div class="member-stat-label">帳戶狀態</div>
+              </div>
+            </div>
+          </aside>
+        </div>
+
+        <div v-else class="member-panel">
+          <h2 class="member-panel-title">Transactions history</h2>
+          <table class="member-table">
+            <thead>
+              <tr>
+                <th>日期</th>
+                <th>項目</th>
+                <th>積分</th>
+                <th>餘額</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="transaction in memberTransactions" :key="transaction.id">
+                <td>{{ transaction.createdAt }}</td>
+                <td>{{ transaction.reason }}</td>
+                <td>{{ transaction.amount }}</td>
+                <td>{{ transaction.balanceAfter }}</td>
+              </tr>
+              <tr v-if="!memberTransactions.length">
+                <td colspan="4">暫時沒有交易記錄。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section v-else-if="isMarketplace" class="marketplace">
         <div class="marketplace-header">
           <div>
             <p class="eyebrow">AI TOOL MARKET</p>
@@ -1142,12 +1700,6 @@
               <p class="eyebrow">{{ toolCategoryLabel }}</p>
               <h1 class="hero-title">{{ toolTitle }}</h1>
               <p class="hero-description">{{ toolDescription }}</p>
-              <div class="tag-list" aria-label="適用場景">
-                <span class="tag">{{ toolCategoryLabel }}</span>
-                <span class="tag">RunningHub</span>
-                <span class="tag">動態配置</span>
-                <span class="tag">{{ estimatedTimeLabel }}</span>
-              </div>
             </div>
 
           </section>
@@ -1373,11 +1925,90 @@
         const toolKeyword = ref('');
         const selectedCategory = ref('all');
         const isLoadingMarketplace = ref(false);
+        const memberLoggedIn = ref(window.localStorage.getItem('runninghub:memberLoggedIn') === 'true');
+        const memberForm = ref({
+          displayName: '',
+          email: '',
+          password: ''
+        });
+        const memberProfile = ref(loadMemberProfile());
+        const memberFiles = ref([]);
+        const memberLikes = ref([
+          { id: 'like-remove-bg', name: 'Remove Background', category: '圖像工具' },
+          { id: 'like-image-enhance', name: 'Image Enhance', category: '圖像工具' }
+        ]);
+        const memberTransactions = ref([
+          { id: 'txn-welcome', createdAt: '2026-07-13', reason: '註冊贈送積分', amount: '+20', balanceAfter: 20 }
+        ]);
 
         const isMarketplace = computed(() => {
           const normalizedPath = normalizePath(currentPath.value);
           return normalizedPath === '/' || normalizedPath === '/tools';
         });
+
+        const isMemberPage = computed(() => {
+          const normalizedPath = normalizePath(currentPath.value);
+          return normalizedPath === '/register'
+            || normalizedPath === '/login'
+            || normalizedPath.startsWith('/member/');
+        });
+
+        const currentMemberPath = computed(() => {
+          const normalizedPath = normalizePath(currentPath.value);
+          if (normalizedPath === '/login') return '/login';
+          if (normalizedPath === '/register') return '/register';
+          if (normalizedPath.startsWith('/member/')) return normalizedPath;
+          return '/member/files';
+        });
+
+        const memberEmail = computed(() => (
+          memberLoggedIn.value ? memberProfile.value.email : 'Start with a free account'
+        ));
+
+        const memberPageTitle = computed(() => {
+          const titles = {
+            '/register': '會員註冊',
+            '/login': '會員登入',
+            '/member/files': 'My Files',
+            '/member/likes': 'My Likes',
+            '/member/settings': 'Settings',
+            '/member/transactions': 'Transactions history'
+          };
+          return titles[currentMemberPath.value] || 'Member Center';
+        });
+
+        const memberPageDescription = computed(() => {
+          const descriptions = {
+            '/register': '建立帳號後可以保存生成文件、收藏工具、查看交易記錄，後續會接入積分和會員套餐。',
+            '/login': '登入後繼續管理你的文件、收藏和交易記錄。',
+            '/member/files': '集中查看你生成和保存的文件，後續會接入雲端硬碟和批量下載。',
+            '/member/likes': '保存常用 AI 工具，方便下次快速打開。',
+            '/member/settings': '管理你的帳戶資料、會員套餐和通知偏好。',
+            '/member/transactions': '查看積分變動、會員套餐和工具執行消耗記錄。'
+          };
+          return descriptions[currentMemberPath.value] || '管理你的會員帳戶。';
+        });
+
+        const memberMenuItems = [
+          { path: '/member/files', label: 'My Files', icon: '□' },
+          { path: '/member/likes', label: 'My Likes', icon: '♡' },
+          { path: '/member/settings', label: 'Settings', icon: '⚙' },
+          { path: '/member/transactions', label: 'Transactions history', icon: '◷' }
+        ];
+        const notificationItems = [
+          {
+            id: 'product-updates-march-2025',
+            title: 'Product Updates: March 2025 Release Notes',
+            description: 'Text-based image editing, AI-driven storytelling agents and more',
+            time: '68 weeks ago'
+          },
+          {
+            id: 'welcome-member-center',
+            title: 'Member Center is ready',
+            description: 'Files, likes, settings and transactions are now grouped in your account menu',
+            time: 'Today'
+          }
+        ];
 
         const activeCategories = computed(() => categories.value.filter((category) => category.status !== 'inactive'));
 
@@ -1567,6 +2198,109 @@
         const createJsonHeaders = () => ({
           'Content-Type': 'application/json'
         });
+
+        function loadMemberProfile() {
+          const savedProfile = window.localStorage.getItem('runninghub:memberProfile');
+          if (savedProfile) {
+            try {
+              return JSON.parse(savedProfile);
+            } catch (error) {
+              window.localStorage.removeItem('runninghub:memberProfile');
+            }
+          }
+
+          return {
+            displayName: 'Cyrus Chan',
+            email: 'widecyruschanhk@gmail.com',
+            plan: 'free',
+            credits: 20
+          };
+        }
+
+        const persistMemberProfile = () => {
+          window.localStorage.setItem('runninghub:memberProfile', JSON.stringify(memberProfile.value));
+          window.localStorage.setItem('runninghub:memberLoggedIn', memberLoggedIn.value ? 'true' : 'false');
+        };
+
+        const openMemberPage = (path) => {
+          const targetPath = path || '/member/files';
+          window.history.pushState({}, '', targetPath);
+          setCurrentPath();
+          resetTool();
+          toolConfig.value = null;
+          document.title = memberPageTitle.value + ' - RunningHub';
+        };
+
+        const registerMember = () => {
+          const email = memberForm.value.email.trim().toLowerCase();
+          const displayName = memberForm.value.displayName.trim() || email.split('@')[0] || 'Member';
+
+          if (!email || !email.includes('@')) {
+            ElementPlus.ElMessage.error('請輸入正確 Email');
+            return;
+          }
+
+          if (memberForm.value.password.length < 6) {
+            ElementPlus.ElMessage.error('密碼至少 6 位');
+            return;
+          }
+
+          memberProfile.value = {
+            ...memberProfile.value,
+            displayName,
+            email
+          };
+          memberLoggedIn.value = true;
+          persistMemberProfile();
+          ElementPlus.ElMessage.success('會員帳號已建立');
+          openMemberPage('/member/files');
+        };
+
+        const loginWithGoogle = () => {
+          window.location.href = '/api/auth/google';
+        };
+
+        const saveMemberSettings = () => {
+          persistMemberProfile();
+          ElementPlus.ElMessage.success('會員設定已保存');
+        };
+
+        const handleMemberLogout = async () => {
+          if (!memberLoggedIn.value) {
+            openMemberPage('/register');
+            return;
+          }
+
+          await axios.post('/api/auth/logout').catch(() => {});
+          memberLoggedIn.value = false;
+          window.localStorage.setItem('runninghub:memberLoggedIn', 'false');
+          ElementPlus.ElMessage.success('已登出');
+          goToMarketplace();
+        };
+
+        const loadMemberSession = async () => {
+          try {
+            const response = await axios.get('/api/auth/me');
+            const user = response.data?.data;
+
+            if (!user) {
+              memberLoggedIn.value = false;
+              window.localStorage.setItem('runninghub:memberLoggedIn', 'false');
+              return;
+            }
+
+            memberProfile.value = {
+              displayName: user.displayName || user.email,
+              email: user.email,
+              plan: user.membershipGroup || 'free',
+              credits: user.creditBalance || 0
+            };
+            memberLoggedIn.value = true;
+            persistMemberProfile();
+          } catch (error) {
+            console.warn('會員狀態載入失敗:', error.message);
+          }
+        };
 
         const getApiErrorMessage = (error) => {
           const responseData = error.response?.data;
@@ -1827,12 +2561,24 @@
         };
 
         onMounted(() => {
+          loadMemberSession();
+          const oauthStatus = new URLSearchParams(window.location.search).get('oauth');
+          if (oauthStatus === 'failed' || oauthStatus === 'invalid_state') {
+            ElementPlus.ElMessage.error('Google 登入失敗，請稍後再試');
+          }
+
           window.addEventListener('popstate', () => {
             setCurrentPath();
 
             if (isMarketplace.value) {
               toolConfig.value = null;
               loadMarketplaceData();
+              return;
+            }
+
+            if (isMemberPage.value) {
+              toolConfig.value = null;
+              document.title = memberPageTitle.value + ' - RunningHub';
               return;
             }
 
@@ -1847,6 +2593,13 @@
             return;
           }
 
+          if (isMemberPage.value) {
+            loadMarketplaceData().finally(() => {
+              document.title = memberPageTitle.value + ' - RunningHub';
+            });
+            return;
+          }
+
           loadMarketplaceData();
           loadToolConfig().catch((error) => {
             console.error('工具配置載入失敗:', error);
@@ -1856,7 +2609,9 @@
 
         return {
           isMarketplace,
+          isMemberPage,
           categories: activeCategories,
+          currentMemberPath,
           dynamicInputFields,
           estimatedTimeLabel,
           filteredTools,
@@ -1873,6 +2628,17 @@
           toolCategoryLabel,
           sidebarSections,
           mediaInputNodes,
+          memberEmail,
+          memberFiles,
+          memberForm,
+          memberLikes,
+          memberLoggedIn,
+          memberMenuItems,
+          notificationItems,
+          memberPageDescription,
+          memberPageTitle,
+          memberProfile,
+          memberTransactions,
           primaryMediaInput,
           primaryMediaPreview,
           hasMediaResultComparison,
@@ -1889,10 +2655,15 @@
           getUploadAccept,
           getUploadMetaHint,
           getMediaPreview,
+          handleMemberLogout,
+          loginWithGoogle,
+          openMemberPage,
           openTool,
           openMenuTool,
           goToMarketplace,
+          registerMember,
           resetTool,
+          saveMemberSettings,
           executeWorkflow,
           downloadResult
         };

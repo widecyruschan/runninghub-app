@@ -24,6 +24,17 @@ function createTaskRepository(database) {
         ON app_users.id = execution_tasks.user_id
       ORDER BY execution_tasks.created_at DESC
     `),
+    listByUser: database.prepare(`
+      SELECT
+        execution_tasks.*,
+        app_users.email AS user_email,
+        app_users.display_name AS user_display_name
+      FROM execution_tasks
+      LEFT JOIN app_users
+        ON app_users.id = execution_tasks.user_id
+      WHERE execution_tasks.user_id = ?
+      ORDER BY execution_tasks.created_at DESC
+    `),
     insert: database.prepare(`
       INSERT INTO execution_tasks (
         id,
@@ -141,6 +152,10 @@ function createTaskRepository(database) {
     return statements.list.all().map(mapTaskRecord);
   }
 
+  function listTasksByUser(userId) {
+    return statements.listByUser.all(userId).map(mapTaskRecord);
+  }
+
   function attachRunningHubTask(id, runningHubTaskId, status = 'QUEUED') {
     const now = new Date().toISOString();
 
@@ -204,6 +219,7 @@ function createTaskRepository(database) {
     completeTask,
     createTask,
     getTaskById,
+    listTasksByUser,
     listTasks,
     markTaskStatus,
     updateTaskPayload
