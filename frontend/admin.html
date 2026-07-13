@@ -1569,6 +1569,7 @@
 
   <script>
     const { createApp, computed, onMounted, ref } = Vue;
+    const LAST_EDITING_TOOL_ID_KEY = 'runninghub:lastEditingToolId';
 
     const routeDefinitions = {
       '/admin': {
@@ -1893,6 +1894,7 @@
 
         function openToolForm(tool) {
           if (tool) {
+            window.localStorage.setItem(LAST_EDITING_TOOL_ID_KEY, tool.id);
             toolForm.value = {
               id: tool.id,
               name: tool.name,
@@ -1913,10 +1915,12 @@
               inputNodes: (tool.inputNodes || []).map(cloneInputNode)
             };
           } else {
+            window.localStorage.removeItem(LAST_EDITING_TOOL_ID_KEY);
             toolForm.value = createEmptyToolForm();
           }
 
           resetToolTestValues();
+          destroyToolDetailEditor();
           navigateTo('/admin/workflows');
           initToolDetailEditor();
         }
@@ -2247,6 +2251,7 @@
             return;
           }
 
+          window.localStorage.removeItem(LAST_EDITING_TOOL_ID_KEY);
           await loadTools();
           navigateTo('/admin/tools');
         }
@@ -2262,9 +2267,13 @@
               return;
             }
 
+            const detailHtml = toolForm.value.detailHtml || '';
+            const editorTextarea = document.querySelector('#tool-detail-editor');
+            if (editorTextarea) editorTextarea.value = detailHtml;
+
             const existingEditor = getToolDetailEditor();
             if (existingEditor) {
-              existingEditor.setContent(toolForm.value.detailHtml || '');
+              existingEditor.setContent(detailHtml);
               return;
             }
 
@@ -2283,9 +2292,9 @@
               file_picker_callback: openToolDetailMediaPicker,
               setup(editor) {
                 editor.on('init', () => {
-                  editor.setContent(toolForm.value.detailHtml || '');
+                  editor.setContent(detailHtml);
                 });
-                editor.on('change keyup undo redo setcontent', () => {
+                editor.on('change keyup undo redo', () => {
                   toolForm.value.detailHtml = editor.getContent().trim();
                 });
               },
@@ -2581,6 +2590,25 @@
             loadUsers(),
             loadTasks()
           ]);
+
+          restoreWorkflowEditorAfterRefresh();
+        }
+
+        function restoreWorkflowEditorAfterRefresh() {
+          if (currentRoute.value !== '/admin/workflows') return;
+          if (toolForm.value.id) {
+            initToolDetailEditor();
+            return;
+          }
+
+          const lastEditingToolId = window.localStorage.getItem(LAST_EDITING_TOOL_ID_KEY);
+          const lastEditingTool = tools.value.find((tool) => tool.id === lastEditingToolId);
+          if (!lastEditingTool) {
+            initToolDetailEditor();
+            return;
+          }
+
+          openToolForm(lastEditingTool);
         }
 
         onMounted(() => {
@@ -2590,6 +2618,7 @@
 
           window.addEventListener('popstate', () => {
             currentRoute.value = normalizeRoute(window.location.pathname);
+            restoreWorkflowEditorAfterRefresh();
           });
         });
 
