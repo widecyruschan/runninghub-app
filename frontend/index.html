@@ -252,6 +252,12 @@
       text-align: center;
     }
 
+    .tool-main {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
     .hero {
       flex: 1;
       width: min(1180px, 100%);
@@ -314,7 +320,6 @@
     }
 
     .tool-detail-section {
-      grid-column: 2;
       width: min(1180px, 100%);
       margin: 0 auto;
       padding: 0 clamp(20px, 4vw, 30px) 72px;
@@ -935,10 +940,6 @@
         display: none;
       }
 
-      .tool-detail-section {
-        grid-column: 1;
-      }
-
       .marketplace-header {
         grid-template-columns: 1fr;
       }
@@ -1156,22 +1157,23 @@
           </div>
         </aside>
 
-        <section class="hero tool-hero">
-          <div class="hero-copy">
-            <p class="eyebrow">{{ toolCategoryLabel }}</p>
-            <h1 class="hero-title">{{ toolTitle }}</h1>
-            <p class="hero-description">{{ toolDescription }}</p>
-            <div class="tag-list" aria-label="適用場景">
-              <span class="tag">{{ toolCategoryLabel }}</span>
-              <span class="tag">RunningHub</span>
-              <span class="tag">動態配置</span>
-              <span class="tag">{{ estimatedTimeLabel }}</span>
+        <div class="tool-main">
+          <section class="hero tool-hero">
+            <div class="hero-copy">
+              <p class="eyebrow">{{ toolCategoryLabel }}</p>
+              <h1 class="hero-title">{{ toolTitle }}</h1>
+              <p class="hero-description">{{ toolDescription }}</p>
+              <div class="tag-list" aria-label="適用場景">
+                <span class="tag">{{ toolCategoryLabel }}</span>
+                <span class="tag">RunningHub</span>
+                <span class="tag">動態配置</span>
+                <span class="tag">{{ estimatedTimeLabel }}</span>
+              </div>
             </div>
-          </div>
 
-          <section class="tool-card" :aria-label="`${toolTitle} 操作區`">
-            <div class="workspace">
-              <div class="filebar">
+            <section class="tool-card" :aria-label="`${toolTitle} 操作區`">
+              <div class="workspace">
+                <div class="filebar">
                   <div>
                     <div class="file-name">{{ currentFileName }}</div>
                     <div class="file-meta">{{ currentFileMeta }}</div>
@@ -1313,13 +1315,14 @@
                   </div>
                 </aside>
               </div>
-            </div>
+              </div>
+            </section>
           </section>
-        </section>
 
-        <section v-if="toolDetailHtml" class="tool-detail-section" aria-label="工具詳細說明">
-          <div class="tool-detail-content" v-html="toolDetailHtml"></div>
-        </section>
+          <section v-if="toolDetailHtml" class="tool-detail-section" aria-label="工具詳細說明">
+            <div class="tool-detail-content" v-html="toolDetailHtml"></div>
+          </section>
+        </div>
       </div>
 
       <div v-if="isExecuting" class="loading-overlay">
