@@ -79,6 +79,7 @@ function createToolRepository(database) {
         slug,
         category_id,
         short_description,
+        detail_html,
         preview_image_url,
         workflow_id,
         instance_type,
@@ -96,6 +97,7 @@ function createToolRepository(database) {
         @slug,
         @categoryId,
         @shortDescription,
+        @detailHtml,
         @previewImageUrl,
         @workflowId,
         @instanceType,
@@ -115,6 +117,7 @@ function createToolRepository(database) {
         slug = @slug,
         category_id = @categoryId,
         short_description = @shortDescription,
+        detail_html = @detailHtml,
         preview_image_url = @previewImageUrl,
         workflow_id = @workflowId,
         instance_type = @instanceType,
@@ -264,6 +267,7 @@ function createToolRepository(database) {
       slug: 'remove-background',
       categoryId: 'image',
       shortDescription: '上傳圖片後自動移除背景，輸出透明 PNG。',
+      detailHtml: '<h2>工具說明</h2><p>上傳圖片後，系統會自動移除背景並輸出透明 PNG，適合商品圖、頭像和素材處理。</p>',
       previewImageUrl: 'https://images.unsplash.com/photo-1520975682031-a87d82c5b6d8?auto=format&fit=crop&w=900&q=80',
       workflowId: '2075488908690935809',
       instanceType: 'default',
@@ -342,6 +346,7 @@ function normalizeToolPayload(rawTool) {
     slug: slugify(String(tool.slug || toolKey)),
     categoryId: String(tool.categoryId || tool.category_id || 'image').trim() || 'image',
     shortDescription: String(tool.shortDescription || tool.description || '').trim(),
+    detailHtml: sanitizeDetailHtml(tool.detailHtml || tool.detail_html || ''),
     previewImageUrl: String(tool.previewImageUrl || tool.preview_image_url || '').trim(),
     workflowId: String(tool.workflowId).trim(),
     instanceType: String(tool.instanceType || 'default').trim(),
@@ -417,6 +422,7 @@ function mapToolRecord(record) {
     categoryName: record.category_name || getFallbackCategoryName(record.category_id),
     shortDescription: record.short_description,
     description: record.short_description,
+    detailHtml: sanitizeDetailHtml(record.detail_html || ''),
     previewImageUrl: record.preview_image_url,
     preview_image_url: record.preview_image_url,
     workflowId: record.workflow_id,
@@ -452,6 +458,7 @@ function mapPublicToolRecord(record) {
     categoryName: tool.categoryName,
     shortDescription: tool.shortDescription,
     description: tool.shortDescription,
+    detailHtml: tool.detailHtml,
     previewImageUrl: tool.previewImageUrl,
     workflowId: tool.workflowId,
     instanceType: tool.instanceType,
@@ -459,6 +466,16 @@ function mapPublicToolRecord(record) {
     inputNodes: tool.inputNodes,
     outputConfig: tool.outputConfig
   };
+}
+
+function sanitizeDetailHtml(value) {
+  return String(value || '')
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/\son[a-z]+\s*=\s*(['"]).*?\1/gi, '')
+    .replace(/\son[a-z]+\s*=\s*[^\s>]+/gi, '')
+    .replace(/\s(href|src)\s*=\s*(['"])\s*javascript:[\s\S]*?\2/gi, '')
+    .trim();
 }
 
 function parseJson(value, fallback) {

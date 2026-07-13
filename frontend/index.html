@@ -313,6 +313,54 @@
       white-space: nowrap;
     }
 
+    .tool-detail-section {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+      padding: 0 clamp(20px, 4vw, 30px) 72px;
+    }
+
+    .tool-detail-content {
+      border-top: 1px solid #d7e1ec;
+      padding-top: 30px;
+      color: #26364a;
+      font-size: 16px;
+      line-height: 1.8;
+    }
+
+    .tool-detail-content h2,
+    .tool-detail-content h3 {
+      color: var(--strong);
+      line-height: 1.25;
+      margin: 0 0 14px;
+    }
+
+    .tool-detail-content h2 {
+      font-size: 28px;
+    }
+
+    .tool-detail-content h3 {
+      font-size: 22px;
+      margin-top: 24px;
+    }
+
+    .tool-detail-content p,
+    .tool-detail-content ul,
+    .tool-detail-content ol {
+      margin: 0 0 16px;
+    }
+
+    .tool-detail-content ul,
+    .tool-detail-content ol {
+      padding-left: 22px;
+    }
+
+    .tool-detail-content a {
+      color: #0f766e;
+      font-weight: 800;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
     .marketplace {
       width: min(1180px, 100%);
       margin: 0 auto;
@@ -1256,6 +1304,10 @@
             </div>
           </section>
         </section>
+
+        <section v-if="toolDetailHtml" class="tool-detail-section" aria-label="工具詳細說明">
+          <div class="tool-detail-content" v-html="toolDetailHtml"></div>
+        </section>
       </div>
 
       <div v-if="isExecuting" class="loading-overlay">
@@ -1465,6 +1517,10 @@
           || '上傳圖片並調用 RunningHub 工作流，自動生成處理結果。'
         ));
         const toolCategoryLabel = computed(() => toolConfig.value?.categoryName || 'ONLINE AI TOOL');
+        const toolDetailHtml = computed(() => {
+          if (isMarketplace.value) return '';
+          return toolConfig.value?.detailHtml || '';
+        });
         const estimatedTimeLabel = computed(() => {
           const seconds = toolConfig.value?.estimatedSeconds;
           return seconds ? `約 ${seconds} 秒` : 'AI 工具';
@@ -1862,6 +1918,7 @@
           toolTitle,
           toolMenuGroups,
           toolDescription,
+          toolDetailHtml,
           toolCategoryLabel,
           sidebarSections,
           uploadFieldLabel,

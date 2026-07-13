@@ -675,6 +675,47 @@
       padding-top: 16px;
     }
 
+    .rich-editor {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #ffffff;
+      overflow: hidden;
+    }
+
+    .rich-editor-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface-soft);
+      padding: 10px;
+    }
+
+    .rich-editor-button {
+      min-height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #ffffff;
+      color: #26364a;
+      padding: 0 10px;
+      font-size: 12px;
+      font-weight: 850;
+      cursor: pointer;
+    }
+
+    .rich-editor-area {
+      min-height: 220px;
+      padding: 16px;
+      color: var(--ink);
+      line-height: 1.7;
+      outline: none;
+    }
+
+    .rich-editor-area:empty::before {
+      content: attr(data-placeholder);
+      color: var(--muted);
+    }
+
     .hint-list {
       display: grid;
       gap: 10px;
@@ -1139,6 +1180,36 @@
                 </article>
               </div>
 
+              <section class="test-panel">
+                <div class="test-panel-header">
+                  <div>
+                    <h3 class="panel-title">工具詳細說明</h3>
+                    <p class="page-description">顯示在前台工具頁底部，可用於工具介紹、使用步驟、FAQ 或注意事項。</p>
+                  </div>
+                </div>
+                <div class="test-panel-body">
+                  <div class="rich-editor">
+                    <div class="rich-editor-toolbar" aria-label="富文本工具列">
+                      <button class="rich-editor-button" type="button" @click="formatToolDetail('formatBlock', 'h2')">H2</button>
+                      <button class="rich-editor-button" type="button" @click="formatToolDetail('formatBlock', 'h3')">H3</button>
+                      <button class="rich-editor-button" type="button" @click="formatToolDetail('bold')">B</button>
+                      <button class="rich-editor-button" type="button" @click="formatToolDetail('italic')">I</button>
+                      <button class="rich-editor-button" type="button" @click="formatToolDetail('insertUnorderedList')">列表</button>
+                      <button class="rich-editor-button" type="button" @click="insertToolDetailLink">連結</button>
+                      <button class="rich-editor-button" type="button" @click="formatToolDetail('removeFormat')">清除格式</button>
+                    </div>
+                    <div
+                      ref="toolDetailEditorRef"
+                      class="rich-editor-area"
+                      contenteditable="true"
+                      data-placeholder="在這裡輸入工具詳細說明，例如使用步驟、適用場景、常見問題。"
+                      @input="syncToolDetailHtml"
+                      @blur="syncToolDetailHtml"
+                    ></div>
+                  </div>
+                </div>
+              </section>
+
               <section v-if="toolForm.id" class="test-panel">
                 <div class="test-panel-header">
                   <div>
@@ -1306,8 +1377,7 @@
             <div class="panel-body">
               <div class="toolbar">
                 <input class="search-input" v-model="userKeyword" type="search" placeholder="搜尋帳號、角色或會員套餐">
-                <button class="button" type="button" @click="openBackendUserForm()">新增後台帳號</button>
-                <button class="button button-primary" type="button" @click="openFrontendUserForm()">新增前台用戶</button>
+                <button class="button button-primary" type="button" @click="openBackendUserForm()">新增後台帳號</button>
               </div>
 
               <div class="section-title">
@@ -1345,7 +1415,7 @@
               <div class="section-title">
                 <div>
                   <h3>前台用戶</h3>
-                  <p>只用於前台工具使用、積分和會員套餐，包含普通免費用戶與會員用戶。</p>
+                  <p>前台用戶由網站註冊流程新增；後台只負責瀏覽、編輯狀態、會員套餐和積分。</p>
                 </div>
               </div>
               <table class="table">
@@ -1388,7 +1458,7 @@
               <div class="form-grid">
                 <div class="field">
                   <label for="user-account-type">帳號類型</label>
-                  <select id="user-account-type" v-model="userForm.accountType" @change="handleUserAccountTypeChange">
+                  <select id="user-account-type" v-model="userForm.accountType" disabled @change="handleUserAccountTypeChange">
                     <option value="backend">後台帳號</option>
                     <option value="frontend">前台用戶</option>
                   </select>
@@ -1618,6 +1688,7 @@
         const currentRoute = ref(normalizeRoute(window.location.pathname));
         const toolKeyword = ref('');
         const toolForm = ref(createEmptyToolForm());
+        const toolDetailEditorRef = ref(null);
         const toolTestValues = ref({});
         const toolTestResult = ref(createEmptyToolTestResult());
         const isTestingTool = ref(false);
@@ -1751,7 +1822,7 @@
           }
 
           if (currentRoute.value === '/admin/users') {
-            openFrontendUserForm();
+            openBackendUserForm();
             return;
           }
 
@@ -1797,6 +1868,7 @@
             workflowId: '',
             instanceType: 'default',
             description: '',
+            detailHtml: '',
             status: 'draft',
             lastTestStatus: 'untested',
             lastTestStatusLabel: '未測試',
@@ -1876,6 +1948,7 @@
               workflowId: tool.workflowId === '待配置' ? '' : tool.workflowId,
               instanceType: tool.instanceType || 'default',
               description: tool.shortDescription || tool.description || '',
+              detailHtml: tool.detailHtml || '',
               status: tool.status || 'draft',
               lastTestStatus: tool.lastTestStatus || 'untested',
               lastTestStatusLabel: tool.lastTestStatusLabel || '未測試',
@@ -1891,6 +1964,7 @@
 
           resetToolTestValues();
           navigateTo('/admin/workflows');
+          renderToolDetailEditor();
         }
 
         function editCategory(category) {
@@ -1934,10 +2008,6 @@
             membershipGroup: 'staff',
             creditBalance: 0
           };
-        }
-
-        function openFrontendUserForm() {
-          userForm.value = createEmptyUserForm();
         }
 
         function handleUserAccountTypeChange() {
@@ -2184,6 +2254,7 @@
         }
 
         async function saveToolDraft() {
+          syncToolDetailHtml();
           const payload = {
             id: toolForm.value.id,
             name: toolForm.value.name,
@@ -2191,6 +2262,7 @@
             slug: toolForm.value.key,
             categoryId: toolForm.value.categoryId,
             shortDescription: toolForm.value.description,
+            detailHtml: toolForm.value.detailHtml,
             previewImageUrl: toolForm.value.previewImageUrl,
             workflowId: toolForm.value.workflowId,
             instanceType: toolForm.value.instanceType,
@@ -2223,6 +2295,32 @@
 
           await loadTools();
           navigateTo('/admin/tools');
+        }
+
+        function renderToolDetailEditor() {
+          setTimeout(() => {
+            if (toolDetailEditorRef.value) {
+              toolDetailEditorRef.value.innerHTML = toolForm.value.detailHtml || '';
+            }
+          }, 0);
+        }
+
+        function syncToolDetailHtml() {
+          if (!toolDetailEditorRef.value) return;
+          toolForm.value.detailHtml = toolDetailEditorRef.value.innerHTML.trim();
+        }
+
+        function formatToolDetail(command, value = null) {
+          if (!toolDetailEditorRef.value) return;
+          toolDetailEditorRef.value.focus();
+          document.execCommand(command, false, value);
+          syncToolDetailHtml();
+        }
+
+        function insertToolDetailLink() {
+          const url = window.prompt('請輸入連結 URL');
+          if (!url) return;
+          formatToolDetail('createLink', url);
         }
 
         async function runToolTest() {
@@ -2485,6 +2583,8 @@
           getTaskStatusClass,
           getTaskStatusLabel,
           handleUserAccountTypeChange,
+          formatToolDetail,
+          insertToolDetailLink,
           isTestingTool,
           addInputNode,
           addNodeOption,
@@ -2501,7 +2601,6 @@
           navigateTo,
           openCreditForm,
           openBackendUserForm,
-          openFrontendUserForm,
           openToolForm,
           openUserForm,
           editCategory,
@@ -2524,6 +2623,7 @@
           updateCurrentToolStatus,
           updateToolStatus,
           toolForm,
+          toolDetailEditorRef,
           toolKeyword,
           tools,
           userForm,

@@ -388,6 +388,10 @@ async function handleAdminApi(request, response) {
     const initialCreditBalance = Number(requestBody.creditBalance ?? requestBody.credit_balance ?? 0);
     const requestedRole = String(requestBody.role || '').trim();
     const canSetInitialCredits = requestedRole === 'free_user' || requestedRole === 'member';
+    if (!requestBody.id && canSetInitialCredits) {
+      throwHttpError('前台用戶需通過註冊流程新增，後台只允許瀏覽和修改', 'FRONTEND_USER_CREATE_FROM_ADMIN_FORBIDDEN', 403);
+    }
+
     if (!requestBody.id && canSetInitialCredits && initialCreditBalance > 0 && !hasPermission(adminSession, 'manage_credits')) {
       sendForbidden(response);
       return;
