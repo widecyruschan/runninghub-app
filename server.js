@@ -72,22 +72,37 @@ const ADMIN_ROLE_PERMISSIONS = {
 
 const server = http.createServer(async (request, response) => {
   try {
-    if (request.url.startsWith('/api/admin/')) {
+    const requestPathname = getRequestPathname(request);
+
+    if (requestPathname === '/api/health') {
+      sendJson(response, 200, {
+        success: true,
+        message: '服務正常',
+        data: {
+          service: 'runninghub-app',
+          commit: process.env.RENDER_GIT_COMMIT || process.env.VERCEL_GIT_COMMIT_SHA || '',
+          adminAuth: true
+        }
+      });
+      return;
+    }
+
+    if (requestPathname.startsWith('/api/admin/')) {
       await handleAdminApi(request, response);
       return;
     }
 
-    if (request.url.startsWith('/api/tasks')) {
+    if (requestPathname.startsWith('/api/tasks')) {
       await handleTaskApi(request, response);
       return;
     }
 
-    if (request.url.startsWith('/api/tools') || request.url.startsWith('/api/categories')) {
+    if (requestPathname.startsWith('/api/tools') || requestPathname.startsWith('/api/categories')) {
       await handlePublicApi(request, response);
       return;
     }
 
-    if (request.url.startsWith('/api/runninghub/')) {
+    if (requestPathname.startsWith('/api/runninghub/')) {
       await handleRunningHubApi(request, response);
       return;
     }
@@ -132,6 +147,10 @@ function loadEnvFile(envPath) {
       process.env[key] = value;
     }
   });
+}
+
+function getRequestPathname(request) {
+  return new URL(request.url, `http://${request.headers.host || 'localhost'}`).pathname;
 }
 
 async function handleRunningHubApi(request, response) {
@@ -185,6 +204,17 @@ async function handleRunningHubApi(request, response) {
 
 async function handleAdminApi(request, response) {
   const url = new URL(request.url, `http://${request.headers.host}`);
+
+  if (url.pathname === '/api/admin/auth/health' && request.method === 'GET') {
+    sendJson(response, 200, {
+      success: true,
+      message: '後台登入服務正常',
+      data: {
+        adminAuth: true
+      }
+    });
+    return;
+  }
 
   if (url.pathname === '/api/admin/auth/login' && request.method === 'POST') {
     const requestBody = await readJsonBody(request);
