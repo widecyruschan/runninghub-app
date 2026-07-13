@@ -7,6 +7,7 @@
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/element-plus@2.4.4/dist/index.css">
   <script src="https://unpkg.com/element-plus@2.4.4/dist/index.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tinymce@7/tinymce.min.js" referrerpolicy="origin"></script>
   <style>
     :root {
       color-scheme: light;
@@ -675,45 +676,13 @@
       padding-top: 16px;
     }
 
-    .rich-editor {
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: #ffffff;
-      overflow: hidden;
+    .tool-detail-editor {
+      min-height: 420px;
     }
 
-    .rich-editor-toolbar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      border-bottom: 1px solid var(--line);
-      background: var(--surface-soft);
-      padding: 10px;
-    }
-
-    .rich-editor-button {
-      min-height: 34px;
-      border: 1px solid var(--line);
-      border-radius: 7px;
-      background: #ffffff;
-      color: #26364a;
-      padding: 0 10px;
-      font-size: 12px;
-      font-weight: 850;
-      cursor: pointer;
-    }
-
-    .rich-editor-area {
-      min-height: 220px;
-      padding: 16px;
-      color: var(--ink);
-      line-height: 1.7;
-      outline: none;
-    }
-
-    .rich-editor-area:empty::before {
-      content: attr(data-placeholder);
-      color: var(--muted);
+    .tox-tinymce {
+      border-color: var(--line) !important;
+      border-radius: 8px !important;
     }
 
     .hint-list {
@@ -1188,25 +1157,7 @@
                   </div>
                 </div>
                 <div class="test-panel-body">
-                  <div class="rich-editor">
-                    <div class="rich-editor-toolbar" aria-label="富文本工具列">
-                      <button class="rich-editor-button" type="button" @click="formatToolDetail('formatBlock', 'h2')">H2</button>
-                      <button class="rich-editor-button" type="button" @click="formatToolDetail('formatBlock', 'h3')">H3</button>
-                      <button class="rich-editor-button" type="button" @click="formatToolDetail('bold')">B</button>
-                      <button class="rich-editor-button" type="button" @click="formatToolDetail('italic')">I</button>
-                      <button class="rich-editor-button" type="button" @click="formatToolDetail('insertUnorderedList')">列表</button>
-                      <button class="rich-editor-button" type="button" @click="insertToolDetailLink">連結</button>
-                      <button class="rich-editor-button" type="button" @click="formatToolDetail('removeFormat')">清除格式</button>
-                    </div>
-                    <div
-                      ref="toolDetailEditorRef"
-                      class="rich-editor-area"
-                      contenteditable="true"
-                      data-placeholder="在這裡輸入工具詳細說明，例如使用步驟、適用場景、常見問題。"
-                      @input="syncToolDetailHtml"
-                      @blur="syncToolDetailHtml"
-                    ></div>
-                  </div>
+                  <textarea id="tool-detail-editor" class="tool-detail-editor"></textarea>
                 </div>
               </section>
 
@@ -1688,7 +1639,6 @@
         const currentRoute = ref(normalizeRoute(window.location.pathname));
         const toolKeyword = ref('');
         const toolForm = ref(createEmptyToolForm());
-        const toolDetailEditorRef = ref(null);
         const toolTestValues = ref({});
         const toolTestResult = ref(createEmptyToolTestResult());
         const isTestingTool = ref(false);
@@ -1804,6 +1754,10 @@
         function navigateTo(path) {
           currentRoute.value = normalizeRoute(path);
           window.history.pushState({}, '', currentRoute.value);
+
+          if (currentRoute.value !== '/admin/workflows') {
+            destroyToolDetailEditor();
+          }
         }
 
         function isActiveRoute(path) {
@@ -1964,7 +1918,7 @@
 
           resetToolTestValues();
           navigateTo('/admin/workflows');
-          renderToolDetailEditor();
+          initToolDetailEditor();
         }
 
         function editCategory(category) {
@@ -2297,30 +2251,107 @@
           navigateTo('/admin/tools');
         }
 
-        function renderToolDetailEditor() {
+        function getToolDetailEditor() {
+          return window.tinymce?.get('tool-detail-editor') || null;
+        }
+
+        function initToolDetailEditor() {
           setTimeout(() => {
-            if (toolDetailEditorRef.value) {
-              toolDetailEditorRef.value.innerHTML = toolForm.value.detailHtml || '';
+            if (!window.tinymce) {
+              window.alert('富文本編輯器載入失敗，請檢查網路後重試');
+              return;
             }
+
+            const existingEditor = getToolDetailEditor();
+            if (existingEditor) {
+              existingEditor.setContent(toolForm.value.detailHtml || '');
+              return;
+            }
+
+            window.tinymce.init({
+              selector: '#tool-detail-editor',
+              height: 420,
+              menubar: false,
+              plugins: 'autoresize code image link lists media table',
+              toolbar: 'undo redo | blocks | bold italic underline | alignleft aligncenter alignright | bullist numlist | image media link table | removeformat code',
+              branding: false,
+              automatic_uploads: true,
+              relative_urls: false,
+              remove_script_host: true,
+              file_picker_types: 'image media',
+              images_upload_handler: uploadToolDetailImage,
+              file_picker_callback: openToolDetailMediaPicker,
+              setup(editor) {
+                editor.on('init', () => {
+                  editor.setContent(toolForm.value.detailHtml || '');
+                });
+                editor.on('change keyup undo redo setcontent', () => {
+                  toolForm.value.detailHtml = editor.getContent().trim();
+                });
+              },
+              content_style: 'body { color: #17212b; font-family: Inter, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif; line-height: 1.7; } img, video { max-width: 100%; height: auto; }'
+            });
           }, 0);
         }
 
         function syncToolDetailHtml() {
-          if (!toolDetailEditorRef.value) return;
-          toolForm.value.detailHtml = toolDetailEditorRef.value.innerHTML.trim();
+          const editor = getToolDetailEditor();
+          if (!editor) return;
+          toolForm.value.detailHtml = editor.getContent().trim();
         }
 
-        function formatToolDetail(command, value = null) {
-          if (!toolDetailEditorRef.value) return;
-          toolDetailEditorRef.value.focus();
-          document.execCommand(command, false, value);
-          syncToolDetailHtml();
+        function destroyToolDetailEditor() {
+          const editor = getToolDetailEditor();
+          if (editor) editor.remove();
         }
 
-        function insertToolDetailLink() {
-          const url = window.prompt('請輸入連結 URL');
-          if (!url) return;
-          formatToolDetail('createLink', url);
+        async function uploadToolDetailImage(blobInfo) {
+          return uploadToolDetailFile(blobInfo.blob(), blobInfo.filename());
+        }
+
+        async function openToolDetailMediaPicker(callback, value, meta) {
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = meta.filetype === 'media' ? 'video/*' : 'image/*';
+
+          input.onchange = async () => {
+            const file = input.files && input.files[0];
+            if (!file) return;
+
+            try {
+              const location = await uploadToolDetailFile(file, file.name);
+              if (meta.filetype === 'media') {
+                callback(location, { title: file.name });
+                return;
+              }
+
+              callback(location, { alt: file.name });
+            } catch (error) {
+              window.alert(error.message || '媒體上傳失敗');
+            }
+          };
+
+          input.click();
+        }
+
+        async function uploadToolDetailFile(file, fileName = '') {
+          const dataUrl = await readFileAsDataUrl(file);
+          const response = await adminFetch('/api/admin/uploads/rich-editor', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              fileName: fileName || file.name || 'media',
+              mimeType: file.type,
+              dataUrl
+            })
+          });
+          const result = await response.json();
+
+          if (!result.success || !result.data?.location) {
+            throw new Error(result.message || '媒體上傳失敗');
+          }
+
+          return result.data.location;
         }
 
         async function runToolTest() {
@@ -2583,8 +2614,6 @@
           getTaskStatusClass,
           getTaskStatusLabel,
           handleUserAccountTypeChange,
-          formatToolDetail,
-          insertToolDetailLink,
           isTestingTool,
           addInputNode,
           addNodeOption,
@@ -2623,7 +2652,6 @@
           updateCurrentToolStatus,
           updateToolStatus,
           toolForm,
-          toolDetailEditorRef,
           toolKeyword,
           tools,
           userForm,

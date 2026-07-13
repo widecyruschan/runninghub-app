@@ -9,9 +9,20 @@ const { createTaskRepository } = require('./src/taskRepository');
 const { createUserRepository } = require('./src/userRepository');
 
 const PUBLIC_DIR = path.join(__dirname, 'frontend');
+const UPLOAD_DIR = path.join(__dirname, 'data', 'uploads');
 const DEFAULT_PORT = 3000;
 const MAX_UPLOAD_SIZE = 12 * 1024 * 1024;
 const MAX_JSON_BODY_SIZE = 18 * 1024 * 1024;
+const MAX_RICH_EDITOR_UPLOAD_SIZE = 30 * 1024 * 1024;
+const RICH_EDITOR_UPLOAD_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'video/mp4',
+  'video/webm',
+  'video/quicktime'
+]);
 
 loadEnvFile(path.join(__dirname, '.env'));
 
@@ -40,6 +51,10 @@ const mimeTypes = {
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
   '.webp': 'image/webp',
+  '.gif': 'image/gif',
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
+  '.mov': 'video/quicktime',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon'
 };
@@ -104,6 +119,11 @@ const server = http.createServer(async (request, response) => {
 
     if (requestPathname.startsWith('/api/runninghub/')) {
       await handleRunningHubApi(request, response);
+      return;
+    }
+
+    if (requestPathname.startsWith('/uploads/')) {
+      await serveUploadedFile(request, response);
       return;
     }
 
@@ -286,6 +306,23 @@ async function handleAdminApi(request, response) {
 
   if (url.pathname.startsWith('/api/admin/tools') && !hasPermission(adminSession, 'manage_tools')) {
     sendForbidden(response);
+    return;
+  }
+
+  if (url.pathname.startsWith('/api/admin/uploads') && !hasPermission(adminSession, 'manage_tools')) {
+    sendForbidden(response);
+    return;
+  }
+
+  if (url.pathname === '/api/admin/uploads/rich-editor' && request.method === 'POST') {
+    const requestBody = await readJsonBody(request, Math.ceil(MAX_RICH_EDITOR_UPLOAD_SIZE * 1.4) + 1024);
+    const uploadedFile = saveRichEditorUpload(requestBody);
+
+    sendJson(response, 201, {
+      success: true,
+      message: '媒體已上傳',
+      data: uploadedFile
+    });
     return;
   }
 
@@ -1055,6 +1092,32 @@ function getExtensionFromMimeType(mimeType, fallbackType) {
   return extensions[mimeType] || (fallbackType === 'image' ? 'png' : 'mp4');
 }
 
+function saveRichEditorUpload(payload) {
+  const parsedDataUrl = parseDataUrl(payload?.dataUrl || '');
+  if (!RICH_EDITOR_UPLOAD_MIME_TYPES.has(parsedDataUrl.mimeType)) {
+    throwHttpError('僅支援上傳 JPG、PNG、WebP、GIF、MP4、WebM 或 MOV 檔案', 'RICH_EDITOR_UPLOAD_TYPE_INVALID', 422);
+  }
+
+  if (parsedDataUrl.buffer.length > MAX_RICH_EDITOR_UPLOAD_SIZE) {
+    throwHttpError('媒體檔案超過大小限制', 'RICH_EDITOR_UPLOAD_SIZE_EXCEEDED', 413);
+  }
+
+  const fallbackType = parsedDataUrl.mimeType.startsWith('video/') ? 'video' : 'image';
+  const extension = getExtensionFromMimeType(parsedDataUrl.mimeType, fallbackType);
+  const fileName = `${crypto.randomUUID()}.${extension}`;
+  const filePath = path.join(UPLOAD_DIR, fileName);
+
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  fs.writeFileSync(filePath, parsedDataUrl.buffer);
+
+  return {
+    location: `/uploads/${fileName}`,
+    fileName,
+    mimeType: parsedDataUrl.mimeType,
+    size: parsedDataUrl.buffer.length
+  };
+}
+
 function isHttpUrl(value) {
   try {
     const url = new URL(value);
@@ -1200,8 +1263,8 @@ async function pipeRunningHubResponse(response, runningHubResponse) {
   response.end(responseText);
 }
 
-async function readJsonBody(request) {
-  const bodyBuffer = await readRequestBody(request, MAX_JSON_BODY_SIZE);
+async function readJsonBody(request, maxSize = MAX_JSON_BODY_SIZE) {
+  const bodyBuffer = await readRequestBody(request, maxSize);
   if (!bodyBuffer.length) return {};
 
   try {
@@ -1222,7 +1285,10 @@ function readRequestBody(request, maxSize) {
     request.on('data', (chunk) => {
       totalSize += chunk.length;
       if (totalSize > maxSize) {
-        reject(new Error('請求內容超過大小限制'));
+        const sizeError = new Error('請求內容超過大小限制');
+        sizeError.statusCode = 413;
+        sizeError.code = 'REQUEST_BODY_TOO_LARGE';
+        reject(sizeError);
         request.destroy();
         return;
       }
@@ -1251,6 +1317,27 @@ async function serveStaticFile(request, response) {
   const filePath = path.join(PUBLIC_DIR, requestedPath);
 
   if (!filePath.startsWith(PUBLIC_DIR)) {
+    response.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
+    response.end('Forbidden');
+    return;
+  }
+
+  if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+    response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+    response.end('Not Found');
+    return;
+  }
+
+  await sendStaticFile(response, filePath);
+}
+
+async function serveUploadedFile(request, response) {
+  const url = new URL(request.url, `http://${request.headers.host}`);
+  const uploadPrefix = `${UPLOAD_DIR}${path.sep}`;
+  const requestedPath = path.normalize(decodeURIComponent(url.pathname.replace(/^\/uploads\//, ''))).replace(/^(\.\.[/\\])+/, '');
+  const filePath = path.join(UPLOAD_DIR, requestedPath);
+
+  if (!filePath.startsWith(uploadPrefix) && filePath !== UPLOAD_DIR) {
     response.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
     response.end('Forbidden');
     return;
