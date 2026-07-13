@@ -263,7 +263,6 @@
       width: min(1180px, 100%);
       margin: 0 auto;
       display: grid;
-      grid-template-columns: minmax(0, 0.9fr) minmax(520px, 1.1fr);
       gap: clamp(36px, 6vw, 72px);
       align-items: center;
       padding: clamp(42px, 8vw, 78px) clamp(20px, 4vw, 30px) 60px;
@@ -274,7 +273,7 @@
     }
 
     .hero-copy {
-      max-width: 490px;
+      max-width: 890px;
     }
 
     .eyebrow {
@@ -322,7 +321,6 @@
     .tool-detail-section {
       width: min(1180px, 100%);
       margin: 0 auto;
-      padding: 0 clamp(20px, 4vw, 30px) 72px;
     }
 
     .tool-detail-content {
@@ -538,30 +536,34 @@
     }
 
     .tool-card {
-      width: 100%;
-      border: 1px solid #cfd9e5;
+      width: min(1180px, 100%);
+      display: grid;
+      gap: 22px;
+      margin: 0 auto;
+      padding: 0 clamp(20px, 4vw, 30px) 48px;
+    }
+
+    .tool-input-panel,
+    .result-panel {
+      border: 1px solid #dfe7f2;
       border-radius: 8px;
       background: var(--surface);
-      box-shadow: var(--shadow);
+      box-shadow: 0 20px 55px rgba(27, 39, 52, 0.08);
       overflow: hidden;
     }
 
-    .workspace {
-      margin: 20px;
+    .media-upload-card {
+      margin: 16px;
       border: 1px dashed #cbd8e6;
-      border-radius: 6px;
-      overflow: hidden;
+      border-radius: 8px;
       background: #fbfdff;
     }
 
-    .filebar {
-      min-height: 68px;
-      display: flex;
+    .form-action-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
       align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      border-bottom: 1px solid #dce4ef;
-      padding: 14px 18px;
     }
 
     .file-name {
@@ -716,81 +718,6 @@
       object-fit: contain;
     }
 
-    .settings-panel {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .settings-title {
-      color: var(--strong);
-      font-size: 15px;
-      font-weight: 850;
-      margin: 2px 0 0;
-    }
-
-    .background-option {
-      min-height: 50px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      border: 1px solid #d6dfeb;
-      border-radius: 6px;
-      background: #ffffff;
-      color: var(--strong);
-      padding: 0 14px;
-      cursor: pointer;
-      font-weight: 750;
-      text-align: left;
-    }
-
-    .background-option.is-active {
-      border-color: var(--strong);
-      background: var(--strong);
-      color: #ffffff;
-    }
-
-    .swatch {
-      width: 22px;
-      height: 22px;
-      flex: 0 0 auto;
-      border: 1px solid #cfdae7;
-      border-radius: 5px;
-      background: #ffffff;
-    }
-
-    .swatch-transparent {
-      background-color: #ffffff;
-      background-image:
-        linear-gradient(45deg, #cbd5e1 25%, transparent 25%),
-        linear-gradient(-45deg, #cbd5e1 25%, transparent 25%),
-        linear-gradient(45deg, transparent 75%, #cbd5e1 75%),
-        linear-gradient(-45deg, transparent 75%, #cbd5e1 75%);
-      background-position: 0 0, 0 6px, 6px -6px, -6px 0;
-      background-size: 12px 12px;
-    }
-
-    .custom-color-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 3px 0 8px;
-    }
-
-    .custom-color-row input {
-      width: 42px;
-      height: 34px;
-      border: 0;
-      background: transparent;
-      cursor: pointer;
-    }
-
-    .custom-color-row span {
-      color: #526276;
-      font-size: 13px;
-      font-weight: 700;
-    }
-
     .download-button {
       width: 100%;
       min-height: 48px;
@@ -819,12 +746,18 @@
 
     .dynamic-field-list {
       display: grid;
-      gap: 10px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      padding: 18px;
     }
 
     .dynamic-field {
       display: grid;
       gap: 7px;
+    }
+
+    .dynamic-field.is-full {
+      grid-column: 1 / -1;
     }
 
     .dynamic-field label {
@@ -874,6 +807,68 @@
     .status-box.is-success {
       background: #ecfdf5;
       color: #047857;
+    }
+
+    .result-panel {
+      display: grid;
+      gap: 14px;
+      padding: 16px;
+    }
+
+    .result-title {
+      color: var(--strong);
+      font-size: 18px;
+      font-weight: 850;
+    }
+
+    .compare-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .result-media-card {
+      min-height: 320px;
+      display: grid;
+      place-items: center;
+      position: relative;
+      border-radius: 8px;
+      background: #eef3f8;
+      overflow: hidden;
+    }
+
+    .result-media-card img,
+    .result-media-card video {
+      width: 100%;
+      height: 100%;
+      max-height: 520px;
+      object-fit: contain;
+      display: block;
+    }
+
+    .result-badge {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      border-radius: 999px;
+      background: rgba(18, 28, 36, 0.8);
+      color: #ffffff;
+      padding: 5px 9px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .result-empty {
+      min-height: 220px;
+      display: grid;
+      place-items: center;
+      border: 1px dashed #cbd8e6;
+      border-radius: 8px;
+      color: #64748b;
+      font-size: 14px;
+      font-weight: 750;
+      text-align: center;
+      padding: 24px;
     }
 
     .hidden-input {
@@ -948,6 +943,12 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
+      .compare-grid,
+      .form-action-row,
+      .dynamic-field-list {
+        grid-template-columns: 1fr;
+      }
+
       .hero-copy {
         max-width: 680px;
       }
@@ -988,30 +989,8 @@
         padding-top: 34px;
       }
 
-      .workspace {
-        margin: 12px;
-      }
-
-      .filebar {
-        align-items: flex-start;
-        flex-direction: column;
-      }
-
-      .file-actions {
-        width: 100%;
-      }
-
       .primary-button {
         flex: 1;
-      }
-
-      .panel-grid {
-        grid-template-columns: 1fr;
-        padding: 12px;
-      }
-
-      .settings-panel {
-        gap: 9px;
       }
 
       .hero-title {
@@ -1171,156 +1150,160 @@
               </div>
             </div>
 
-            <section class="tool-card" :aria-label="`${toolTitle} 操作區`">
-              <div class="workspace">
-                <div class="filebar">
-                  <div>
-                    <div class="file-name">{{ currentFileName }}</div>
-                    <div class="file-meta">{{ currentFileMeta }}</div>
-                </div>
-                <div class="file-actions">
-                  <button
-                    class="icon-button"
-                    type="button"
-                    title="重設"
-                    aria-label="重設"
-                    @click="resetTool"
-                  >
-                    ↺
-                  </button>
-                  <button
-                    class="primary-button"
-                    type="button"
-                    :disabled="!canExecute || isExecuting"
-                    @click="executeWorkflow"
-                  >
-                    ✨ {{ isExecuting ? '處理中' : '開始處理' }}
-                  </button>
-                </div>
-              </div>
+          </section>
 
-              <div class="panel-grid">
-                <div
-                  class="image-stage"
-                  :class="{ 'is-empty': !displayImageUrl }"
-                  :style="stageBackgroundStyle"
-                >
+          <section class="tool-card" :aria-label="`${toolTitle} 操作區`">
+            <section v-if="topDetailHtml" class="tool-detail-section" aria-label="工具頁頂部說明">
+              <div class="tool-detail-content" v-html="topDetailHtml"></div>
+            </section>
+
+            <section class="tool-input-panel">
+              <div
+                v-for="node in mediaInputNodes"
+                :key="node.key"
+                class="media-upload-card"
+              >
+                <div class="image-stage" :class="{ 'is-empty': !getMediaPreview(node) }">
                   <label
-                    v-if="!displayImageUrl"
+                    v-if="!getMediaPreview(node)"
                     class="upload-target"
                     :class="{ 'is-dragover': isDragover }"
                     @dragover.prevent="isDragover = true"
                     @dragleave="isDragover = false"
-                    @drop.prevent="handleDrop"
+                    @drop.prevent="handleMediaDrop(node, $event)"
                   >
                     <span class="upload-icon" aria-hidden="true">⇧</span>
-                    <span class="upload-title">{{ uploadFieldLabel }}</span>
-                    <span class="upload-hint">{{ uploadFieldPlaceholder }}</span>
+                    <span class="upload-title">{{ node.label || '上傳檔案' }}</span>
+                    <span class="upload-hint">{{ node.placeholder || getUploadMetaHint(node) }}</span>
                     <input
-                      ref="fileInput"
                       class="hidden-input"
                       type="file"
-                      :accept="uploadAccept"
-                      @change="handleFileSelect"
+                      :accept="getUploadAccept(node)"
+                      @change="handleMediaFileSelect(node, $event)"
                     >
                   </label>
                   <img
+                    v-else-if="node.dataType === 'image'"
+                    class="preview-image"
+                    :src="getMediaPreview(node)"
+                    alt="待處理圖片預覽"
+                  >
+                  <video
                     v-else
                     class="preview-image"
-                    :src="displayImageUrl"
-                    :alt="resultImageUrl ? '工具處理結果' : '待處理圖片預覽'"
+                    :src="getMediaPreview(node)"
+                    controls
+                  ></video>
+                </div>
+              </div>
+
+              <div v-if="dynamicInputFields.length" class="dynamic-field-list">
+                <div
+                  v-for="field in dynamicInputFields"
+                  :key="field.key"
+                  class="dynamic-field"
+                  :class="{ 'is-full': field.dataType === 'textarea' || field.dataType === 'text' }"
+                >
+                  <label :for="`field-${field.key}`">{{ field.label || field.key }}</label>
+                  <textarea
+                    v-if="field.dataType === 'textarea'"
+                    :id="`field-${field.key}`"
+                    v-model="formValues[field.key]"
+                    :placeholder="field.placeholder"
+                  ></textarea>
+                  <select
+                    v-else-if="field.dataType === 'select'"
+                    :id="`field-${field.key}`"
+                    v-model="formValues[field.key]"
+                  >
+                    <option
+                      v-for="option in field.options"
+                      :key="option.value"
+                      :value="option.value"
+                    >
+                      {{ option.label || option.value }}
+                    </option>
+                  </select>
+                  <input
+                    v-else
+                    :id="`field-${field.key}`"
+                    v-model="formValues[field.key]"
+                    :type="field.dataType === 'number' ? 'number' : 'text'"
+                    :placeholder="field.placeholder"
                   >
                 </div>
-
-                <aside class="settings-panel">
-                  <h2 class="settings-title">背景</h2>
-                  <button
-                    v-for="option in backgroundOptions"
-                    :key="option.value"
-                    type="button"
-                    class="background-option"
-                    :class="{ 'is-active': selectedBackground === option.value }"
-                    @click="selectedBackground = option.value"
-                  >
-                    <span
-                      class="swatch"
-                      :class="option.value === 'transparent' ? 'swatch-transparent' : ''"
-                      :style="option.swatchStyle"
-                      aria-hidden="true"
-                    ></span>
-                    {{ option.label }}
-                  </button>
-
-                  <div v-if="selectedBackground === 'custom'" class="custom-color-row">
-                    <input v-model="customBackgroundColor" type="color" aria-label="自訂背景顏色">
-                    <span>{{ customBackgroundColor }}</span>
-                  </div>
-
-                  <button
-                    class="download-button"
-                    type="button"
-                    :disabled="!resultImageUrl"
-                    @click="downloadResult"
-                  >
-                    ⇩ 下载 PNG
-                  </button>
-
-                  <button class="secondary-button" type="button" @click="openFileDialog">
-                    ⊕ 上傳新檔案
-                  </button>
-
-                  <div v-if="statusMessage" class="status-box" :class="statusClass">
-                    {{ statusMessage }}
-                  </div>
-
-                  <div v-if="dynamicInputFields.length" class="dynamic-field-list">
-                    <div
-                      v-for="field in dynamicInputFields"
-                      :key="field.key"
-                      class="dynamic-field"
-                    >
-                      <label :for="`field-${field.key}`">{{ field.label || field.key }}</label>
-                      <textarea
-                        v-if="field.dataType === 'textarea'"
-                        :id="`field-${field.key}`"
-                        v-model="formValues[field.key]"
-                        :placeholder="field.placeholder"
-                      ></textarea>
-                      <select
-                        v-else-if="field.dataType === 'select'"
-                        :id="`field-${field.key}`"
-                        v-model="formValues[field.key]"
-                      >
-                        <option
-                          v-for="option in field.options"
-                          :key="option.value"
-                          :value="option.value"
-                        >
-                          {{ option.label || option.value }}
-                        </option>
-                      </select>
-                      <input
-                        v-else
-                        :id="`field-${field.key}`"
-                        v-model="formValues[field.key]"
-                        :type="field.dataType === 'number' ? 'number' : 'text'"
-                        :placeholder="field.placeholder"
-                      >
-                    </div>
-                  </div>
-
-                  <div class="notice">
-                    <span aria-hidden="true">♢</span>
-                    <span>工具資料由後台配置載入；檔案經由本地後端代理提交到 RunningHub。</span>
-                  </div>
-                </aside>
               </div>
+
+              <div class="form-action-row">
+                <div v-if="statusMessage" class="status-box" :class="statusClass">
+                  {{ statusMessage }}
+                </div>
+                <div v-else class="notice">
+                  <span aria-hidden="true">♢</span>
+                  <span>等待上傳文件</span>
+                </div>
+                <button
+                  class="primary-button"
+                  type="button"
+                  :disabled="!canExecute || isExecuting"
+                  @click="executeWorkflow"
+                >
+                  ✨ {{ isExecuting ? '生成中' : '開始生成' }}
+                </button>
               </div>
             </section>
-          </section>
 
-          <section v-if="toolDetailHtml" class="tool-detail-section" aria-label="工具詳細說明">
-            <div class="tool-detail-content" v-html="toolDetailHtml"></div>
+            <section class="result-panel" aria-label="輸出結果">
+              <h2 class="result-title">輸出結果</h2>
+              <div v-if="resultImageUrl && hasMediaResultComparison" class="compare-grid">
+                <div class="result-media-card">
+                  <span class="result-badge">Before</span>
+                  <img v-if="primaryMediaInput?.dataType === 'image'" :src="primaryMediaPreview" alt="輸入圖片">
+                  <video v-else :src="primaryMediaPreview" controls></video>
+                </div>
+                <div class="result-media-card">
+                  <span class="result-badge">After</span>
+                  <img
+                    v-if="isResultImage"
+                    :src="resultImageUrl"
+                    alt="生成結果"
+                  >
+                  <video
+                    v-else
+                    :src="resultImageUrl"
+                    controls
+                  ></video>
+                </div>
+              </div>
+              <div v-else-if="resultImageUrl" class="result-media-card">
+                <span class="result-badge">Result</span>
+                <img
+                  v-if="isResultImage"
+                  :src="resultImageUrl"
+                  alt="生成結果"
+                >
+                <video
+                  v-else
+                  :src="resultImageUrl"
+                  controls
+                ></video>
+              </div>
+              <div v-else class="result-empty">
+                生成結果會顯示在這裡。
+              </div>
+              <button
+                class="download-button"
+                type="button"
+                :disabled="!resultImageUrl"
+                @click="downloadResult"
+              >
+                ⇩ 下載結果
+              </button>
+            </section>
+
+            <section v-if="toolDetailHtml" class="tool-detail-section" aria-label="工具頁底部說明">
+              <div class="tool-detail-content" v-html="toolDetailHtml"></div>
+            </section>
           </section>
         </div>
       </div>
@@ -1333,13 +1316,6 @@
         </div>
       </div>
 
-      <input
-        ref="replacementFileInput"
-        class="hidden-input"
-        type="file"
-        :accept="uploadAccept"
-        @change="handleFileSelect"
-      >
     </main>
   </div>
 
@@ -1380,13 +1356,9 @@
 
     const app = createApp({
       setup() {
-        const fileInput = ref(null);
-        const replacementFileInput = ref(null);
-        const uploadedFile = ref(null);
-        const previewImageUrl = ref('');
+        const mediaFiles = ref({});
+        const mediaPreviews = ref({});
         const resultImageUrl = ref('');
-        const selectedBackground = ref('transparent');
-        const customBackgroundColor = ref('#93c9c5');
         const isDragover = ref(false);
         const isExecuting = ref(false);
         const executionMessage = ref('正在處理圖片');
@@ -1484,44 +1456,15 @@
           });
         });
 
-        const backgroundOptions = computed(() => [
-          {
-            label: '透明',
-            value: 'transparent',
-            swatchStyle: {}
-          },
-          {
-            label: '白色',
-            value: 'white',
-            swatchStyle: { background: '#ffffff' }
-          },
-          {
-            label: '自訂',
-            value: 'custom',
-            swatchStyle: { background: customBackgroundColor.value }
-          }
-        ]);
-
-        const currentFileName = computed(() => {
-          if (uploadedFile.value) return uploadedFile.value.name;
-          return '請選擇圖片';
-        });
-
-        const currentFileMeta = computed(() => {
-          if (!uploadedFile.value) return uploadMetaHint.value;
-
-          const sizeKb = Math.max(1, Math.round(uploadedFile.value.size / 1024));
-          const fileType = uploadedFile.value.type ? uploadedFile.value.type.split('/').pop().toUpperCase() : 'FILE';
-          return fileType + ' · ' + sizeKb + ' KB';
-        });
-
-        const displayImageUrl = computed(() => resultImageUrl.value || previewImageUrl.value);
-        const uploadInputNode = computed(() => {
+        const mediaInputNodes = computed(() => {
           const inputNodes = toolConfig.value?.inputNodes || [];
-          return inputNodes.find((node) => node.dataType === 'image' || node.dataType === 'video') || null;
+          return inputNodes.filter((node) => node.dataType === 'image' || node.dataType === 'video');
         });
 
-        const dynamicInputFields = computed(() => (toolConfig.value?.inputNodes || []).filter((node) => node.key !== uploadInputNode.value?.key));
+        const primaryMediaInput = computed(() => mediaInputNodes.value[0] || null);
+        const primaryMediaPreview = computed(() => (primaryMediaInput.value ? mediaPreviews.value[primaryMediaInput.value.key] || '' : ''));
+        const hasMediaResultComparison = computed(() => Boolean(primaryMediaPreview.value));
+        const dynamicInputFields = computed(() => (toolConfig.value?.inputNodes || []).filter((node) => node.dataType !== 'image' && node.dataType !== 'video'));
         const toolTitle = computed(() => {
           if (isMarketplace.value) return 'AI 工具平台';
           return toolConfig.value?.name || '圖片背景移除';
@@ -1532,6 +1475,10 @@
           || '上傳圖片並調用 RunningHub 工作流，自動生成處理結果。'
         ));
         const toolCategoryLabel = computed(() => toolConfig.value?.categoryName || 'ONLINE AI TOOL');
+        const topDetailHtml = computed(() => {
+          if (isMarketplace.value) return '';
+          return toolConfig.value?.topDetailHtml || '';
+        });
         const toolDetailHtml = computed(() => {
           if (isMarketplace.value) return '';
           return toolConfig.value?.detailHtml || '';
@@ -1540,24 +1487,12 @@
           const seconds = toolConfig.value?.estimatedSeconds;
           return seconds ? `約 ${seconds} 秒` : 'AI 工具';
         });
-        const uploadFieldLabel = computed(() => uploadInputNode.value?.label || '上傳檔案');
-        const uploadFieldPlaceholder = computed(() => uploadInputNode.value?.placeholder || uploadMetaHint.value);
-        const uploadAccept = computed(() => (uploadInputNode.value?.dataType === 'video' ? 'video/*' : 'image/*'));
-        const uploadMetaHint = computed(() => (uploadInputNode.value?.dataType === 'video' ? 'MP4 / WebM / MOV · 最大 10MB' : 'JPG / PNG / WebP · 最大 10MB'));
+        const isResultImage = computed(() => !resultImageUrl.value || !/\.(mp4|webm|mov)(\?|#|$)/i.test(resultImageUrl.value));
 
-        const canExecute = computed(() => (!uploadInputNode.value || Boolean(uploadedFile.value)) && !isExecuting.value);
-
-        const stageBackgroundStyle = computed(() => {
-          if (selectedBackground.value === 'white') {
-            return { backgroundImage: 'none', backgroundColor: '#ffffff' };
-          }
-
-          if (selectedBackground.value === 'custom') {
-            return { backgroundImage: 'none', backgroundColor: customBackgroundColor.value };
-          }
-
-          return {};
-        });
+        const canExecute = computed(() => (
+          mediaInputNodes.value.every((node) => !node.required || Boolean(mediaFiles.value[node.key]))
+          && !isExecuting.value
+        ));
 
         const statusClass = computed(() => ({
           'is-error': statusType.value === 'error',
@@ -1565,22 +1500,22 @@
           'is-success': statusType.value === 'success'
         }));
 
-        const handleFileSelect = (event) => {
+        const handleMediaFileSelect = (node, event) => {
           const file = event.target.files && event.target.files[0];
-          if (file) setImageFile(file);
+          if (file) setMediaFile(node, file);
           event.target.value = '';
         };
 
-        const handleDrop = (event) => {
+        const handleMediaDrop = (node, event) => {
           isDragover.value = false;
-          const expectedPrefix = uploadInputNode.value?.dataType === 'video' ? 'video/' : 'image/';
+          const expectedPrefix = node.dataType === 'video' ? 'video/' : 'image/';
           const file = Array.from(event.dataTransfer.files).find(item => item.type.startsWith(expectedPrefix));
-          if (file) setImageFile(file);
+          if (file) setMediaFile(node, file);
         };
 
-        const setImageFile = (file) => {
-          const expectedPrefix = uploadInputNode.value?.dataType === 'video' ? 'video/' : 'image/';
-          const expectedLabel = uploadInputNode.value?.dataType === 'video' ? '影片' : '圖片';
+        const setMediaFile = (node, file) => {
+          const expectedPrefix = node.dataType === 'video' ? 'video/' : 'image/';
+          const expectedLabel = node.dataType === 'video' ? '影片' : '圖片';
 
           if (!file.type.startsWith(expectedPrefix)) {
             setStatus(`請上傳${expectedLabel}檔案`, 'error');
@@ -1592,32 +1527,35 @@
             return;
           }
 
-          uploadedFile.value = file;
+          mediaFiles.value = {
+            ...mediaFiles.value,
+            [node.key]: file
+          };
           resultImageUrl.value = '';
           latestTaskId.value = '';
           setStatus(`${expectedLabel}已載入，可以開始處理`, 'success');
 
-          if (file.type.startsWith('image/')) {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-              previewImageUrl.value = event.target.result;
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            mediaPreviews.value = {
+              ...mediaPreviews.value,
+              [node.key]: event.target.result
             };
-            reader.readAsDataURL(file);
-          } else {
-            previewImageUrl.value = '';
-          }
+          };
+          reader.readAsDataURL(file);
         };
 
-        const openFileDialog = () => {
-          replacementFileInput.value?.click();
-        };
+        const getUploadAccept = (node) => (node.dataType === 'video' ? 'video/*' : 'image/*');
+
+        const getUploadMetaHint = (node) => (node.dataType === 'video' ? 'MP4 / WebM / MOV · 最大 10MB' : 'JPG / PNG / WebP · 最大 10MB');
+
+        const getMediaPreview = (node) => mediaPreviews.value[node.key] || '';
 
         const resetTool = () => {
-          uploadedFile.value = null;
-          previewImageUrl.value = '';
+          mediaFiles.value = {};
+          mediaPreviews.value = {};
           resultImageUrl.value = '';
           latestTaskId.value = '';
-          selectedBackground.value = 'transparent';
           setStatus('', '');
         };
 
@@ -1738,7 +1676,7 @@
           const nextValues = {};
 
           inputNodes.forEach((node) => {
-            if (node.dataType === 'image') return;
+            if (node.dataType === 'image' || node.dataType === 'video') return;
             nextValues[node.key] = node.defaultValue ?? '';
 
             if (node.dataType === 'select' && !nextValues[node.key] && node.options?.[0]) {
@@ -1763,8 +1701,11 @@
 
           const inputValues = { ...formValues.value };
 
-          if (uploadInputNode.value) {
-            inputValues[uploadInputNode.value.key] = await readFileAsDataUrl(uploadedFile.value);
+          for (const node of mediaInputNodes.value) {
+            const mediaFile = mediaFiles.value[node.key];
+            if (mediaFile) {
+              inputValues[node.key] = await readFileAsDataUrl(mediaFile);
+            }
           }
 
           const response = await axios.post(TOOLS_API_BASE_URL + '/' + encodeURIComponent(toolConfig.value.slug) + '/execute', {
@@ -1877,11 +1818,12 @@
         };
 
         const createDownloadFilename = () => {
-          const baseName = uploadedFile.value?.name
-            ? uploadedFile.value.name.replace(/\.[^.]+$/, '')
+          const primaryFile = primaryMediaInput.value ? mediaFiles.value[primaryMediaInput.value.key] : null;
+          const baseName = primaryFile?.name
+            ? primaryFile.name.replace(/\.[^.]+$/, '')
             : 'background-removed';
 
-          return baseName + '-removed.png';
+          return baseName + (isResultImage.value ? '-result.png' : '-result.mp4');
         };
 
         onMounted(() => {
@@ -1914,46 +1856,42 @@
 
         return {
           isMarketplace,
-          fileInput,
-          replacementFileInput,
-          backgroundOptions,
           categories: activeCategories,
           dynamicInputFields,
           estimatedTimeLabel,
           filteredTools,
           formValues,
           isLoadingMarketplace,
-          selectedBackground,
-          customBackgroundColor,
           selectedCategory,
-          currentFileName,
-          currentFileMeta,
           currentToolSlug,
           toolKeyword,
           toolTitle,
           toolMenuGroups,
           toolDescription,
+          topDetailHtml,
           toolDetailHtml,
           toolCategoryLabel,
           sidebarSections,
-          uploadFieldLabel,
-          uploadFieldPlaceholder,
-          uploadAccept,
-          displayImageUrl,
+          mediaInputNodes,
+          primaryMediaInput,
+          primaryMediaPreview,
+          hasMediaResultComparison,
           resultImageUrl,
+          isResultImage,
           isDragover,
           isExecuting,
           executionMessage,
           statusMessage,
           statusClass,
           canExecute,
-          stageBackgroundStyle,
-          handleFileSelect,
-          handleDrop,
+          handleMediaFileSelect,
+          handleMediaDrop,
+          getUploadAccept,
+          getUploadMetaHint,
+          getMediaPreview,
           openTool,
           openMenuTool,
           goToMarketplace,
-          openFileDialog,
           resetTool,
           executeWorkflow,
           downloadResult

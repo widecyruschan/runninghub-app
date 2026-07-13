@@ -81,6 +81,7 @@ function migrateDatabase(database) {
       slug TEXT NOT NULL,
       category_id TEXT NOT NULL DEFAULT 'image',
       short_description TEXT NOT NULL DEFAULT '',
+      top_detail_html TEXT NOT NULL DEFAULT '',
       detail_html TEXT NOT NULL DEFAULT '',
       preview_image_url TEXT NOT NULL DEFAULT '',
       workflow_id TEXT NOT NULL,
@@ -163,6 +164,7 @@ function migrateDatabase(database) {
 
   ensureColumn(database, 'tools', 'category_id', "TEXT NOT NULL DEFAULT 'image'");
   ensureColumn(database, 'tools', 'preview_image_url', "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(database, 'tools', 'top_detail_html', "TEXT NOT NULL DEFAULT ''");
   ensureColumn(database, 'tools', 'detail_html', "TEXT NOT NULL DEFAULT ''");
   ensureColumn(database, 'tools', 'last_test_status', "TEXT NOT NULL DEFAULT 'untested'");
   ensureColumn(database, 'tools', 'last_test_task_id', "TEXT NOT NULL DEFAULT ''");
@@ -571,6 +573,7 @@ function getJsonTableColumns(tableName) {
       'slug',
       'category_id',
       'short_description',
+      'top_detail_html',
       'detail_html',
       'preview_image_url',
       'workflow_id',
@@ -651,6 +654,7 @@ function toToolRecord(payload) {
     slug: payload.slug,
     category_id: payload.categoryId,
     short_description: payload.shortDescription,
+    top_detail_html: payload.topDetailHtml || '',
     detail_html: payload.detailHtml || '',
     preview_image_url: payload.previewImageUrl,
     workflow_id: payload.workflowId,

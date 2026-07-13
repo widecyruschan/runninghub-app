@@ -526,3 +526,13 @@ A: 支持 JPG、PNG、WebP 等常见格式，单个文件最大 10MB。
 - **測試結果**：已通過 `npm test`；本地服務 `http://127.0.0.1:3000/` 返回 200；`GET /api/tools` 和 `GET /api/categories` 返回成功；`/tools/remove-background` 返回 200；已用系統 Chrome 進行瀏覽器級驗證，首頁渲染 1 個工具卡片和「全部、圖像、視頻、音頻、文本」分類，點擊卡片可進入 `/tools/remove-background` 並顯示上傳控件。
 - **Hostinger MCP 部署記錄**：本輪已查找可用工具，當前 Codex 環境沒有暴露 Hostinger MCP 部署工具，因此尚不能直接發布到 Hostinger。後續部署需要可用 Hostinger MCP 或主機 SSH/面板權限，並配置 Node.js 22、`npm ci`、`npm start`、`RUNNINGHUB_API_KEY`、持久化 `data/` 目錄或替換為正式資料庫。
 - **後續建議**：下一步補後台任務列表和前台任務歷史，或先補首頁熱門工具、服務端分類/關鍵詞查詢參數與工具排序權重。
+
+### 2026-07-13 18:19 HKT - 工具頁富文本與動態媒體輸入
+
+- **會話主要目的**：按工具頁新排版要求，讓前台在輸入節點類型為 image/video 時顯示對應上傳字段，並支持頁面頂部與底部富文本內容。
+- **完成的主要任務**：工具資料新增頁面頂部說明欄位；後台工具配置頁新增「頁面頂部說明」和「頁面底部說明」兩個 TinyMCE 編輯區；前台工具頁改為先顯示頂部富文本，再按輸入節點類型渲染上傳區和表單欄位，最後顯示結果區與底部富文本；image/video 節點會各自生成上傳卡片並提交對應文件內容。
+- **關鍵決策和解決方案**：保留現有 Vue 3 CDN 單頁架構，不引入新前端工程化；媒體輸入由單一上傳節點改為多節點列表；有輸入媒體預覽時結果區顯示 Before/After，無媒體輸入的生成類工具只顯示生成結果。
+- **使用的技術棧**：Node.js 原生 HTTP、SQLite、better-sqlite3、Vue 3 CDN、Element Plus CDN、TinyMCE、CSS3。
+- **新增或修改文件**：修改 `src/database.js`、`src/toolRepository.js`、`frontend/admin.html`、`frontend/index.html`、`README.md`。
+- **測試結果**：已通過 `npm test` 和 `git diff --check`；已重建並啟動 Docker 容器；已驗證本地服務正常啟動，工具詳情資料可返回頂部/底部富文本欄位與 image 輸入節點。
+- **後續建議**：下一步可補充瀏覽器級自動化測試環境，對 image/video 上傳 UI、富文本渲染和 Before/After 結果區做可視化回歸檢查。

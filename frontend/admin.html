@@ -1152,7 +1152,19 @@
               <section class="test-panel">
                 <div class="test-panel-header">
                   <div>
-                    <h3 class="panel-title">工具詳細說明</h3>
+                    <h3 class="panel-title">頁面頂部說明</h3>
+                    <p class="page-description">顯示在前台工具頁開始位置，可用於工具介紹、案例、提示或 SEO 內容。</p>
+                  </div>
+                </div>
+                <div class="test-panel-body">
+                  <textarea id="tool-top-detail-editor" class="tool-detail-editor"></textarea>
+                </div>
+              </section>
+
+              <section class="test-panel">
+                <div class="test-panel-header">
+                  <div>
+                    <h3 class="panel-title">頁面底部說明</h3>
                     <p class="page-description">顯示在前台工具頁底部，可用於工具介紹、使用步驟、FAQ 或注意事項。</p>
                   </div>
                 </div>
@@ -1823,6 +1835,7 @@
             workflowId: '',
             instanceType: 'default',
             description: '',
+            topDetailHtml: '',
             detailHtml: '',
             status: 'draft',
             lastTestStatus: 'untested',
@@ -1904,6 +1917,7 @@
               workflowId: tool.workflowId === '待配置' ? '' : tool.workflowId,
               instanceType: tool.instanceType || 'default',
               description: tool.shortDescription || tool.description || '',
+              topDetailHtml: tool.topDetailHtml || '',
               detailHtml: tool.detailHtml || '',
               status: tool.status || 'draft',
               lastTestStatus: tool.lastTestStatus || 'untested',
@@ -2220,6 +2234,7 @@
             slug: toolForm.value.key,
             categoryId: toolForm.value.categoryId,
             shortDescription: toolForm.value.description,
+            topDetailHtml: toolForm.value.topDetailHtml,
             detailHtml: toolForm.value.detailHtml,
             previewImageUrl: toolForm.value.previewImageUrl,
             workflowId: toolForm.value.workflowId,
@@ -2256,30 +2271,35 @@
           navigateTo('/admin/tools');
         }
 
-        function getToolDetailEditor() {
-          return window.tinymce?.get('tool-detail-editor') || null;
+        function getRichTextEditor(editorId) {
+          return window.tinymce?.get(editorId) || null;
         }
 
         function initToolDetailEditor() {
+          initRichTextEditor('tool-top-detail-editor', 'topDetailHtml');
+          initRichTextEditor('tool-detail-editor', 'detailHtml');
+        }
+
+        function initRichTextEditor(editorId, formKey) {
           setTimeout(() => {
             if (!window.tinymce) {
               window.alert('富文本編輯器載入失敗，請檢查網路後重試');
               return;
             }
 
-            const detailHtml = toolForm.value.detailHtml || '';
-            const editorTextarea = document.querySelector('#tool-detail-editor');
-            if (editorTextarea) editorTextarea.value = detailHtml;
+            const editorHtml = toolForm.value[formKey] || '';
+            const editorTextarea = document.querySelector(`#${editorId}`);
+            if (editorTextarea) editorTextarea.value = editorHtml;
 
-            const existingEditor = getToolDetailEditor();
+            const existingEditor = getRichTextEditor(editorId);
             if (existingEditor) {
-              existingEditor.setContent(detailHtml);
+              existingEditor.setContent(editorHtml);
               return;
             }
 
             window.tinymce.init({
-              selector: '#tool-detail-editor',
-              height: 420,
+              selector: `#${editorId}`,
+              height: 360,
               menubar: false,
               plugins: 'autoresize code image link lists media table',
               toolbar: 'undo redo | blocks | bold italic underline | alignleft aligncenter alignright | bullist numlist | image media link table | removeformat code',
@@ -2292,10 +2312,10 @@
               file_picker_callback: openToolDetailMediaPicker,
               setup(editor) {
                 editor.on('init', () => {
-                  editor.setContent(detailHtml);
+                  editor.setContent(editorHtml);
                 });
                 editor.on('change keyup undo redo', () => {
-                  toolForm.value.detailHtml = editor.getContent().trim();
+                  toolForm.value[formKey] = editor.getContent().trim();
                 });
               },
               content_style: 'body { color: #17212b; font-family: Inter, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif; line-height: 1.7; } img, video { max-width: 100%; height: auto; }'
@@ -2304,14 +2324,17 @@
         }
 
         function syncToolDetailHtml() {
-          const editor = getToolDetailEditor();
-          if (!editor) return;
-          toolForm.value.detailHtml = editor.getContent().trim();
+          const topEditor = getRichTextEditor('tool-top-detail-editor');
+          const detailEditor = getRichTextEditor('tool-detail-editor');
+          if (topEditor) toolForm.value.topDetailHtml = topEditor.getContent().trim();
+          if (detailEditor) toolForm.value.detailHtml = detailEditor.getContent().trim();
         }
 
         function destroyToolDetailEditor() {
-          const editor = getToolDetailEditor();
-          if (editor) editor.remove();
+          ['tool-top-detail-editor', 'tool-detail-editor'].forEach((editorId) => {
+            const editor = getRichTextEditor(editorId);
+            if (editor) editor.remove();
+          });
         }
 
         async function uploadToolDetailImage(blobInfo) {
