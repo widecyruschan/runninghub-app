@@ -153,9 +153,6 @@ function migrateDatabase(database) {
     CREATE INDEX IF NOT EXISTS idx_execution_tasks_tool_created
       ON execution_tasks(tool_id, created_at);
 
-    CREATE INDEX IF NOT EXISTS idx_execution_tasks_user_created
-      ON execution_tasks(user_id, created_at);
-
     CREATE INDEX IF NOT EXISTS idx_app_users_role_group
       ON app_users(role, membership_group);
 
@@ -170,6 +167,12 @@ function migrateDatabase(database) {
   ensureColumn(database, 'tools', 'last_test_error', "TEXT NOT NULL DEFAULT ''");
   ensureColumn(database, 'tools', 'last_tested_at', 'TEXT');
   ensureColumn(database, 'execution_tasks', 'user_id', "TEXT NOT NULL DEFAULT ''");
+
+  database.exec(`
+    CREATE INDEX IF NOT EXISTS idx_execution_tasks_user_created
+      ON execution_tasks(user_id, created_at);
+  `);
+
   seedDefaultCategories(database);
   seedDefaultUsers(database);
 
