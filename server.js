@@ -38,8 +38,7 @@ const adminSessionSecret = process.env.ADMIN_SESSION_SECRET || crypto.randomByte
 const googleClientId = process.env.GOOGLE_CLIENT_ID || '';
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET || '';
 const googleOauthRedirectUri = process.env.GOOGLE_OAUTH_REDIRECT_URI || '';
-const port = Number(process.env.PORT || DEFAULT_PORT);
-const host = process.env.HOST || '0.0.0.0';
+const listenTarget = createListenTarget(process.env.PORT, process.env.HOST);
 const database = createDatabase();
 const toolRepository = createToolRepository(database);
 const categoryRepository = createCategoryRepository(database);
@@ -168,12 +167,32 @@ const server = http.createServer(async (request, response) => {
   }
 });
 
-server.listen(port, host, () => {
-  console.log(`RunningHub demo server: http://${host}:${port}`);
-  console.log(`Local access URL: http://127.0.0.1:${port}`);
+server.listen(...listenTarget.args, () => {
+  console.log(`RunningHub demo server: ${listenTarget.url}`);
+  console.log(`Local access URL: ${listenTarget.localUrl}`);
   console.log(`RUNNINGHUB_API_KEY: ${runningHubApiKey ? '已配置' : '未配置'}`);
   console.log(`ADMIN_USERNAME: ${adminUsername}`);
 });
+
+function createListenTarget(portValue, hostValue) {
+  const rawPort = String(portValue || DEFAULT_PORT).trim();
+  const host = String(hostValue || '0.0.0.0').trim();
+  const numericPort = Number(rawPort);
+
+  if (Number.isInteger(numericPort) && numericPort >= 0 && numericPort <= 65535) {
+    return {
+      args: [numericPort, host],
+      url: `http://${host}:${numericPort}`,
+      localUrl: `http://127.0.0.1:${numericPort}`
+    };
+  }
+
+  return {
+    args: [rawPort],
+    url: rawPort,
+    localUrl: rawPort
+  };
+}
 
 function loadEnvFile(envPath) {
   if (!fs.existsSync(envPath)) return;

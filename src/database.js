@@ -1,12 +1,12 @@
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
 const DEFAULT_DATABASE_PATH = path.join(__dirname, '..', 'data', 'app.sqlite');
 const DEFAULT_JSON_DATABASE_PATH = path.join(__dirname, '..', 'data', 'app.json');
 
 function createDatabase(databasePath = process.env.DATABASE_PATH || DEFAULT_DATABASE_PATH) {
-  const resolvedPath = path.resolve(databasePath);
-  fs.mkdirSync(path.dirname(resolvedPath), { recursive: true });
+  const resolvedPath = resolveWritableDatabasePath(databasePath);
 
   const database = createDatabaseAdapter(resolvedPath);
 
@@ -18,6 +18,25 @@ function createDatabase(databasePath = process.env.DATABASE_PATH || DEFAULT_DATA
   migrateDatabase(database);
 
   return database;
+}
+
+function resolveWritableDatabasePath(databasePath) {
+  const requestedPath = path.resolve(databasePath || DEFAULT_DATABASE_PATH);
+
+  try {
+    ensureWritableDirectory(path.dirname(requestedPath));
+    return requestedPath;
+  } catch (error) {
+    const fallbackPath = path.join(os.tmpdir(), 'runninghub-app', path.basename(requestedPath || 'app.sqlite'));
+    console.warn(`資料庫目錄無法寫入，已切換到暫存資料庫路徑：${fallbackPath}`);
+    ensureWritableDirectory(path.dirname(fallbackPath));
+    return fallbackPath;
+  }
+}
+
+function ensureWritableDirectory(directoryPath) {
+  fs.mkdirSync(directoryPath, { recursive: true });
+  fs.accessSync(directoryPath, fs.constants.W_OK);
 }
 
 function createDatabaseAdapter(resolvedPath) {
@@ -234,6 +253,10 @@ function migrateDatabase(database) {
     WHERE amount > 0
       AND remaining_amount = 0
   `).run();
+
+  if (typeof database.persist === 'function') {
+    database.persist();
+  }
 }
 
 class JsonFileDatabase {
@@ -501,6 +524,18 @@ class JsonStatement {
     }
 
     if (this.normalizedSql.startsWith('UPDATE credit_ledger SET remaining_amount')) {
+      if (!payload || typeof payload !== 'object') {
+        let changes = 0;
+        this.database.state.credit_ledger.forEach((record) => {
+          if (record.amount > 0 && record.remaining_amount === 0) {
+            record.remaining_amount = record.amount;
+            changes += 1;
+          }
+        });
+        if (changes) this.database.persist();
+        return { changes };
+      }
+
       const record = this.findRecord('credit_ledger', payload.id);
       if (record) {
         record.remaining_amount = payload.remainingAmount;
