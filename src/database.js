@@ -84,6 +84,7 @@ function migrateDatabase(database) {
       top_detail_html TEXT NOT NULL DEFAULT '',
       detail_html TEXT NOT NULL DEFAULT '',
       preview_image_url TEXT NOT NULL DEFAULT '',
+      credit_cost INTEGER NOT NULL DEFAULT 1,
       workflow_id TEXT NOT NULL,
       instance_type TEXT NOT NULL DEFAULT 'default',
       status TEXT NOT NULL DEFAULT 'draft',
@@ -126,6 +127,7 @@ function migrateDatabase(database) {
       role TEXT NOT NULL DEFAULT 'free_user',
       membership_group TEXT NOT NULL DEFAULT 'free',
       credit_balance INTEGER NOT NULL DEFAULT 0,
+      last_login_credit_date TEXT NOT NULL DEFAULT '',
       status TEXT NOT NULL DEFAULT 'active',
       notes TEXT NOT NULL DEFAULT '',
       created_at TEXT NOT NULL,
@@ -136,9 +138,11 @@ function migrateDatabase(database) {
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
       amount INTEGER NOT NULL,
+      remaining_amount INTEGER NOT NULL DEFAULT 0,
       balance_after INTEGER NOT NULL,
       reason TEXT NOT NULL,
       related_task_id TEXT NOT NULL DEFAULT '',
+      expires_at TEXT,
       created_at TEXT NOT NULL,
       FOREIGN KEY (user_id) REFERENCES app_users(id)
     );
@@ -178,6 +182,7 @@ function migrateDatabase(database) {
 
   ensureColumn(database, 'tools', 'category_id', "TEXT NOT NULL DEFAULT 'image'");
   ensureColumn(database, 'tools', 'preview_image_url', "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(database, 'tools', 'credit_cost', 'INTEGER NOT NULL DEFAULT 1');
   ensureColumn(database, 'tools', 'top_detail_html', "TEXT NOT NULL DEFAULT ''");
   ensureColumn(database, 'tools', 'detail_html', "TEXT NOT NULL DEFAULT ''");
   ensureColumn(database, 'tools', 'last_test_status', "TEXT NOT NULL DEFAULT 'untested'");
@@ -185,10 +190,16 @@ function migrateDatabase(database) {
   ensureColumn(database, 'tools', 'last_test_error', "TEXT NOT NULL DEFAULT ''");
   ensureColumn(database, 'tools', 'last_tested_at', 'TEXT');
   ensureColumn(database, 'execution_tasks', 'user_id', "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(database, 'credit_ledger', 'remaining_amount', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn(database, 'credit_ledger', 'expires_at', 'TEXT');
+  ensureColumn(database, 'app_users', 'last_login_credit_date', "TEXT NOT NULL DEFAULT ''");
 
   database.exec(`
     CREATE INDEX IF NOT EXISTS idx_execution_tasks_user_created
       ON execution_tasks(user_id, created_at);
+
+    CREATE INDEX IF NOT EXISTS idx_credit_ledger_user_expiry
+      ON credit_ledger(user_id, expires_at, created_at);
   `);
 
   database.prepare(`
@@ -215,6 +226,13 @@ function migrateDatabase(database) {
     UPDATE tools
     SET category_id = 'image'
     WHERE category_id = ''
+  `).run();
+
+  database.prepare(`
+    UPDATE credit_ledger
+    SET remaining_amount = amount
+    WHERE amount > 0
+      AND remaining_amount = 0
   `).run();
 }
 
@@ -482,6 +500,15 @@ class JsonStatement {
       return { changes: 1 };
     }
 
+    if (this.normalizedSql.startsWith('UPDATE credit_ledger SET remaining_amount')) {
+      const record = this.findRecord('credit_ledger', payload.id);
+      if (record) {
+        record.remaining_amount = payload.remainingAmount;
+        this.database.persist();
+      }
+      return { changes: record ? 1 : 0 };
+    }
+
     if (this.normalizedSql.startsWith('INSERT INTO app_user_sessions')) {
       this.database.state.app_user_sessions.push(toUserSessionRecord(payload));
       this.database.persist();
@@ -628,6 +655,7 @@ function getJsonTableColumns(tableName) {
       'top_detail_html',
       'detail_html',
       'preview_image_url',
+      'credit_cost',
       'workflow_id',
       'instance_type',
       'status',
@@ -667,6 +695,7 @@ function getJsonTableColumns(tableName) {
       'role',
       'membership_group',
       'credit_balance',
+      'last_login_credit_date',
       'status',
       'notes',
       'created_at',
@@ -676,9 +705,11 @@ function getJsonTableColumns(tableName) {
       'id',
       'user_id',
       'amount',
+      'remaining_amount',
       'balance_after',
       'reason',
       'related_task_id',
+      'expires_at',
       'created_at'
     ],
     app_user_sessions: [
@@ -718,6 +749,7 @@ function toToolRecord(payload) {
     top_detail_html: payload.topDetailHtml || '',
     detail_html: payload.detailHtml || '',
     preview_image_url: payload.previewImageUrl,
+    credit_cost: payload.creditCost ?? 1,
     workflow_id: payload.workflowId,
     instance_type: payload.instanceType,
     status: payload.status,
@@ -763,6 +795,7 @@ function toUserRecord(payload) {
     role: payload.role,
     membership_group: payload.membershipGroup,
     credit_balance: payload.creditBalance,
+    last_login_credit_date: payload.lastLoginCreditDate || '',
     status: payload.status,
     notes: payload.notes || '',
     created_at: payload.createdAt,
@@ -775,9 +808,11 @@ function toCreditLedgerRecord(payload) {
     id: payload.id,
     user_id: payload.userId,
     amount: payload.amount,
+    remaining_amount: payload.remainingAmount ?? Math.max(0, payload.amount),
     balance_after: payload.balanceAfter,
     reason: payload.reason,
     related_task_id: payload.relatedTaskId || '',
+    expires_at: payload.expiresAt || null,
     created_at: payload.createdAt
   };
 }

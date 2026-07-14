@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI 工具 - RunningHub</title>
+  <title>AI Tools</title>
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/element-plus@2.4.4/dist/index.css">
@@ -531,6 +531,91 @@
       color: #64748b;
       background: #f8fbff;
       font-weight: 850;
+    }
+
+    .billing-toggle {
+      width: max-content;
+      display: inline-flex;
+      gap: 4px;
+      border: 1px solid #dfe7f2;
+      border-radius: 999px;
+      background: #f5f7fb;
+      padding: 4px;
+    }
+
+    .billing-toggle button {
+      min-width: 86px;
+      min-height: 34px;
+      border-radius: 999px;
+      background: transparent;
+      color: #64748b;
+      cursor: pointer;
+      font-weight: 850;
+    }
+
+    .billing-toggle button.is-active {
+      background: var(--strong);
+      color: #ffffff;
+    }
+
+    .subscription-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 16px;
+    }
+
+    .subscription-card {
+      min-height: 250px;
+      display: grid;
+      gap: 14px;
+      align-content: start;
+      position: relative;
+      border: 1px solid #dfe7f2;
+      border-radius: 8px;
+      background: #ffffff;
+      padding: 18px;
+    }
+
+    .subscription-card.is-featured {
+      border-color: #7c6df2;
+      box-shadow: 0 18px 45px rgba(112, 93, 242, 0.16);
+    }
+
+    .subscription-badge {
+      width: max-content;
+      border-radius: 999px;
+      background: #13c99b;
+      color: #ffffff;
+      padding: 4px 9px;
+      font-size: 12px;
+      font-weight: 850;
+    }
+
+    .subscription-title {
+      color: var(--strong);
+      font-size: 20px;
+      font-weight: 900;
+    }
+
+    .subscription-price {
+      color: #766df2;
+      font-size: 34px;
+      font-weight: 950;
+      line-height: 1;
+    }
+
+    .subscription-period,
+    .subscription-description,
+    .subscription-feature {
+      color: #64748b;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .subscription-feature-list {
+      display: grid;
+      gap: 8px;
     }
 
     .tool-page {
@@ -1161,12 +1246,6 @@
       font-weight: 850;
     }
 
-    .compare-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
-    }
-
     .result-media-card {
       min-height: 320px;
       display: grid;
@@ -1196,6 +1275,114 @@
       padding: 5px 9px;
       font-size: 12px;
       font-weight: 800;
+    }
+
+    .result-compare-slider {
+      --compare-position: 50%;
+      min-height: 320px;
+      aspect-ratio: 16 / 9;
+      position: relative;
+      border-radius: 8px;
+      background: #eef3f8;
+      overflow: hidden;
+      cursor: ew-resize;
+      user-select: none;
+      touch-action: none;
+    }
+
+    .result-compare-layer {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+
+    .result-compare-layer img,
+    .result-compare-layer video {
+      width: 100%;
+      height: 100%;
+      max-height: 640px;
+      object-fit: contain;
+      display: block;
+      pointer-events: none;
+    }
+
+    .result-compare-after {
+      clip-path: inset(0 0 0 var(--compare-position));
+      background-color: #f7f9fc;
+      background-image:
+        linear-gradient(45deg, #e2e8f0 25%, transparent 25%),
+        linear-gradient(-45deg, #e2e8f0 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #e2e8f0 75%),
+        linear-gradient(-45deg, transparent 75%, #e2e8f0 75%);
+      background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+      background-size: 24px 24px;
+    }
+
+    .result-compare-line {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: var(--compare-position);
+      z-index: 4;
+      width: 2px;
+      transform: translateX(-1px);
+      background: rgba(15, 23, 42, 0.72);
+      pointer-events: none;
+    }
+
+    .result-compare-handle {
+      position: absolute;
+      left: var(--compare-position);
+      top: 50%;
+      z-index: 5;
+      width: 48px;
+      height: 48px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      transform: translate(-50%, -50%);
+      background: #ffffff;
+      color: #64748b;
+      box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18);
+      font-size: 22px;
+      font-weight: 900;
+      pointer-events: none;
+    }
+
+    .result-compare-label {
+      position: absolute;
+      z-index: 6;
+      top: 14px;
+      border-radius: 999px;
+      background: rgba(18, 28, 36, 0.72);
+      color: #ffffff;
+      padding: 6px 10px;
+      font-size: 13px;
+      font-weight: 800;
+      pointer-events: none;
+    }
+
+    .result-compare-label.is-before {
+      left: 14px;
+    }
+
+    .result-compare-label.is-after {
+      right: 14px;
+    }
+
+    .result-compare-caption {
+      position: absolute;
+      z-index: 6;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 800;
+      text-shadow: 0 1px 4px rgba(15, 23, 42, 0.6);
+      pointer-events: none;
     }
 
     .result-empty {
@@ -1283,7 +1470,6 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
-      .compare-grid,
       .form-action-row,
       .dynamic-field-list,
       .member-grid,
@@ -1362,17 +1548,17 @@
 <body>
   <div id="app">
     <main class="app-shell">
-      <header class="topbar">
+      <header class="topbar"><a href="/">
         <div class="brand" :aria-label="toolTitle">
           <span class="brand-mark">R</span>
           <span>{{ toolTitle }}</span>
-        </div>
-        <nav class="nav-links" aria-label="頁面導航">
+        </div></a>
+        <nav class="nav-links" aria-label="Page navigation">
           <div class="nav-menu">
             <button class="nav-trigger" type="button" @click="goToMarketplace">
-              工具 <span class="nav-chevron" aria-hidden="true">⌄</span>
+              Tools <span class="nav-chevron" aria-hidden="true">⌄</span>
             </button>
-            <div class="tool-dropdown" aria-label="工具分類選單">
+            <div class="tool-dropdown" aria-label="Tool category menu">
               <section
                 v-for="group in toolMenuGroups"
                 :key="group.key"
@@ -1396,7 +1582,7 @@
             </div>
           </div>
           <a href="#faq">FAQ</a>
-          <a href="#privacy">隱私</a>
+          <a href="#privacy">Privacy</a>
           <div class="notification-nav">
             <button class="round-icon-button" type="button" aria-label="Notifications">
               <span class="notification-dot" aria-hidden="true"></span>
@@ -1435,7 +1621,7 @@
               </svg>
             </button>
             <span class="nav-chevron" aria-hidden="true">⌄</span>
-            <div class="member-dropdown" aria-label="會員選單">
+            <div class="member-dropdown" aria-label="Member menu">
               <div class="member-dropdown-header">
                 <span class="member-provider-mark">G</span>
                 <div>
@@ -1472,44 +1658,44 @@
             <p class="member-description">{{ memberPageDescription }}</p>
           </div>
           <button class="primary-button" type="button" @click="openMemberPage('/register')">
-            {{ memberLoggedIn ? '升級會員' : '免費註冊' }}
+            {{ memberLoggedIn ? 'Upgrade Plan' : 'Register Free' }}
           </button>
         </div>
 
         <div v-if="currentMemberPath === '/register' || currentMemberPath === '/login'" class="member-grid">
           <section class="member-panel">
-            <h2 class="member-panel-title">建立會員帳號</h2>
+            <h2 class="member-panel-title">Create Member Account</h2>
             <div class="member-form">
               <div class="member-field">
-                <label for="member-name">暱稱</label>
-                <input id="member-name" v-model="memberForm.displayName" type="text" placeholder="輸入你的暱稱">
+                <label for="member-name">Display Name</label>
+                <input id="member-name" v-model="memberForm.displayName" type="text" placeholder="Enter your display name">
               </div>
               <div class="member-field">
                 <label for="member-email">Email</label>
                 <input id="member-email" v-model="memberForm.email" type="email" placeholder="name@example.com">
               </div>
               <div class="member-field">
-                <label for="member-password">密碼</label>
-                <input id="member-password" v-model="memberForm.password" type="password" placeholder="至少 6 位">
+                <label for="member-password">Password</label>
+                <input id="member-password" v-model="memberForm.password" type="password" placeholder="At least 6 characters">
               </div>
-              <button class="primary-button" type="button" @click="registerMember">註冊並登入</button>
-              <button class="secondary-button" type="button" @click="loginWithGoogle">使用 Google 登入</button>
+              <button class="primary-button" type="button" @click="registerMember">Register and Log In</button>
+              <button class="secondary-button" type="button" @click="loginWithGoogle">Continue with Google</button>
             </div>
           </section>
           <aside class="member-panel">
-            <h2 class="member-panel-title">會員權益</h2>
+            <h2 class="member-panel-title">Member Benefits</h2>
             <div class="member-stat-grid">
               <div class="member-stat">
                 <div class="member-stat-value">20</div>
-                <div class="member-stat-label">免費試用積分</div>
+                <div class="member-stat-label">Free Trial Credits</div>
               </div>
               <div class="member-stat">
                 <div class="member-stat-value">HD</div>
-                <div class="member-stat-label">高清結果下載</div>
+                <div class="member-stat-label">HD Result Downloads</div>
               </div>
               <div class="member-stat">
                 <div class="member-stat-value">History</div>
-                <div class="member-stat-label">保存執行記錄</div>
+                <div class="member-stat-label">Saved Execution History</div>
               </div>
             </div>
           </aside>
@@ -1523,7 +1709,7 @@
               <div class="member-card-meta">{{ file.type }} · {{ file.createdAt }}</div>
             </article>
           </div>
-          <div v-if="!memberFiles.length" class="member-empty">你的生成文件會顯示在這裡。</div>
+          <div v-if="!memberFiles.length" class="member-empty">Your generated files will appear here.</div>
         </div>
 
         <div v-else-if="currentMemberPath === '/member/likes'" class="member-panel">
@@ -1531,10 +1717,10 @@
           <div class="member-card-grid">
             <article v-for="item in memberLikes" :key="item.id" class="member-card">
               <div class="tool-name">{{ item.name }}</div>
-              <div class="member-card-meta">{{ item.category }} · 已收藏</div>
+              <div class="member-card-meta">{{ item.category }} · Saved</div>
             </article>
           </div>
-          <div v-if="!memberLikes.length" class="member-empty">收藏工具後會在這裡快速打開。</div>
+          <div v-if="!memberLikes.length" class="member-empty">Saved tools will appear here for quick access.</div>
         </div>
 
         <div v-else-if="currentMemberPath === '/member/settings'" class="member-grid">
@@ -1542,42 +1728,67 @@
             <h2 class="member-panel-title">Settings</h2>
             <div class="member-form">
               <div class="member-field">
-                <label for="settings-name">顯示名稱</label>
+                <label for="settings-name">Display Name</label>
                 <input id="settings-name" v-model="memberProfile.displayName" type="text">
               </div>
               <div class="member-field">
                 <label for="settings-email">Email</label>
                 <input id="settings-email" v-model="memberProfile.email" type="email">
               </div>
-              <div class="member-field">
-                <label for="settings-plan">會員套餐</label>
-                <select id="settings-plan" v-model="memberProfile.plan">
-                  <option value="free">Free</option>
-                  <option value="pro">PRO</option>
-                  <option value="pro_plus">PRO+</option>
-                  <option value="pro_max">PRO MAX</option>
-                </select>
-              </div>
-              <button class="primary-button" type="button" @click="saveMemberSettings">保存設定</button>
+              <button class="primary-button" type="button" @click="saveMemberSettings">Save Settings</button>
             </div>
           </section>
           <aside class="member-panel">
-            <h2 class="member-panel-title">帳戶狀態</h2>
+            <h2 class="member-panel-title">Account Status</h2>
             <div class="member-stat-grid">
               <div class="member-stat">
                 <div class="member-stat-value">{{ memberProfile.credits }}</div>
-                <div class="member-stat-label">可用積分</div>
+                <div class="member-stat-label">Available Credits</div>
               </div>
               <div class="member-stat">
                 <div class="member-stat-value">{{ memberProfile.plan.toUpperCase() }}</div>
-                <div class="member-stat-label">當前套餐</div>
+                <div class="member-stat-label">Current Plan</div>
               </div>
               <div class="member-stat">
                 <div class="member-stat-value">Active</div>
-                <div class="member-stat-label">帳戶狀態</div>
+                <div class="member-stat-label">Account Status</div>
               </div>
             </div>
           </aside>
+          <section class="member-panel" style="grid-column: 1 / -1;">
+            <h2 class="member-panel-title">Membership Subscription</h2>
+            <div class="billing-toggle" aria-label="Billing cycle">
+              <button
+                v-for="option in billingCycleOptions"
+                :key="option.value"
+                type="button"
+                :class="{ 'is-active': selectedBillingCycle === option.value }"
+                @click="selectedBillingCycle = option.value"
+              >
+                {{ option.label }}
+              </button>
+            </div>
+            <div class="subscription-grid">
+              <article
+                v-for="plan in subscriptionPlans"
+                :key="plan.key"
+                class="subscription-card"
+                :class="{ 'is-featured': plan.featured }"
+              >
+                <span v-if="plan.featured" class="subscription-badge">Most Popular</span>
+                <div class="subscription-title">{{ plan.name }}</div>
+                <div class="subscription-price">{{ getSubscriptionPrice(plan) }}</div>
+                <div class="subscription-period">{{ getSubscriptionPeriodLabel(plan) }}</div>
+                <p class="subscription-description">{{ plan.description }}</p>
+                <div class="subscription-feature-list">
+                  <div v-for="feature in plan.features" :key="feature" class="subscription-feature">✓ {{ feature }}</div>
+                </div>
+                <button class="primary-button" type="button" @click="selectSubscriptionPlan(plan)">
+                  {{ memberProfile.plan === plan.key ? 'Current Plan' : 'Choose Subscription' }}
+                </button>
+              </article>
+            </div>
+          </section>
         </div>
 
         <div v-else class="member-panel">
@@ -1585,10 +1796,10 @@
           <table class="member-table">
             <thead>
               <tr>
-                <th>日期</th>
-                <th>項目</th>
-                <th>積分</th>
-                <th>餘額</th>
+                <th>Date</th>
+                <th>Item</th>
+                <th>Credits</th>
+                <th>Balance</th>
               </tr>
             </thead>
             <tbody>
@@ -1599,7 +1810,7 @@
                 <td>{{ transaction.balanceAfter }}</td>
               </tr>
               <tr v-if="!memberTransactions.length">
-                <td colspan="4">暫時沒有交易記錄。</td>
+                <td colspan="4">No transaction records yet.</td>
               </tr>
             </tbody>
           </table>
@@ -1610,25 +1821,25 @@
         <div class="marketplace-header">
           <div>
             <p class="eyebrow">AI TOOL MARKET</p>
-            <h1 class="marketplace-title">探索所有 AI 工具</h1>
+            <h1 class="marketplace-title">Explore All AI Tools</h1>
             <p class="marketplace-description">
-              從後台配置、測試並上線的工具會自動出現在這裡。選擇工具後即可進入專屬頁面，上傳素材並建立 RunningHub 任務。
+              Tools configured, tested, and published from the admin panel appear here automatically. Choose a tool to open its page, upload assets, and create a task.
             </p>
           </div>
           <div class="marketplace-search">
-            <label for="tool-search">搜尋工具</label>
-            <input id="tool-search" v-model="toolKeyword" type="search" placeholder="搜尋名稱、分類或說明">
+            <label for="tool-search">Search Tools</label>
+            <input id="tool-search" v-model="toolKeyword" type="search" placeholder="Search by name, category, or description">
           </div>
         </div>
 
-        <div class="category-tabs" aria-label="工具分類">
+        <div class="category-tabs" aria-label="Tool categories">
           <button
             type="button"
             class="category-tab"
             :class="{ 'is-active': selectedCategory === 'all' }"
             @click="selectedCategory = 'all'"
           >
-            全部
+            All
           </button>
           <button
             v-for="category in categories"
@@ -1638,11 +1849,11 @@
             :class="{ 'is-active': selectedCategory === category.categoryKey }"
             @click="selectedCategory = category.categoryKey"
           >
-            {{ category.name }}
+            {{ getDisplayText(category.name) }}
           </button>
         </div>
 
-        <div v-if="isLoadingMarketplace" class="market-empty">工具載入中...</div>
+        <div v-if="isLoadingMarketplace" class="market-empty">Loading tools...</div>
         <div v-else-if="filteredTools.length" class="tool-grid">
           <article
             v-for="tool in filteredTools"
@@ -1654,24 +1865,24 @@
               v-if="tool.previewImageUrl"
               class="market-tool-image"
               :src="tool.previewImageUrl"
-              :alt="`${tool.name} 預覽圖片`"
+              :alt="`${getDisplayText(tool.name)} preview image`"
             >
-            <div v-else class="market-tool-placeholder">暫無預覽圖</div>
+            <div v-else class="market-tool-placeholder">No preview image</div>
             <div class="market-tool-body">
               <div class="market-tool-meta">
-                <span>{{ tool.categoryName || 'AI 工具' }}</span>
-                <span>{{ tool.estimatedSeconds ? `約 ${tool.estimatedSeconds} 秒` : '立即使用' }}</span>
+                <span>{{ getDisplayText(tool.categoryName) || 'AI Tool' }}</span>
+                <span>{{ tool.estimatedSeconds ? `About ${tool.estimatedSeconds}s` : 'Use Now' }}</span>
               </div>
-              <h2 class="market-tool-title">{{ tool.name }}</h2>
-              <p class="market-tool-description">{{ tool.shortDescription || tool.description || '這個工具暫未填寫說明。' }}</p>
+              <h2 class="market-tool-title">{{ getDisplayText(tool.name) }}</h2>
+              <p class="market-tool-description">{{ getDisplayText(tool.shortDescription || tool.description) || 'No description has been added for this tool yet.' }}</p>
             </div>
           </article>
         </div>
-        <div v-else class="market-empty">暫時沒有符合條件的工具。</div>
+        <div v-else class="market-empty">No tools match your filters yet.</div>
       </section>
 
       <div v-else class="tool-page">
-        <aside class="tool-sidebar" aria-label="工具側邊欄">
+        <aside class="tool-sidebar" aria-label="Tool sidebar">
           <div class="sidebar-inner">
             <section
               v-for="section in sidebarSections"
@@ -1688,7 +1899,7 @@
                 @click="openMenuTool(item)"
               >
                 <span class="sidebar-icon" aria-hidden="true">{{ item.icon }}</span>
-                {{ item.name }}
+                {{ getDisplayText(item.name) }}
               </button>
             </section>
           </div>
@@ -1704,8 +1915,8 @@
 
           </section>
 
-          <section class="tool-card" :aria-label="`${toolTitle} 操作區`">
-            <section v-if="topDetailHtml" class="tool-detail-section" aria-label="工具頁頂部說明">
+          <section class="tool-card" :aria-label="`${toolTitle} workspace`">
+            <section v-if="topDetailHtml" class="tool-detail-section" aria-label="Tool page top description">
               <div class="tool-detail-content" v-html="topDetailHtml"></div>
             </section>
 
@@ -1725,8 +1936,8 @@
                     @drop.prevent="handleMediaDrop(node, $event)"
                   >
                     <span class="upload-icon" aria-hidden="true">⇧</span>
-                    <span class="upload-title">{{ node.label || '上傳檔案' }}</span>
-                    <span class="upload-hint">{{ node.placeholder || getUploadMetaHint(node) }}</span>
+                    <span class="upload-title">{{ getDisplayText(node.label) || 'Upload File' }}</span>
+                    <span class="upload-hint">{{ getDisplayText(node.placeholder) || getUploadMetaHint(node) }}</span>
                     <input
                       class="hidden-input"
                       type="file"
@@ -1738,7 +1949,7 @@
                     v-else-if="node.dataType === 'image'"
                     class="preview-image"
                     :src="getMediaPreview(node)"
-                    alt="待處理圖片預覽"
+                    alt="Input image preview"
                   >
                   <video
                     v-else
@@ -1756,12 +1967,12 @@
                   class="dynamic-field"
                   :class="{ 'is-full': field.dataType === 'textarea' || field.dataType === 'text' }"
                 >
-                  <label :for="`field-${field.key}`">{{ field.label || field.key }}</label>
+                  <label :for="`field-${field.key}`">{{ getDisplayText(field.label) || field.key }}</label>
                   <textarea
                     v-if="field.dataType === 'textarea'"
                     :id="`field-${field.key}`"
                     v-model="formValues[field.key]"
-                    :placeholder="field.placeholder"
+                    :placeholder="getDisplayText(field.placeholder)"
                   ></textarea>
                   <select
                     v-else-if="field.dataType === 'select'"
@@ -1773,7 +1984,7 @@
                       :key="option.value"
                       :value="option.value"
                     >
-                      {{ option.label || option.value }}
+                      {{ getDisplayText(option.label) || option.value }}
                     </option>
                   </select>
                   <input
@@ -1781,7 +1992,7 @@
                     :id="`field-${field.key}`"
                     v-model="formValues[field.key]"
                     :type="field.dataType === 'number' ? 'number' : 'text'"
-                    :placeholder="field.placeholder"
+                    :placeholder="getDisplayText(field.placeholder)"
                   >
                 </div>
               </div>
@@ -1792,7 +2003,7 @@
                 </div>
                 <div v-else class="notice">
                   <span aria-hidden="true">♢</span>
-                  <span>等待上傳文件</span>
+                  <span>{{ memberLoggedIn ? `This generation costs ${toolCreditCost} credits` : 'Please register or log in before using AI generation' }}</span>
                 </div>
                 <button
                   class="primary-button"
@@ -1800,39 +2011,54 @@
                   :disabled="!canExecute || isExecuting"
                   @click="executeWorkflow"
                 >
-                  ✨ {{ isExecuting ? '生成中' : '開始生成' }}
+                  ✨ {{ isExecuting ? 'Generating' : (memberLoggedIn ? 'Start Generation' : 'Log In to Generate') }}
                 </button>
               </div>
             </section>
 
-            <section class="result-panel" aria-label="輸出結果">
-              <h2 class="result-title">輸出結果</h2>
-              <div v-if="resultImageUrl && hasMediaResultComparison" class="compare-grid">
-                <div class="result-media-card">
-                  <span class="result-badge">Before</span>
-                  <img v-if="primaryMediaInput?.dataType === 'image'" :src="primaryMediaPreview" alt="輸入圖片">
-                  <video v-else :src="primaryMediaPreview" controls></video>
+            <section class="result-panel" aria-label="Output result">
+              <h2 class="result-title">Output Result</h2>
+              <div
+                v-if="resultImageUrl && hasMediaResultComparison"
+                class="result-compare-slider"
+                :style="compareSliderStyle"
+                role="img"
+                aria-label="Before and After result comparison"
+                @pointerdown="startCompareDrag"
+                @pointermove="updateCompareFromPointer"
+                @pointerup="stopCompareDrag"
+                @pointercancel="stopCompareDrag"
+                @pointerleave="stopCompareDrag"
+              >
+                <div class="result-compare-layer result-compare-before">
+                  <img v-if="primaryMediaInput?.dataType === 'image'" :src="primaryMediaPreview" alt="Input image">
+                  <video v-else :src="primaryMediaPreview" muted playsinline></video>
                 </div>
-                <div class="result-media-card">
-                  <span class="result-badge">After</span>
+                <div class="result-compare-layer result-compare-after">
                   <img
                     v-if="isResultImage"
                     :src="resultImageUrl"
-                    alt="生成結果"
+                    alt="Generated result"
                   >
                   <video
                     v-else
                     :src="resultImageUrl"
-                    controls
+                    muted
+                    playsinline
                   ></video>
                 </div>
+                <span class="result-compare-label is-before">Before</span>
+                <span class="result-compare-caption">Real results</span>
+                <span class="result-compare-label is-after">After</span>
+                <span class="result-compare-line" aria-hidden="true"></span>
+                <span class="result-compare-handle" aria-hidden="true">‹›</span>
               </div>
               <div v-else-if="resultImageUrl" class="result-media-card">
                 <span class="result-badge">Result</span>
                 <img
                   v-if="isResultImage"
                   :src="resultImageUrl"
-                  alt="生成結果"
+                  alt="Generated result"
                 >
                 <video
                   v-else
@@ -1841,7 +2067,7 @@
                 ></video>
               </div>
               <div v-else class="result-empty">
-                生成結果會顯示在這裡。
+                Generated results will appear here.
               </div>
               <button
                 class="download-button"
@@ -1849,11 +2075,11 @@
                 :disabled="!resultImageUrl"
                 @click="downloadResult"
               >
-                ⇩ 下載結果
+                ⇩ Download Result
               </button>
             </section>
 
-            <section v-if="toolDetailHtml" class="tool-detail-section" aria-label="工具頁底部說明">
+            <section v-if="toolDetailHtml" class="tool-detail-section" aria-label="Tool page bottom description">
               <div class="tool-detail-content" v-html="toolDetailHtml"></div>
             </section>
           </section>
@@ -1864,7 +2090,7 @@
         <div class="loading-dialog" role="status" aria-live="polite">
           <div class="spinner"></div>
           <div class="loading-title">{{ executionMessage }}</div>
-          <div class="loading-subtitle">任務完成後會自動展示結果，請稍候。</div>
+          <div class="loading-subtitle">The result will appear automatically after the task finishes. Please wait.</div>
         </div>
       </div>
 
@@ -1879,28 +2105,51 @@
     const MAX_FILE_SIZE = 10 * 1024 * 1024;
     const POLLING_INTERVAL = 3000;
     const MAX_POLLING_COUNT = 120;
+    const DISPLAY_TEXT_MAP = {
+      '\u5716\u50cf': 'Image',
+      '\u56fe\u50cf': 'Image',
+      '\u8996\u983b': 'Video',
+      '\u89c6\u9891': 'Video',
+      '\u97f3\u983b': 'Audio',
+      '\u97f3\u9891': 'Audio',
+      '\u6587\u672c': 'Text',
+      '\u5716\u50cf\u5de5\u5177': 'Image Tools',
+      '\u56fe\u50cf\u5de5\u5177': 'Image Tools',
+      '\u5716\u7247\u80cc\u666f\u79fb\u9664': 'Remove Background',
+      '\u56fe\u7247\u80cc\u666f\u79fb\u9664': 'Remove Background',
+      '\u4e0a\u50b3\u5716\u7247': 'Upload Image',
+      '\u4e0a\u4f20\u56fe\u7247': 'Upload Image',
+      '\u8acb\u9078\u64c7 JPG\u3001PNG \u6216 WebP \u5716\u7247': 'Choose a JPG, PNG, or WebP image',
+      '\u8bf7\u9009\u62e9 JPG\u3001PNG \u6216 WebP \u56fe\u7247': 'Choose a JPG, PNG, or WebP image',
+      '\u4e0a\u50b3\u5716\u7247\u5f8c\u81ea\u52d5\u79fb\u9664\u80cc\u666f\uff0c\u8f38\u51fa\u900f\u660e PNG\u3002': 'Upload an image to remove the background automatically and export a transparent PNG.',
+      '\u4e0a\u4f20\u56fe\u7247\u540e\u81ea\u52a8\u79fb\u9664\u80cc\u666f\uff0c\u8f93\u51fa\u900f\u660e PNG\u3002': 'Upload an image to remove the background automatically and export a transparent PNG.'
+    };
+    const DETAIL_HTML_MAP = {
+      '<h2>\u5de5\u5177\u8aaa\u660e</h2><p>\u4e0a\u50b3\u5716\u7247\u5f8c\uff0c\u7cfb\u7d71\u6703\u81ea\u52d5\u79fb\u9664\u80cc\u666f\u4e26\u8f38\u51fa\u900f\u660e PNG\uff0c\u9069\u5408\u5546\u54c1\u5716\u3001\u982d\u50cf\u548c\u7d20\u6750\u8655\u7406\u3002</p>': '<h2>Tool Details</h2><p>Upload an image and the system will remove the background automatically, then export a transparent PNG. It is suitable for product photos, portraits, and asset processing.</p>',
+      '<h2>\u5de5\u5177\u8bf4\u660e</h2><p>\u4e0a\u4f20\u56fe\u7247\u540e\uff0c\u7cfb\u7edf\u4f1a\u81ea\u52a8\u79fb\u9664\u80cc\u666f\u5e76\u8f93\u51fa\u900f\u660e PNG\uff0c\u9002\u5408\u5546\u54c1\u56fe\u3001\u5934\u50cf\u548c\u7d20\u6750\u5904\u7406\u3002</p>': '<h2>Tool Details</h2><p>Upload an image and the system will remove the background automatically, then export a transparent PNG. It is suitable for product photos, portraits, and asset processing.</p>'
+    };
     const CATEGORY_FALLBACKS = [
       {
         key: 'image',
-        name: '圖像',
+        name: 'Image',
         icon: '▧',
         tools: ['Image Generator', 'AI Image Variations', 'Photo Restoration', 'Image Sharpener', 'Colorize Photo', 'Uncrop Image', 'AI Photo Studio', 'AI Logo Maker', 'Image Enhance', 'Remove Background', 'Replace Background', 'Photo Face Enhancer']
       },
       {
         key: 'video',
-        name: '視頻',
+        name: 'Video',
         icon: '▷',
         tools: ['Colorize Video', 'Change Video FPS', 'Video Speed Controller', 'Enhance Video Quality', 'Video Face Enhancer', 'Convert Image to Video', 'AI Hugging Generator', 'AI Video Generator', 'AI Animation Generator', 'Text to Video AI', 'AI Gif Generator']
       },
       {
         key: 'audio',
-        name: '音頻',
+        name: 'Audio',
         icon: '♬',
         tools: ['Enhance Audio Quality']
       },
       {
         key: 'text',
-        name: '文本',
+        name: 'Text',
         icon: '✎',
         tools: ['Idea Generator', 'Blog Post Generator', 'Humanize AI text', 'Brand Name Generator', 'AI Marketer', 'AI Quote Generator', 'YouTube Script Writer', 'TikTok Scenario AI', 'Text Summarizer', 'Joke Generator', 'AI Poetry']
       }
@@ -1911,9 +2160,11 @@
         const mediaFiles = ref({});
         const mediaPreviews = ref({});
         const resultImageUrl = ref('');
+        const comparePosition = ref(50);
+        const isCompareDragging = ref(false);
         const isDragover = ref(false);
         const isExecuting = ref(false);
-        const executionMessage = ref('正在處理圖片');
+        const executionMessage = ref('Processing image');
         const statusMessage = ref('');
         const statusType = ref('');
         const latestTaskId = ref('');
@@ -1924,6 +2175,7 @@
         const categories = ref([]);
         const toolKeyword = ref('');
         const selectedCategory = ref('all');
+        const selectedBillingCycle = ref('annual');
         const isLoadingMarketplace = ref(false);
         const memberLoggedIn = ref(window.localStorage.getItem('runninghub:memberLoggedIn') === 'true');
         const memberForm = ref({
@@ -1934,11 +2186,11 @@
         const memberProfile = ref(loadMemberProfile());
         const memberFiles = ref([]);
         const memberLikes = ref([
-          { id: 'like-remove-bg', name: 'Remove Background', category: '圖像工具' },
-          { id: 'like-image-enhance', name: 'Image Enhance', category: '圖像工具' }
+          { id: 'like-remove-bg', name: 'Remove Background', category: 'Image Tools' },
+          { id: 'like-image-enhance', name: 'Image Enhance', category: 'Image Tools' }
         ]);
         const memberTransactions = ref([
-          { id: 'txn-welcome', createdAt: '2026-07-13', reason: '註冊贈送積分', amount: '+20', balanceAfter: 20 }
+          { id: 'txn-welcome', createdAt: '2026-07-13', reason: 'Registration bonus credits', amount: '+20', balanceAfter: 20 }
         ]);
 
         const isMarketplace = computed(() => {
@@ -1967,8 +2219,8 @@
 
         const memberPageTitle = computed(() => {
           const titles = {
-            '/register': '會員註冊',
-            '/login': '會員登入',
+            '/register': 'Member Registration',
+            '/login': 'Member Login',
             '/member/files': 'My Files',
             '/member/likes': 'My Likes',
             '/member/settings': 'Settings',
@@ -1979,15 +2231,18 @@
 
         const memberPageDescription = computed(() => {
           const descriptions = {
-            '/register': '建立帳號後可以保存生成文件、收藏工具、查看交易記錄，後續會接入積分和會員套餐。',
-            '/login': '登入後繼續管理你的文件、收藏和交易記錄。',
-            '/member/files': '集中查看你生成和保存的文件，後續會接入雲端硬碟和批量下載。',
-            '/member/likes': '保存常用 AI 工具，方便下次快速打開。',
-            '/member/settings': '管理你的帳戶資料、會員套餐和通知偏好。',
-            '/member/transactions': '查看積分變動、會員套餐和工具執行消耗記錄。'
+            '/register': 'Create an account to save generated files, favorite tools, and review transaction records. Credits and membership plans will connect here next.',
+            '/login': 'Log in to continue managing your files, favorites, and transaction records.',
+            '/member/files': 'View generated and saved files in one place. Cloud drive and batch downloads will connect later.',
+            '/member/likes': 'Save frequently used AI tools so you can open them faster next time.',
+            '/member/settings': 'Manage your account profile, membership plan, and notification preferences.',
+            '/member/transactions': 'Review credit changes, membership plans, and tool execution spending.'
           };
-          return descriptions[currentMemberPath.value] || '管理你的會員帳戶。';
+          return descriptions[currentMemberPath.value] || 'Manage your member account.';
         });
+
+        const getDisplayText = (value) => DISPLAY_TEXT_MAP[value] || value || '';
+        const getDisplayHtml = (value) => DETAIL_HTML_MAP[value] || value || '';
 
         const memberMenuItems = [
           { path: '/member/files', label: 'My Files', icon: '□' },
@@ -2009,6 +2264,37 @@
             time: 'Today'
           }
         ];
+        const billingCycleOptions = [
+          { value: 'annual', label: 'Annual' },
+          { value: 'monthly', label: 'Monthly' }
+        ];
+        const subscriptionPlans = [
+          {
+            key: 'free',
+            name: 'Free',
+            monthlyPrice: 0,
+            annualPrice: 0,
+            description: 'Best for trying the basic tools first.',
+            features: ['Registration bonus credits', 'Daily login rewards', 'Basic image tools']
+          },
+          {
+            key: 'pro_plus',
+            name: 'Pro',
+            monthlyPrice: 29.99,
+            annualPrice: 23.99,
+            featured: true,
+            description: 'Best for professional users who generate with AI regularly.',
+            features: ['More monthly credits', 'Image and video tools', 'High-priority generation']
+          },
+          {
+            key: 'pay_as_you_go',
+            name: 'Pay As You Go',
+            monthlyPrice: 0,
+            annualPrice: 0,
+            description: 'Best for occasional use. One-time credit purchases will connect later.',
+            features: ['No monthly commitment', 'Credit pack purchases', 'Good for temporary projects']
+          }
+        ];
 
         const activeCategories = computed(() => categories.value.filter((category) => category.status !== 'inactive'));
 
@@ -2021,12 +2307,12 @@
           ));
           const fallbackTools = fallback.tools.map((name) => ({ name, slug: '' }));
           const tools = matchedTools.length
-            ? matchedTools.map((tool) => ({ name: tool.name, slug: tool.slug, categoryKey: fallback.key }))
+            ? matchedTools.map((tool) => ({ name: getDisplayText(tool.name), slug: tool.slug, categoryKey: fallback.key }))
             : fallbackTools;
 
           return {
             key: fallback.key,
-            name: category?.name || fallback.name,
+            name: getDisplayText(category?.name) || fallback.name,
             icon: fallback.icon,
             tools
           };
@@ -2034,19 +2320,19 @@
 
         const sidebarSections = computed(() => [
           {
-            title: '最近',
+            title: 'Recent',
             items: [
               {
-                name: toolConfig.value?.name || '圖片背景移除',
+                name: getDisplayText(toolConfig.value?.name) || 'Remove Background',
                 slug: toolConfig.value?.slug || getCurrentToolSlug(),
                 icon: '◷'
               }
             ]
           },
           {
-            title: '工具',
+            title: 'Tools',
             items: [
-              { name: '所有 AI 工具', slug: '', icon: '▦', action: 'marketplace' },
+              { name: 'All AI Tools', slug: '', icon: '▦', action: 'marketplace' },
               ...toolMenuGroups.value.flatMap((group) => (
                 group.tools
                   .filter((tool) => tool.slug)
@@ -2056,11 +2342,11 @@
             ]
           },
           {
-            title: '主要工具',
+            title: 'Main Tools',
             items: [
-              { name: '編輯視頻', slug: '', icon: '▷' },
-              { name: '編輯圖片', slug: '', icon: '▧' },
-              { name: '價格', slug: '', icon: '$' },
+              { name: 'Edit Video', slug: '', icon: '▷' },
+              { name: 'Edit Image', slug: '', icon: '▧' },
+              { name: 'Pricing', slug: '', icon: '$' },
               { name: 'API', slug: '', icon: '⌁' }
             ]
           }
@@ -2095,33 +2381,38 @@
         const primaryMediaInput = computed(() => mediaInputNodes.value[0] || null);
         const primaryMediaPreview = computed(() => (primaryMediaInput.value ? mediaPreviews.value[primaryMediaInput.value.key] || '' : ''));
         const hasMediaResultComparison = computed(() => Boolean(primaryMediaPreview.value));
+        const compareSliderStyle = computed(() => ({
+          '--compare-position': `${comparePosition.value}%`
+        }));
         const dynamicInputFields = computed(() => (toolConfig.value?.inputNodes || []).filter((node) => node.dataType !== 'image' && node.dataType !== 'video'));
         const toolTitle = computed(() => {
-          if (isMarketplace.value) return 'AI 工具平台';
-          return toolConfig.value?.name || '圖片背景移除';
+          if (isMarketplace.value) return 'AI Tool Platform';
+          return getDisplayText(toolConfig.value?.name) || 'Remove Background';
         });
         const toolDescription = computed(() => (
-          toolConfig.value?.shortDescription
-          || toolConfig.value?.description
-          || '上傳圖片並調用 RunningHub 工作流，自動生成處理結果。'
+          getDisplayText(toolConfig.value?.shortDescription)
+          || getDisplayText(toolConfig.value?.description)
+          || 'Upload an image and run a workflow to generate the processed result automatically.'
         ));
-        const toolCategoryLabel = computed(() => toolConfig.value?.categoryName || 'ONLINE AI TOOL');
+        const toolCategoryLabel = computed(() => getDisplayText(toolConfig.value?.categoryName) || 'ONLINE AI TOOL');
         const topDetailHtml = computed(() => {
           if (isMarketplace.value) return '';
-          return toolConfig.value?.topDetailHtml || '';
+          return getDisplayHtml(toolConfig.value?.topDetailHtml);
         });
         const toolDetailHtml = computed(() => {
           if (isMarketplace.value) return '';
-          return toolConfig.value?.detailHtml || '';
+          return getDisplayHtml(toolConfig.value?.detailHtml);
         });
         const estimatedTimeLabel = computed(() => {
           const seconds = toolConfig.value?.estimatedSeconds;
-          return seconds ? `約 ${seconds} 秒` : 'AI 工具';
+          return seconds ? `About ${seconds}s` : 'AI Tool';
         });
+        const toolCreditCost = computed(() => Number(toolConfig.value?.creditCost || 1));
         const isResultImage = computed(() => !resultImageUrl.value || !/\.(mp4|webm|mov)(\?|#|$)/i.test(resultImageUrl.value));
 
         const canExecute = computed(() => (
-          mediaInputNodes.value.every((node) => !node.required || Boolean(mediaFiles.value[node.key]))
+          memberLoggedIn.value
+          && mediaInputNodes.value.every((node) => !node.required || Boolean(mediaFiles.value[node.key]))
           && !isExecuting.value
         ));
 
@@ -2146,15 +2437,15 @@
 
         const setMediaFile = (node, file) => {
           const expectedPrefix = node.dataType === 'video' ? 'video/' : 'image/';
-          const expectedLabel = node.dataType === 'video' ? '影片' : '圖片';
+          const expectedLabel = node.dataType === 'video' ? 'video' : 'image';
 
           if (!file.type.startsWith(expectedPrefix)) {
-            setStatus(`請上傳${expectedLabel}檔案`, 'error');
+            setStatus(`Please upload a ${expectedLabel} file`, 'error');
             return;
           }
 
           if (file.size > MAX_FILE_SIZE) {
-            setStatus(file.name + ' 超過 10MB，請壓縮後再上傳', 'error');
+            setStatus(file.name + ' is over 10MB. Please compress it and upload again.', 'error');
             return;
           }
 
@@ -2164,7 +2455,8 @@
           };
           resultImageUrl.value = '';
           latestTaskId.value = '';
-          setStatus(`${expectedLabel}已載入，可以開始處理`, 'success');
+          comparePosition.value = 50;
+          setStatus(`${expectedLabel} loaded. You can start processing now.`, 'success');
 
           const reader = new FileReader();
           reader.onload = (event) => {
@@ -2178,15 +2470,39 @@
 
         const getUploadAccept = (node) => (node.dataType === 'video' ? 'video/*' : 'image/*');
 
-        const getUploadMetaHint = (node) => (node.dataType === 'video' ? 'MP4 / WebM / MOV · 最大 10MB' : 'JPG / PNG / WebP · 最大 10MB');
+        const getUploadMetaHint = (node) => (node.dataType === 'video' ? 'MP4 / WebM / MOV · Max 10MB' : 'JPG / PNG / WebP · Max 10MB');
 
         const getMediaPreview = (node) => mediaPreviews.value[node.key] || '';
+
+        const updateComparePosition = (event) => {
+          const bounds = event.currentTarget.getBoundingClientRect();
+          if (!bounds.width) return;
+
+          const nextPosition = ((event.clientX - bounds.left) / bounds.width) * 100;
+          comparePosition.value = Math.min(96, Math.max(4, Math.round(nextPosition)));
+        };
+
+        const startCompareDrag = (event) => {
+          isCompareDragging.value = true;
+          event.currentTarget.setPointerCapture?.(event.pointerId);
+          updateComparePosition(event);
+        };
+
+        const updateCompareFromPointer = (event) => {
+          if (!isCompareDragging.value && event.pointerType !== 'mouse') return;
+          updateComparePosition(event);
+        };
+
+        const stopCompareDrag = () => {
+          isCompareDragging.value = false;
+        };
 
         const resetTool = () => {
           mediaFiles.value = {};
           mediaPreviews.value = {};
           resultImageUrl.value = '';
           latestTaskId.value = '';
+          comparePosition.value = 50;
           setStatus('', '');
         };
 
@@ -2228,32 +2544,45 @@
           setCurrentPath();
           resetTool();
           toolConfig.value = null;
-          document.title = memberPageTitle.value + ' - RunningHub';
+          document.title = memberPageTitle.value + ' - ';
         };
 
-        const registerMember = () => {
+        const registerMember = async () => {
           const email = memberForm.value.email.trim().toLowerCase();
           const displayName = memberForm.value.displayName.trim() || email.split('@')[0] || 'Member';
 
           if (!email || !email.includes('@')) {
-            ElementPlus.ElMessage.error('請輸入正確 Email');
+            ElementPlus.ElMessage.error('Please enter a valid email address');
             return;
           }
 
           if (memberForm.value.password.length < 6) {
-            ElementPlus.ElMessage.error('密碼至少 6 位');
+            ElementPlus.ElMessage.error('Password must be at least 6 characters');
             return;
           }
 
-          memberProfile.value = {
-            ...memberProfile.value,
-            displayName,
-            email
-          };
-          memberLoggedIn.value = true;
-          persistMemberProfile();
-          ElementPlus.ElMessage.success('會員帳號已建立');
-          openMemberPage('/member/files');
+          try {
+            const response = await axios.post('/api/auth/register', {
+              displayName,
+              email
+            }, {
+              headers: createJsonHeaders()
+            });
+            const user = response.data?.data;
+
+            memberProfile.value = {
+              displayName: user.displayName || displayName,
+              email: user.email || email,
+              plan: user.membershipGroup || 'free',
+              credits: user.creditBalance || 0
+            };
+            memberLoggedIn.value = true;
+            persistMemberProfile();
+            ElementPlus.ElMessage.success('Member account created. Registration bonus credits have been added.');
+            openMemberPage('/member/files');
+          } catch (error) {
+            ElementPlus.ElMessage.error(getApiErrorMessage(error));
+          }
         };
 
         const loginWithGoogle = () => {
@@ -2262,7 +2591,35 @@
 
         const saveMemberSettings = () => {
           persistMemberProfile();
-          ElementPlus.ElMessage.success('會員設定已保存');
+          ElementPlus.ElMessage.success('Member settings saved');
+        };
+
+        const getSubscriptionPrice = (plan) => {
+          if (plan.key === 'free') return 'Free';
+          if (plan.key === 'pay_as_you_go') return 'Pay as you go';
+          const price = selectedBillingCycle.value === 'annual' ? plan.annualPrice : plan.monthlyPrice;
+          return `US$${price}`;
+        };
+
+        const getSubscriptionPeriodLabel = (plan) => {
+          if (plan.key === 'free') return 'Currently free';
+          if (plan.key === 'pay_as_you_go') return 'One-time credit purchase';
+          return selectedBillingCycle.value === 'annual' ? 'per month, billed annually' : 'per month';
+        };
+
+        const selectSubscriptionPlan = (plan) => {
+          if (!memberLoggedIn.value) {
+            openMemberPage('/register');
+            ElementPlus.ElMessage.warning('Please register or log in before choosing a subscription');
+            return;
+          }
+
+          if (plan.key === memberProfile.value.plan) {
+            ElementPlus.ElMessage.info('This is your current plan');
+            return;
+          }
+
+          ElementPlus.ElMessage.info('Subscription payment will be connected in the next phase');
         };
 
         const handleMemberLogout = async () => {
@@ -2274,7 +2631,7 @@
           await axios.post('/api/auth/logout').catch(() => {});
           memberLoggedIn.value = false;
           window.localStorage.setItem('runninghub:memberLoggedIn', 'false');
-          ElementPlus.ElMessage.success('已登出');
+          ElementPlus.ElMessage.success('Logged out');
           goToMarketplace();
         };
 
@@ -2298,7 +2655,7 @@
             memberLoggedIn.value = true;
             persistMemberProfile();
           } catch (error) {
-            console.warn('會員狀態載入失敗:', error.message);
+            console.warn('Member session failed to load:', error.message);
           }
         };
 
@@ -2310,7 +2667,7 @@
             || responseData?.error?.details
             || responseData?.error?.code
             || error.message
-            || '調用失敗，請檢查 API Key、工作流 ID 和節點配置';
+            || 'Request failed. Please check the workflow ID and node configuration.';
         };
 
         const delay = (milliseconds) => new Promise(resolve => setTimeout(resolve, milliseconds));
@@ -2342,18 +2699,18 @@
             ]);
 
             if (!toolsResponse.data?.success) {
-              throw new Error(toolsResponse.data?.message || '工具列表載入失敗');
+              throw new Error(toolsResponse.data?.message || 'Tool list failed to load');
             }
 
             if (!categoriesResponse.data?.success) {
-              throw new Error(categoriesResponse.data?.message || '分類載入失敗');
+              throw new Error(categoriesResponse.data?.message || 'Categories failed to load');
             }
 
             marketplaceTools.value = Array.isArray(toolsResponse.data.data) ? toolsResponse.data.data : [];
             categories.value = Array.isArray(categoriesResponse.data.data) ? categoriesResponse.data.data : [];
-            document.title = 'AI 工具平台 - RunningHub';
+            document.title = 'AI Tool Platform';
           } catch (error) {
-            console.error('工具市場載入失敗:', error);
+            console.error('Tool marketplace failed to load:', error);
             marketplaceTools.value = [];
             categories.value = [];
             ElementPlus.ElMessage.error(getApiErrorMessage(error));
@@ -2368,8 +2725,8 @@
           window.history.pushState({}, '', '/tools/' + encodeURIComponent(tool.slug));
           setCurrentPath();
           loadToolConfig().catch((error) => {
-            console.error('工具配置載入失敗:', error);
-            setStatus(error.message || '工具配置載入失敗', 'error');
+            console.error('Tool configuration failed to load:', error);
+            setStatus(error.message || 'Tool configuration failed to load', 'error');
           });
         };
 
@@ -2397,13 +2754,13 @@
           const payload = response.data;
 
           if (!payload.success) {
-            throw new Error(payload.message || '工具配置載入失敗');
+            throw new Error(payload.message || 'Tool configuration failed to load');
           }
 
           toolConfig.value = payload.data;
           initializeFormValues(payload.data.inputNodes || []);
           resetTool();
-          document.title = payload.data.name + ' - RunningHub';
+          document.title = payload.data.name + ' ';
         };
 
         const initializeFormValues = (inputNodes) => {
@@ -2424,13 +2781,13 @@
         const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = (event) => resolve(event.target.result);
-          reader.onerror = () => reject(new Error('讀取檔案失敗'));
+          reader.onerror = () => reject(new Error('File reading failed'));
           reader.readAsDataURL(file);
         });
 
         const createToolTask = async () => {
           if (!toolConfig.value) {
-            throw new Error('工具配置未載入，請刷新頁面後重試');
+            throw new Error('Tool configuration has not loaded. Please refresh the page and try again.');
           }
 
           const inputValues = { ...formValues.value };
@@ -2450,7 +2807,7 @@
           const task = response.data?.data;
 
           if (!task?.taskId) {
-            throw new Error(response.data?.errorMessage || response.data?.message || '任務建立失敗，未返回任務 ID');
+            throw new Error(response.data?.errorMessage || response.data?.message || 'Task creation failed. No task ID was returned.');
           }
 
           return task;
@@ -2460,7 +2817,7 @@
           const response = await axios.get(TASKS_API_BASE_URL + '/' + encodeURIComponent(taskId));
 
           if (!response.data?.success) {
-            throw new Error(response.data?.message || '查詢任務狀態失敗');
+            throw new Error(response.data?.message || 'Task status query failed');
           }
 
           return response.data.data;
@@ -2470,7 +2827,7 @@
           const response = await axios.get(TASKS_API_BASE_URL + '/' + encodeURIComponent(taskId) + '/outputs');
 
           if (!response.data?.success) {
-            throw new Error(response.data?.message || '獲取任務結果失敗');
+            throw new Error(response.data?.message || 'Task output query failed');
           }
 
           return response.data.data?.outputUrls || [];
@@ -2479,51 +2836,59 @@
         const waitForTaskSuccess = async (taskId) => {
           for (let count = 0; count < MAX_POLLING_COUNT; count += 1) {
             const task = await queryTaskStatus(taskId);
-            executionMessage.value = '任務狀態：' + getStatusText(task.status);
-            setStatus('任務狀態：' + getStatusText(task.status), 'processing');
+            executionMessage.value = 'Task status: ' + getStatusText(task.status);
+            setStatus('Task status: ' + getStatusText(task.status), 'processing');
 
             if (task.status === 'SUCCESS') return task;
             if (task.status === 'FAILED') {
-              throw new Error(task.errorMessage || 'RunningHub 任務執行失敗');
+              throw new Error(task.errorMessage || 'task failed');
             }
 
             await delay(POLLING_INTERVAL);
           }
 
-          throw new Error('任務等待逾時，請稍後在 RunningHub 後台查看結果');
+          throw new Error('Task wait timed out. Please check the result later.');
         };
 
         const executeWorkflow = async () => {
+          if (!memberLoggedIn.value) {
+            ElementPlus.ElMessage.warning('Please register or log in before using AI generation');
+            openMemberPage('/register');
+            return;
+          }
+
           if (!canExecute.value) return;
 
           isExecuting.value = true;
-          executionMessage.value = '正在上傳圖片';
-          setStatus('正在上傳圖片...', 'processing');
+          executionMessage.value = 'Uploading image';
+          setStatus('Uploading image...', 'processing');
           resultImageUrl.value = '';
+          comparePosition.value = 50;
 
           try {
-            executionMessage.value = '正在建立工具任務';
+            executionMessage.value = 'Creating tool task';
 
             const task = await createToolTask();
             latestTaskId.value = task.taskId;
 
-            executionMessage.value = '任務已建立，等待結果';
+            executionMessage.value = 'Task created. Waiting for result';
             await waitForTaskSuccess(task.taskId);
 
-            executionMessage.value = '正在獲取輸出圖片';
+            executionMessage.value = 'Fetching output image';
             const imageUrls = await queryTaskOutputs(task.taskId);
 
             if (!imageUrls.length) {
-              throw new Error('任務已完成，但未返回可下載圖片');
+              throw new Error('Task finished, but no downloadable image was returned');
             }
 
             resultImageUrl.value = imageUrls[0];
-            setStatus('工具執行完成，任務 ID：' + task.taskId, 'success');
-            ElementPlus.ElMessage.success('工具執行完成');
+            setStatus('Tool execution completed. Task ID: ' + task.taskId, 'success');
+            ElementPlus.ElMessage.success('Tool execution completed');
+            loadMemberSession();
           } catch (error) {
-            console.error('工具執行失敗:', error);
+            console.error('Tool execution failed:', error);
             setStatus(getApiErrorMessage(error), 'error');
-            ElementPlus.ElMessage.error('工具執行失敗');
+            ElementPlus.ElMessage.error('Tool execution failed');
           } finally {
             isExecuting.value = false;
           }
@@ -2531,12 +2896,12 @@
 
         const getStatusText = (status) => {
           const statusMap = {
-            QUEUED: '排隊中',
-            RUNNING: '處理中',
-            SUCCESS: '已完成',
-            FAILED: '失敗'
+            QUEUED: 'Queued',
+            RUNNING: 'Processing',
+            SUCCESS: 'Completed',
+            FAILED: 'Failed'
           };
-          return statusMap[status] || status || '處理中';
+          return statusMap[status] || status || 'Processing';
         };
 
         const downloadResult = () => {
@@ -2564,7 +2929,7 @@
           loadMemberSession();
           const oauthStatus = new URLSearchParams(window.location.search).get('oauth');
           if (oauthStatus === 'failed' || oauthStatus === 'invalid_state') {
-            ElementPlus.ElMessage.error('Google 登入失敗，請稍後再試');
+            ElementPlus.ElMessage.error('Google login failed. Please try again later.');
           }
 
           window.addEventListener('popstate', () => {
@@ -2578,13 +2943,13 @@
 
             if (isMemberPage.value) {
               toolConfig.value = null;
-              document.title = memberPageTitle.value + ' - RunningHub';
+              document.title = memberPageTitle.value + ' - ';
               return;
             }
 
             loadToolConfig().catch((error) => {
-              console.error('工具配置載入失敗:', error);
-              setStatus(error.message || '工具配置載入失敗', 'error');
+              console.error('Tool configuration failed to load:', error);
+              setStatus(error.message || 'Tool configuration failed to load', 'error');
             });
           });
 
@@ -2595,15 +2960,15 @@
 
           if (isMemberPage.value) {
             loadMarketplaceData().finally(() => {
-              document.title = memberPageTitle.value + ' - RunningHub';
+              document.title = memberPageTitle.value + ' - ';
             });
             return;
           }
 
           loadMarketplaceData();
           loadToolConfig().catch((error) => {
-            console.error('工具配置載入失敗:', error);
-            setStatus(error.message || '工具配置載入失敗', 'error');
+            console.error('Tool configuration failed to load:', error);
+            setStatus(error.message || 'Tool configuration failed to load', 'error');
           });
         });
 
@@ -2618,6 +2983,7 @@
           formValues,
           isLoadingMarketplace,
           selectedCategory,
+          selectedBillingCycle,
           currentToolSlug,
           toolKeyword,
           toolTitle,
@@ -2639,6 +3005,8 @@
           memberPageTitle,
           memberProfile,
           memberTransactions,
+          billingCycleOptions,
+          subscriptionPlans,
           primaryMediaInput,
           primaryMediaPreview,
           hasMediaResultComparison,
@@ -2649,21 +3017,29 @@
           executionMessage,
           statusMessage,
           statusClass,
+          compareSliderStyle,
           canExecute,
           handleMediaFileSelect,
           handleMediaDrop,
+          startCompareDrag,
+          updateCompareFromPointer,
+          stopCompareDrag,
           getUploadAccept,
           getUploadMetaHint,
           getMediaPreview,
+          getSubscriptionPeriodLabel,
+          getSubscriptionPrice,
           handleMemberLogout,
           loginWithGoogle,
           openMemberPage,
           openTool,
           openMenuTool,
           goToMarketplace,
+          getDisplayText,
           registerMember,
           resetTool,
           saveMemberSettings,
+          selectSubscriptionPlan,
           executeWorkflow,
           downloadResult
         };

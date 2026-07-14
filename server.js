@@ -8,6 +8,7 @@ const { createCategoryRepository } = require('./src/categoryRepository');
 const { createTaskRepository } = require('./src/taskRepository');
 const { createUserRepository } = require('./src/userRepository');
 const { createMemberSessionRepository } = require('./src/memberSessionRepository');
+const { createKieClient } = require('./src/kieClient');
 
 const PUBLIC_DIR = path.join(__dirname, 'frontend');
 const UPLOAD_DIR = path.join(__dirname, 'data', 'uploads');
@@ -15,6 +16,7 @@ const DEFAULT_PORT = 3000;
 const MAX_UPLOAD_SIZE = 12 * 1024 * 1024;
 const MAX_JSON_BODY_SIZE = 18 * 1024 * 1024;
 const MAX_RICH_EDITOR_UPLOAD_SIZE = 30 * 1024 * 1024;
+const KIE_UPLOAD_PATH = 'runninghub-app/uploads';
 const RICH_EDITOR_UPLOAD_MIME_TYPES = new Set([
   'image/jpeg',
   'image/png',
@@ -44,6 +46,7 @@ const categoryRepository = createCategoryRepository(database);
 const taskRepository = createTaskRepository(database);
 const userRepository = createUserRepository(database);
 const memberSessionRepository = createMemberSessionRepository(database);
+const kieClient = createKieClient();
 
 toolRepository.seedDefaultTools();
 
@@ -70,6 +73,7 @@ const adminRoutePrefixes = [
   '/admin/tools',
   '/admin/categories',
   '/admin/users',
+  '/admin/members',
   '/admin/workflows',
   '/admin/memberships',
   '/admin/tasks',
@@ -89,6 +93,8 @@ const ADMIN_SESSION_MAX_AGE_SECONDS = 60 * 60 * 8;
 const MEMBER_SESSION_COOKIE = 'runninghub_member_session';
 const MEMBER_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 const GOOGLE_OAUTH_SCOPE = 'openid email profile';
+const REGISTER_BONUS_CREDITS = 100;
+const DAILY_LOGIN_BONUS_CREDITS = 50;
 const ADMIN_ROLE_PERMISSIONS = {
   admin: new Set(['manage_tools', 'manage_users', 'manage_content', 'view_tasks', 'manage_credits']),
   content_editor: new Set(['manage_content']),
@@ -135,6 +141,11 @@ const server = http.createServer(async (request, response) => {
 
     if (requestPathname.startsWith('/api/runninghub/')) {
       await handleRunningHubApi(request, response);
+      return;
+    }
+
+    if (requestPathname.startsWith('/api/kie/')) {
+      await handleKieApi(request, response);
       return;
     }
 
@@ -227,6 +238,45 @@ async function handleRunningHubApi(request, response) {
     await proxyJson(response, `${runningHubTaskApiBaseUrl}/outputs`, {
       apiKey: runningHubApiKey,
       taskId: requestBody.taskId
+    });
+    return;
+  }
+
+  sendJson(response, 404, {
+    success: false,
+    message: '介面不存在',
+    error: { code: 'API_NOT_FOUND' }
+  });
+}
+
+async function handleKieApi(request, response) {
+  const url = new URL(request.url, `http://${request.headers.host}`);
+
+  if (url.pathname === '/api/kie/health' && request.method === 'GET') {
+    const memberSession = requireActiveMemberSession(request);
+    const creditBalance = await kieClient.getCreditBalance();
+
+    sendJson(response, 200, {
+      success: true,
+      message: 'KIE 服務正常',
+      data: {
+        configured: true,
+        userId: memberSession.user.id,
+        creditBalance
+      }
+    });
+    return;
+  }
+
+  if (url.pathname === '/api/kie/upload' && request.method === 'POST') {
+    requireActiveMemberSession(request);
+    const requestBody = await readJsonBody(request);
+    const uploadedFile = await uploadKieDataUrl(requestBody);
+
+    sendJson(response, 201, {
+      success: true,
+      message: '檔案已上傳到 KIE',
+      data: uploadedFile
     });
     return;
   }
@@ -541,7 +591,7 @@ async function handlePublicApi(request, response) {
   if (executeMatch && request.method === 'POST') {
     const idOrSlug = decodeURIComponent(executeMatch[1]);
     const requestBody = await readJsonBody(request);
-    const result = await executeConfiguredTool(idOrSlug, requestBody);
+    const result = await executeConfiguredTool(idOrSlug, requestBody, request);
 
     sendJson(response, 201, {
       success: true,
@@ -591,6 +641,34 @@ async function handlePublicApi(request, response) {
 
 async function handleAuthApi(request, response) {
   const url = new URL(request.url, `http://${request.headers.host}`);
+
+  if (url.pathname === '/api/auth/register' && request.method === 'POST') {
+    const requestBody = await readJsonBody(request);
+    const result = registerOrLoginMember(requestBody, 'email');
+
+    sendJson(response, 201, {
+      success: true,
+      message: '註冊並登入成功',
+      data: result.user
+    }, {
+      'Set-Cookie': createMemberSessionCookie(request, result.session.id)
+    });
+    return;
+  }
+
+  if (url.pathname === '/api/auth/login' && request.method === 'POST') {
+    const requestBody = await readJsonBody(request);
+    const result = registerOrLoginMember(requestBody, 'email');
+
+    sendJson(response, 200, {
+      success: true,
+      message: '登入成功',
+      data: result.user
+    }, {
+      'Set-Cookie': createMemberSessionCookie(request, result.session.id)
+    });
+    return;
+  }
 
   if (url.pathname === '/api/auth/google' && request.method === 'GET') {
     ensureGoogleOAuthConfigured();
@@ -687,7 +765,7 @@ async function handleTaskApi(request, response) {
   });
 }
 
-async function executeConfiguredTool(idOrSlug, requestBody) {
+async function executeConfiguredTool(idOrSlug, requestBody, request) {
   ensureRunningHubConfigured();
 
   const tool = toolRepository.getActiveToolByIdOrSlug(idOrSlug);
@@ -695,7 +773,12 @@ async function executeConfiguredTool(idOrSlug, requestBody) {
     throwHttpError('工具不存在或未上線', 'TOOL_NOT_FOUND', 404);
   }
 
-  return executeToolWithConfig(tool, requestBody);
+  const memberSession = requireActiveMemberSession(request);
+
+  return executeToolWithConfig(tool, requestBody, {
+    userId: memberSession.user.id,
+    chargeCredits: true
+  });
 }
 
 async function testAdminTool(toolId, requestBody) {
@@ -738,12 +821,14 @@ async function testAdminTool(toolId, requestBody) {
   }
 }
 
-async function executeToolWithConfig(tool, requestBody) {
+async function executeToolWithConfig(tool, requestBody, options = {}) {
   const rawInputValues = requestBody?.inputValues && typeof requestBody.inputValues === 'object'
     ? requestBody.inputValues
     : {};
   const normalizedInputValues = {};
+  const creditCost = Number(tool.creditCost || 0);
   const task = taskRepository.createTask({
+    userId: options.userId || '',
     tool,
     inputValues: sanitizeInputValues(tool, rawInputValues),
     nodeInfoList: []
@@ -763,6 +848,10 @@ async function executeToolWithConfig(tool, requestBody) {
 
     if (!runningHubTaskId) {
       throwHttpError('任務建立失敗，未返回任務 ID', 'RUNNINGHUB_TASK_ID_MISSING', 502);
+    }
+
+    if (options.chargeCredits) {
+      userRepository.spendCredits(options.userId, creditCost, `使用工具：${tool.name}`, task.id);
     }
 
     const savedTask = taskRepository.attachRunningHubTask(task.id, runningHubTaskId, 'QUEUED');
@@ -1203,6 +1292,48 @@ function saveRichEditorUpload(payload) {
   };
 }
 
+async function uploadKieDataUrl(payload) {
+  const parsedDataUrl = parseDataUrl(payload?.dataUrl || '');
+  const allowedMimeTypes = new Set([
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'video/mp4',
+    'video/webm',
+    'video/quicktime'
+  ]);
+
+  if (!allowedMimeTypes.has(parsedDataUrl.mimeType)) {
+    throwHttpError('僅支援上傳 JPG、PNG、WebP、MP4、WebM 或 MOV 檔案', 'KIE_UPLOAD_TYPE_INVALID', 422);
+  }
+
+  if (parsedDataUrl.buffer.length > MAX_UPLOAD_SIZE) {
+    throwHttpError('上傳檔案超過大小限制', 'KIE_UPLOAD_SIZE_EXCEEDED', 413);
+  }
+
+  const fallbackType = parsedDataUrl.mimeType.startsWith('video/') ? 'video' : 'image';
+  const extension = getExtensionFromMimeType(parsedDataUrl.mimeType, fallbackType);
+  const uploadedFile = await kieClient.uploadBase64File({
+    base64Data: parsedDataUrl.buffer.toString('base64'),
+    uploadPath: KIE_UPLOAD_PATH,
+    fileName: `${crypto.randomUUID()}.${extension}`
+  });
+
+  return {
+    url: extractKieFileUrl(uploadedFile),
+    response: uploadedFile
+  };
+}
+
+function extractKieFileUrl(responseData) {
+  return responseData?.data?.fileUrl
+    || responseData?.data?.url
+    || responseData?.data?.downloadUrl
+    || responseData?.fileUrl
+    || responseData?.url
+    || '';
+}
+
 function isHttpUrl(value) {
   try {
     const url = new URL(value);
@@ -1252,7 +1383,7 @@ async function handleGoogleOAuthCallback(request, response, url) {
   try {
     const tokenPayload = await exchangeGoogleCodeForToken(request, code);
     const googleProfile = await fetchGoogleUserProfile(tokenPayload.access_token);
-    const memberUser = saveGoogleMemberUser(googleProfile);
+    const memberUser = grantMemberLoginBonus(saveGoogleMemberUser(googleProfile).id);
     const memberSession = memberSessionRepository.createSession({
       userId: memberUser.id,
       provider: 'google',
@@ -1328,9 +1459,67 @@ function saveGoogleMemberUser(profile) {
     notes: existingUser?.notes || 'Google 登入'
   };
 
-  return userRepository.saveUser(userPayload, {
+  const savedUser = userRepository.saveUser(userPayload, {
     allowInitialCreditBalance: true
   });
+  if (!existingUser) {
+    return userRepository.grantRegisterBonus(savedUser.id);
+  }
+
+  return savedUser;
+}
+
+function registerOrLoginMember(payload, provider) {
+  const email = String(payload?.email || '').trim().toLowerCase();
+  const displayName = String(payload?.displayName || payload?.name || email.split('@')[0] || 'Member').trim();
+
+  if (!email || !email.includes('@')) {
+    throwHttpError('請輸入正確 Email', 'MEMBER_EMAIL_INVALID', 422);
+  }
+
+  const existingUser = userRepository.getUserByEmail(email);
+  let memberUser = userRepository.saveUser({
+    id: existingUser?.id || '',
+    email,
+    displayName: existingUser?.displayName || displayName,
+    role: existingUser?.role === 'member' ? 'member' : 'free_user',
+    membershipGroup: existingUser?.membershipGroup || 'free',
+    creditBalance: existingUser?.creditBalance || 0,
+    status: 'active',
+    notes: existingUser?.notes || '前台會員'
+  }, {
+    allowInitialCreditBalance: true
+  });
+
+  if (!existingUser) {
+    memberUser = userRepository.grantRegisterBonus(memberUser.id);
+  }
+
+  memberUser = grantMemberLoginBonus(memberUser.id);
+  const memberSession = memberSessionRepository.createSession({
+    userId: memberUser.id,
+    provider: provider || 'email',
+    providerSubject: email,
+    maxAgeSeconds: MEMBER_SESSION_MAX_AGE_SECONDS
+  });
+
+  return {
+    session: memberSession,
+    user: memberSession.user
+  };
+}
+
+function grantMemberLoginBonus(userId) {
+  return userRepository.grantDailyLoginBonus(userId, getHongKongDateKey());
+}
+
+function getHongKongDateKey(date = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Hong_Kong',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(date);
 }
 
 function getGoogleRedirectUri(request) {
@@ -1403,6 +1592,15 @@ function getMemberSession(request) {
   const sessionId = getCookieValue(request, MEMBER_SESSION_COOKIE);
   if (!sessionId) return null;
   return memberSessionRepository.getSessionById(sessionId);
+}
+
+function requireActiveMemberSession(request) {
+  const memberSession = getMemberSession(request);
+  if (!memberSession || memberSession.user.status !== 'active') {
+    throwHttpError('請先註冊或登入後再使用 AI 生成功能', 'AUTH_REQUIRED', 401);
+  }
+
+  return memberSession;
 }
 
 function pruneExpiredAdminSessions(now = Date.now()) {

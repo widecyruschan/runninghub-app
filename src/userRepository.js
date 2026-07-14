@@ -6,6 +6,9 @@ const FRONTEND_USER_ROLES = new Set(['free_user', 'member']);
 const MEMBER_PLAN_GROUPS = new Set(['pro', 'pro_plus', 'pro_max']);
 const VALID_MEMBERSHIP_GROUPS = new Set(['staff', 'free', 'pro', 'pro_plus', 'pro_max']);
 const VALID_USER_STATUS = new Set(['active', 'disabled']);
+const REGISTER_BONUS_CREDITS = 100;
+const DAILY_LOGIN_BONUS_CREDITS = 50;
+const LOGIN_BONUS_EXPIRES_DAYS = 3;
 
 function createUserRepository(database) {
   const statements = {
@@ -32,6 +35,7 @@ function createUserRepository(database) {
         role,
         membership_group,
         credit_balance,
+        last_login_credit_date,
         status,
         notes,
         created_at,
@@ -44,6 +48,7 @@ function createUserRepository(database) {
         @role,
         @membershipGroup,
         @creditBalance,
+        @lastLoginCreditDate,
         @status,
         @notes,
         @createdAt,
@@ -58,6 +63,7 @@ function createUserRepository(database) {
         role = @role,
         membership_group = @membershipGroup,
         credit_balance = @creditBalance,
+        last_login_credit_date = @lastLoginCreditDate,
         status = @status,
         notes = @notes,
         updated_at = @updatedAt
@@ -68,26 +74,52 @@ function createUserRepository(database) {
         id,
         user_id,
         amount,
+        remaining_amount,
         balance_after,
         reason,
         related_task_id,
+        expires_at,
         created_at
       )
       VALUES (
         @id,
         @userId,
         @amount,
+        @remainingAmount,
         @balanceAfter,
         @reason,
         @relatedTaskId,
+        @expiresAt,
         @createdAt
       )
+    `),
+    listSpendableLedgerByUser: database.prepare(`
+      SELECT *
+      FROM credit_ledger
+      WHERE user_id = ?
+        AND remaining_amount > 0
+      ORDER BY
+        CASE WHEN expires_at IS NULL OR expires_at = '' THEN 1 ELSE 0 END ASC,
+        expires_at ASC,
+        created_at ASC
     `),
     listLedgerByUser: database.prepare(`
       SELECT *
       FROM credit_ledger
       WHERE user_id = ?
       ORDER BY created_at DESC
+    `),
+    updateLedgerRemainingAmount: database.prepare(`
+      UPDATE credit_ledger
+      SET remaining_amount = @remainingAmount
+      WHERE id = @id
+    `),
+    updateLastLoginCreditDate: database.prepare(`
+      UPDATE app_users
+      SET
+        last_login_credit_date = @lastLoginCreditDate,
+        updated_at = @updatedAt
+      WHERE id = @id
     `)
   };
 
@@ -115,6 +147,7 @@ function createUserRepository(database) {
       ...normalizedUser,
       id,
       creditBalance,
+      lastLoginCreditDate: existingUser?.lastLoginCreditDate || normalizedUser.lastLoginCreditDate || '',
       createdAt: existingUser?.createdAt || now,
       updatedAt: now
     };
@@ -136,7 +169,7 @@ function createUserRepository(database) {
     return getUserById(id);
   }
 
-  function adjustCredits(userId, amount, reason, relatedTaskId = '') {
+  function adjustCredits(userId, amount, reason, relatedTaskId = '', options = {}) {
     const user = getUserById(userId);
     if (!user) {
       throwValidationError('用戶不存在', 'USER_NOT_FOUND', 404);
@@ -168,13 +201,64 @@ function createUserRepository(database) {
       id: crypto.randomUUID(),
       userId,
       amount: creditDelta,
+      remainingAmount: creditDelta > 0 ? creditDelta : 0,
       balanceAfter,
       reason: String(reason || '後台調整').trim(),
       relatedTaskId: String(relatedTaskId || ''),
+      expiresAt: options.expiresAt || null,
       createdAt: now
     });
 
     return savedUser;
+  }
+
+  function grantRegisterBonus(userId) {
+    return grantCreditsIfReasonMissing(userId, REGISTER_BONUS_CREDITS, '註冊贈送積分');
+  }
+
+  function grantDailyLoginBonus(userId, todayKey = getTodayKey()) {
+    const user = getUserById(userId);
+    if (!user || user.lastLoginCreditDate === todayKey) return user;
+
+    const savedUser = adjustCredits(
+      userId,
+      DAILY_LOGIN_BONUS_CREDITS,
+      `每日登入贈送積分 ${todayKey}`,
+      '',
+      { expiresAt: addDaysIso(new Date(), LOGIN_BONUS_EXPIRES_DAYS) }
+    );
+    const now = new Date().toISOString();
+    statements.updateLastLoginCreditDate.run({
+      id: userId,
+      lastLoginCreditDate: todayKey,
+      updatedAt: now
+    });
+    return getUserById(savedUser.id);
+  }
+
+  function spendCredits(userId, amount, reason, relatedTaskId = '') {
+    const spendAmount = parseInteger(amount, '扣減積分不正確', 'USER_CREDIT_SPEND_AMOUNT_INVALID');
+    if (spendAmount <= 0) {
+      throwValidationError('扣減積分必須大於 0', 'USER_CREDIT_SPEND_AMOUNT_INVALID', 422);
+    }
+
+    const user = getUserById(userId);
+    if (!user) {
+      throwValidationError('用戶不存在', 'USER_NOT_FOUND', 404);
+    }
+
+    if (user.accountType !== 'frontend') {
+      throwValidationError('後台帳號不使用前台積分', 'USER_CREDIT_BACKEND_ACCOUNT_INVALID', 422);
+    }
+
+    const now = new Date();
+    const spendableCredits = getSpendableCredits(userId, now);
+    if (spendableCredits < spendAmount) {
+      throwValidationError('積分不足，請先充值或領取登入獎勵', 'USER_CREDIT_NOT_ENOUGH', 409);
+    }
+
+    consumeLedgerCredits(userId, spendAmount, now);
+    return adjustCredits(userId, -spendAmount, reason, relatedTaskId);
   }
 
   function listCreditLedgerByUser(userId) {
@@ -183,12 +267,48 @@ function createUserRepository(database) {
 
   return {
     adjustCredits,
+    grantDailyLoginBonus,
+    grantRegisterBonus,
     getUserByEmail,
     getUserById,
     listCreditLedgerByUser,
     listUsers,
-    saveUser
+    saveUser,
+    spendCredits
   };
+
+  function grantCreditsIfReasonMissing(userId, amount, reason, options = {}) {
+    const existingRecord = listCreditLedgerByUser(userId).find((record) => record.reason === reason);
+    if (existingRecord) return getUserById(userId);
+    return adjustCredits(userId, amount, reason, '', options);
+  }
+
+  function getSpendableCredits(userId, now) {
+    return getActivePositiveLedger(userId, now).reduce((sum, record) => sum + record.remainingAmount, 0);
+  }
+
+  function consumeLedgerCredits(userId, amount, now) {
+    let remainingAmount = amount;
+    const records = getActivePositiveLedger(userId, now);
+
+    for (const record of records) {
+      if (remainingAmount <= 0) break;
+
+      const consumedAmount = Math.min(record.remainingAmount, remainingAmount);
+      const nextRemainingAmount = record.remainingAmount - consumedAmount;
+      statements.updateLedgerRemainingAmount.run({
+        id: record.id,
+        remainingAmount: nextRemainingAmount
+      });
+      remainingAmount -= consumedAmount;
+    }
+  }
+
+  function getActivePositiveLedger(userId, now) {
+    return statements.listSpendableLedgerByUser.all(userId)
+      .map(mapCreditLedgerRecord)
+      .filter((record) => !record.expiresAt || new Date(record.expiresAt) > now);
+  }
 }
 
 function getSaveUserCreditBalance(normalizedUser, existingUser, options) {
@@ -247,6 +367,7 @@ function normalizeUserPayload(rawUser) {
     role,
     membershipGroup,
     creditBalance,
+    lastLoginCreditDate: String(user.lastLoginCreditDate || user.last_login_credit_date || '').trim(),
     status,
     notes: String(user.notes || '').trim()
   };
@@ -266,6 +387,7 @@ function mapUserRecord(record) {
     membershipGroup: record.membership_group,
     membershipGroupLabel: getMembershipGroupLabel(record.membership_group),
     creditBalance: record.credit_balance,
+    lastLoginCreditDate: record.last_login_credit_date || '',
     status: record.status,
     statusLabel: record.status === 'active' ? '啟用' : '停用',
     statusClass: record.status === 'active' ? 'status-active' : 'status-error',
@@ -280,11 +402,23 @@ function mapCreditLedgerRecord(record) {
     id: record.id,
     userId: record.user_id,
     amount: record.amount,
+    remainingAmount: Number(record.remaining_amount || 0),
     balanceAfter: record.balance_after,
     reason: record.reason,
     relatedTaskId: record.related_task_id,
+    expiresAt: record.expires_at || '',
     createdAt: record.created_at
   };
+}
+
+function addDaysIso(date, days) {
+  const nextDate = new Date(date.getTime());
+  nextDate.setDate(nextDate.getDate() + days);
+  return nextDate.toISOString();
+}
+
+function getTodayKey(date = new Date()) {
+  return date.toISOString().slice(0, 10);
 }
 
 function normalizeMembershipGroup(role, requestedMembershipGroup) {

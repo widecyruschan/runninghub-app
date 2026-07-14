@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>管理後台 - RunningHub AI 工具平台</title>
+  <title>管理後台 - AI 工具平台</title>
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/element-plus@2.4.4/dist/index.css">
   <script src="https://unpkg.com/element-plus@2.4.4/dist/index.full.min.js"></script>
@@ -1106,11 +1106,15 @@
                   </div>
                   <div class="field">
                     <label for="workflow-id">workflowID</label>
-                    <input id="workflow-id" v-model="toolForm.workflowId" placeholder="RunningHub workflowID">
+                    <input id="workflow-id" v-model="toolForm.workflowId" placeholder="workflowID">
                   </div>
                   <div class="field">
                     <label for="instance-type">instanceType</label>
                     <input id="instance-type" v-model="toolForm.instanceType" placeholder="default">
+                  </div>
+                  <div class="field">
+                    <label for="tool-credit-cost">每次消耗積分</label>
+                    <input id="tool-credit-cost" v-model="toolForm.creditCost" type="number" min="0" step="1">
                   </div>
                   <div class="field field-full">
                     <label for="preview-image-url">預覽圖片 URL</label>
@@ -1395,18 +1399,18 @@
 
           <section v-else-if="currentRoute === '/admin/users'" class="panel">
             <div class="panel-header">
-              <h2 class="panel-title">帳號與用戶</h2>
-              <span class="status-pill status-active">{{ backendUsers.length }} 個後台帳號 · {{ frontendUsers.length }} 個前台用戶</span>
+              <h2 class="panel-title">後台帳號</h2>
+              <span class="status-pill status-active">{{ filteredBackendUsers.length }} 個帳號</span>
             </div>
             <div class="panel-body">
               <div class="toolbar">
-                <input class="search-input" v-model="userKeyword" type="search" placeholder="搜尋帳號、角色或會員套餐">
+                <input class="search-input" v-model="userKeyword" type="search" placeholder="搜尋後台帳號或角色">
                 <button class="button button-primary" type="button" @click="openBackendUserForm()">新增後台帳號</button>
               </div>
 
               <div class="section-title">
                 <div>
-                  <h3>後台帳號</h3>
+                  <h3>後台登入帳號</h3>
                   <p>只用於管理後台登入和內容運營，包含管理員與文章錄入員，不參與前台會員套餐。</p>
                 </div>
               </div>
@@ -1438,7 +1442,57 @@
 
               <div class="section-title">
                 <div>
-                  <h3>前台用戶</h3>
+                  <h3>{{ userForm.id ? '編輯後台帳號' : '新增後台帳號' }}</h3>
+                  <p>後台帳號只允許管理員或文章錄入員角色。</p>
+                </div>
+              </div>
+              <div class="form-grid">
+                <div class="field">
+                  <label for="backend-user-email">Email</label>
+                  <input id="backend-user-email" v-model="userForm.email" placeholder="admin@example.com">
+                </div>
+                <div class="field">
+                  <label for="backend-user-name">顯示名稱</label>
+                  <input id="backend-user-name" v-model="userForm.displayName" placeholder="後台帳號名稱">
+                </div>
+                <div class="field">
+                  <label for="backend-user-role">角色</label>
+                  <select id="backend-user-role" v-model="userForm.role">
+                    <option v-for="role in backendUserRoleOptions" :key="role.value" :value="role.value">{{ role.label }}</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="backend-user-status">狀態</label>
+                  <select id="backend-user-status" v-model="userForm.status">
+                    <option value="active">啟用</option>
+                    <option value="disabled">停用</option>
+                  </select>
+                </div>
+                <div class="field field-full">
+                  <label for="backend-user-notes">備註</label>
+                  <textarea id="backend-user-notes" v-model="userForm.notes" placeholder="內部備註"></textarea>
+                </div>
+              </div>
+              <div class="form-actions">
+                <button class="button" type="button" @click="resetUserForm">清空</button>
+                <button class="button button-primary" type="button" @click="saveUser">儲存後台帳號</button>
+              </div>
+            </div>
+          </section>
+
+          <section v-else-if="currentRoute === '/admin/members'" class="panel">
+            <div class="panel-header">
+              <h2 class="panel-title">註冊會員</h2>
+              <span class="status-pill status-active">{{ filteredFrontendUsers.length }} 個前台用戶</span>
+            </div>
+            <div class="panel-body">
+              <div class="toolbar">
+                <input class="search-input" v-model="userKeyword" type="search" placeholder="搜尋會員、套餐或狀態">
+              </div>
+
+              <div class="section-title">
+                <div>
+                  <h3>前台註冊用戶</h3>
                   <p>前台用戶由網站註冊流程新增；後台只負責瀏覽、編輯狀態、會員套餐和積分。</p>
                 </div>
               </div>
@@ -1476,57 +1530,50 @@
 
               <div class="section-title">
                 <div>
-                  <h3>{{ userForm.id ? '編輯帳號' : '新增帳號' }}</h3>
-                  <p>後台帳號和前台用戶分開管理；會員用戶需要選擇對應套餐。</p>
+                  <h3>{{ userForm.id ? '編輯註冊會員' : '會員資料' }}</h3>
+                  <p>會員只能通過前台註冊新增，後台可調整狀態、套餐和備註。</p>
                 </div>
               </div>
               <div class="form-grid">
                 <div class="field">
-                  <label for="user-account-type">帳號類型</label>
-                  <select id="user-account-type" v-model="userForm.accountType" disabled @change="handleUserAccountTypeChange">
-                    <option value="backend">後台帳號</option>
-                    <option value="frontend">前台用戶</option>
+                  <label for="member-user-email">Email</label>
+                  <input id="member-user-email" v-model="userForm.email" disabled>
+                </div>
+                <div class="field">
+                  <label for="member-user-name">顯示名稱</label>
+                  <input id="member-user-name" v-model="userForm.displayName" placeholder="會員名稱">
+                </div>
+                <div class="field">
+                  <label for="member-user-role">用戶類型</label>
+                  <select id="member-user-role" v-model="userForm.role">
+                    <option v-for="role in frontendUserRoleOptions" :key="role.value" :value="role.value">{{ role.label }}</option>
                   </select>
                 </div>
-                <div class="field">
-                  <label for="user-email">Email</label>
-                  <input id="user-email" v-model="userForm.email" placeholder="user@example.com">
-                </div>
-                <div class="field">
-                  <label for="user-name">顯示名稱</label>
-                  <input id="user-name" v-model="userForm.displayName" placeholder="用戶名稱">
-                </div>
-                <div class="field">
-                  <label for="user-role">角色</label>
-                  <select id="user-role" v-model="userForm.role">
-                    <option v-for="role in availableUserRoleOptions" :key="role.value" :value="role.value">{{ role.label }}</option>
-                  </select>
-                </div>
-                <div v-if="userForm.accountType === 'frontend' && userForm.role === 'member'" class="field">
-                  <label for="user-group">會員套餐</label>
-                  <select id="user-group" v-model="userForm.membershipGroup">
+                <div v-if="userForm.role === 'member'" class="field">
+                  <label for="member-user-group">會員套餐</label>
+                  <select id="member-user-group" v-model="userForm.membershipGroup">
                     <option v-for="group in memberPlanOptions" :key="group.value" :value="group.value">{{ group.label }}</option>
                   </select>
                 </div>
-                <div v-if="userForm.accountType === 'frontend'" class="field">
-                  <label for="user-credit">積分餘額</label>
-                  <input id="user-credit" v-model="userForm.creditBalance" type="number" min="0" step="1">
+                <div class="field">
+                  <label for="member-user-credit">積分餘額</label>
+                  <input id="member-user-credit" v-model="userForm.creditBalance" type="number" min="0" step="1" disabled>
                 </div>
                 <div class="field">
-                  <label for="user-status">狀態</label>
-                  <select id="user-status" v-model="userForm.status">
+                  <label for="member-user-status">狀態</label>
+                  <select id="member-user-status" v-model="userForm.status">
                     <option value="active">啟用</option>
                     <option value="disabled">停用</option>
                   </select>
                 </div>
                 <div class="field field-full">
-                  <label for="user-notes">備註</label>
-                  <textarea id="user-notes" v-model="userForm.notes" placeholder="內部備註"></textarea>
+                  <label for="member-user-notes">備註</label>
+                  <textarea id="member-user-notes" v-model="userForm.notes" placeholder="內部備註"></textarea>
                 </div>
               </div>
               <div class="form-actions">
                 <button class="button" type="button" @click="resetUserForm">清空</button>
-                <button class="button button-primary" type="button" @click="saveUser">儲存用戶</button>
+                <button class="button button-primary" type="button" @click="saveUser">儲存會員資料</button>
               </div>
 
               <section v-if="creditForm.userId" class="test-panel">
@@ -1749,9 +1796,15 @@
         todo: []
       },
       '/admin/users': {
-        title: '用戶管理',
-        description: '管理後台角色、普通免費用戶、會員分組、積分餘額和帳號狀態。',
-        primaryAction: '新增用戶',
+        title: '後台帳號',
+        description: '管理後台登入角色，包含管理員與文章錄入員。',
+        primaryAction: '新增後台帳號',
+        todo: []
+      },
+      '/admin/members': {
+        title: '註冊會員',
+        description: '瀏覽和管理前台註冊用戶、會員套餐、積分餘額和執行歷史。',
+        primaryAction: '查看會員',
         todo: []
       },
       '/admin/workflows': {
@@ -1819,7 +1872,8 @@
           { path: '/admin', label: '儀表板', mark: '總' },
           { path: '/admin/tools', label: '工具管理', mark: '工' },
           { path: '/admin/categories', label: '分類管理', mark: '類' },
-          { path: '/admin/users', label: '用戶管理', mark: '用' },
+          { path: '/admin/users', label: '後台帳號', mark: '帳' },
+          { path: '/admin/members', label: '註冊會員', mark: '員' },
           { path: '/admin/memberships', label: '會員套餐', mark: '會' },
           { path: '/admin/tasks', label: '任務記錄', mark: '任' },
           { path: '/admin/content', label: '內容管理', mark: '文' },
@@ -2016,6 +2070,7 @@
             key: '',
             categoryId: 'image',
             previewImageUrl: '',
+            creditCost: 1,
             workflowId: '',
             instanceType: 'default',
             description: '',
@@ -2098,6 +2153,7 @@
               key: tool.toolKey || tool.key,
               categoryId: tool.categoryId || 'image',
               previewImageUrl: tool.previewImageUrl || '',
+              creditCost: tool.creditCost ?? 1,
               workflowId: tool.workflowId === '待配置' ? '' : tool.workflowId,
               instanceType: tool.instanceType || 'default',
               description: tool.shortDescription || tool.description || '',
@@ -2150,6 +2206,7 @@
               status: user.status,
               notes: user.notes || ''
             };
+            navigateTo(userForm.value.accountType === 'backend' ? '/admin/users' : '/admin/members');
             return;
           }
 
@@ -2164,6 +2221,7 @@
             membershipGroup: 'staff',
             creditBalance: 0
           };
+          navigateTo('/admin/users');
         }
 
         function handleUserAccountTypeChange() {
@@ -2432,6 +2490,7 @@
             topDetailHtml: toolForm.value.topDetailHtml,
             detailHtml: toolForm.value.detailHtml,
             previewImageUrl: toolForm.value.previewImageUrl,
+            creditCost: Number(toolForm.value.creditCost || 0),
             workflowId: toolForm.value.workflowId,
             instanceType: toolForm.value.instanceType,
             status: toolForm.value.status || 'draft',
