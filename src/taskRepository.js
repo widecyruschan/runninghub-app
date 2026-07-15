@@ -48,6 +48,8 @@ function createTaskRepository(database) {
         node_info_list_json,
         output_values_json,
         output_urls_json,
+        actual_consume_coins,
+        charged_credits,
         error_code,
         error_message,
         started_at,
@@ -67,6 +69,8 @@ function createTaskRepository(database) {
         @nodeInfoListJson,
         @outputValuesJson,
         @outputUrlsJson,
+        @actualConsumeCoins,
+        @chargedCredits,
         @errorCode,
         @errorMessage,
         @startedAt,
@@ -108,6 +112,8 @@ function createTaskRepository(database) {
         status = @status,
         output_values_json = @outputValuesJson,
         output_urls_json = @outputUrlsJson,
+        actual_consume_coins = @actualConsumeCoins,
+        charged_credits = @chargedCredits,
         error_code = '',
         error_message = '',
         completed_at = @completedAt,
@@ -132,6 +138,8 @@ function createTaskRepository(database) {
       nodeInfoListJson: JSON.stringify(payload.nodeInfoList || []),
       outputValuesJson: '[]',
       outputUrlsJson: '[]',
+      actualConsumeCoins: 0,
+      chargedCredits: 0,
       errorCode: '',
       errorMessage: '',
       startedAt: null,
@@ -199,7 +207,7 @@ function createTaskRepository(database) {
     return getTaskById(id);
   }
 
-  function completeTask(id, outputs, outputUrls) {
+  function completeTask(id, outputs, outputUrls, usage = {}, chargedCredits = 0) {
     const now = new Date().toISOString();
 
     statements.updateOutputs.run({
@@ -207,6 +215,8 @@ function createTaskRepository(database) {
       status: 'SUCCESS',
       outputValuesJson: JSON.stringify(outputs || []),
       outputUrlsJson: JSON.stringify(outputUrls || []),
+      actualConsumeCoins: Number(usage.consumeCoins || 0),
+      chargedCredits: Number(chargedCredits || 0),
       completedAt: now,
       updatedAt: now
     });
@@ -241,6 +251,8 @@ function mapTaskRecord(record) {
     nodeInfoList: parseJson(record.node_info_list_json, []),
     outputValues: parseJson(record.output_values_json, []),
     outputUrls: parseJson(record.output_urls_json, []),
+    actualConsumeCoins: Number(record.actual_consume_coins || 0),
+    chargedCredits: Number(record.charged_credits || 0),
     errorCode: record.error_code,
     errorMessage: record.error_message,
     startedAt: record.started_at,

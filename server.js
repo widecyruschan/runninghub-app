@@ -133,6 +133,11 @@ const server = http.createServer(async (request, response) => {
       return;
     }
 
+    if (requestPathname.startsWith('/api/me/')) {
+      await handleMeApi(request, response);
+      return;
+    }
+
     if (requestPathname.startsWith('/api/tools') || requestPathname.startsWith('/api/categories')) {
       await handlePublicApi(request, response);
       return;
@@ -784,6 +789,42 @@ async function handleTaskApi(request, response) {
   });
 }
 
+async function handleMeApi(request, response) {
+  const url = new URL(request.url, `http://${request.headers.host}`);
+  const memberSession = requireActiveMemberSession(request);
+
+  if (url.pathname === '/api/me/tasks' && request.method === 'GET') {
+    sendJson(response, 200, {
+      success: true,
+      message: '操作成功',
+      data: taskRepository.listTasksByUser(memberSession.user.id)
+    });
+    return;
+  }
+
+  if (url.pathname === '/api/me/ledger' && request.method === 'GET') {
+    const ledger = userRepository
+      .listCreditLedgerByUser(memberSession.user.id)
+      .map((record) => ({
+        ...record,
+        displayReason: formatFrontendLedgerReason(record.reason)
+      }));
+
+    sendJson(response, 200, {
+      success: true,
+      message: '操作成功',
+      data: ledger
+    });
+    return;
+  }
+
+  sendJson(response, 404, {
+    success: false,
+    message: '介面不存在',
+    error: { code: 'API_NOT_FOUND' }
+  });
+}
+
 async function executeConfiguredTool(idOrSlug, requestBody, request) {
   ensureRunningHubConfigured();
 
@@ -845,7 +886,6 @@ async function executeToolWithConfig(tool, requestBody, options = {}) {
     ? requestBody.inputValues
     : {};
   const normalizedInputValues = {};
-  const creditCost = Number(tool.creditCost || 0);
   const task = taskRepository.createTask({
     userId: options.userId || '',
     tool,
@@ -867,10 +907,6 @@ async function executeToolWithConfig(tool, requestBody, options = {}) {
 
     if (!runningHubTaskId) {
       throwHttpError('任務建立失敗，未返回任務 ID', 'RUNNINGHUB_TASK_ID_MISSING', 502);
-    }
-
-    if (options.chargeCredits) {
-      userRepository.spendCredits(options.userId, creditCost, `使用工具：${tool.name}`, task.id);
     }
 
     const savedTask = taskRepository.attachRunningHubTask(task.id, runningHubTaskId, 'QUEUED');
@@ -1027,7 +1063,15 @@ async function getTaskOutputs(taskId) {
     throwHttpError('任務尚未建立 RunningHub taskId', 'RUNNINGHUB_TASK_ID_MISSING', 409);
   }
 
-  if (task.outputUrls.length) {
+  if (task.outputUrls.length || task.outputValues.length) {
+    if (task.status === 'SUCCESS' && task.userId && task.chargedCredits <= 0) {
+      const usage = extractTaskOutputUsage(task.outputValues);
+      const chargedCredits = chargeTaskCredits(task, usage);
+      if (chargedCredits > 0 || usage.consumeCoins > 0) {
+        return taskRepository.completeTask(task.id, task.outputValues, task.outputUrls, usage, chargedCredits);
+      }
+    }
+
     return task;
   }
 
@@ -1039,14 +1083,59 @@ async function getTaskOutputs(taskId) {
     apiKey: runningHubApiKey,
     taskId: task.runningHubTaskId
   });
-  const outputs = Array.isArray(outputsResponse.data) ? outputsResponse.data : [];
+  const outputs = extractRunningHubResults(outputsResponse);
+  const usage = extractRunningHubUsage(outputsResponse);
+  const chargedCredits = chargeTaskCredits(task, usage);
   const tool = toolRepository.getToolById(task.toolId);
   const outputUrls = extractOutputUrls(outputs, tool?.outputConfig);
 
-  const completedTask = taskRepository.completeTask(task.id, outputs, outputUrls);
+  const completedTask = taskRepository.completeTask(task.id, outputs, outputUrls, usage, chargedCredits);
   syncToolTestResult(completedTask);
 
   return completedTask;
+}
+
+function chargeTaskCredits(task, usage) {
+  if (!task.userId || task.chargedCredits > 0) return task.chargedCredits || 0;
+
+  const existingCharge = userRepository
+    .listCreditLedgerByUser(task.userId)
+    .find((record) => record.relatedTaskId === task.id && record.amount < 0);
+  if (existingCharge) return Math.abs(existingCharge.amount);
+
+  const chargedCredits = calculateChargedCredits(usage.consumeCoins);
+  if (chargedCredits <= 0) return 0;
+
+  userRepository.spendCredits(
+    task.userId,
+    chargedCredits,
+    `使用工具：${task.toolName}`,
+    task.id
+  );
+
+  return chargedCredits;
+}
+
+function calculateChargedCredits(consumeCoins) {
+  const numericConsumeCoins = Number(consumeCoins || 0);
+  if (!Number.isFinite(numericConsumeCoins) || numericConsumeCoins <= 0) return 0;
+
+  return Math.floor(numericConsumeCoins * 1.2);
+}
+
+function formatFrontendLedgerReason(reason) {
+  const text = String(reason || '');
+  if (text.startsWith('使用工具：')) {
+    return `Tool usage: ${text.replace('使用工具：', '').split('，')[0]}`;
+  }
+
+  if (text.startsWith('每日登入贈送積分')) {
+    return text.replace('每日登入贈送積分', 'Daily login bonus credits');
+  }
+
+  if (text === '註冊贈送積分') return 'Registration bonus credits';
+  if (text === '後台調整') return 'Admin adjustment';
+  return text || 'Credit update';
 }
 
 function syncToolTestResult(task) {
@@ -1217,6 +1306,59 @@ function extractRunningHubStatus(responseData) {
   }
 
   return responseData?.data?.status || responseData?.data || responseData?.status || 'RUNNING';
+}
+
+function extractRunningHubUsage(responseData) {
+  const responsePayload = unwrapRunningHubPayload(responseData);
+  const results = extractRunningHubResults(responseData);
+  const outputUsage = results.find((item) => (
+    item?.usage
+    || item?.consumeCoins
+    || item?.consumeMoney
+    || item?.thirdPartyConsumeMoney
+    || item?.taskCostTime
+  ));
+  const usage = responsePayload?.usage
+    || responseData?.usage
+    || outputUsage?.usage
+    || outputUsage
+    || {};
+
+  return normalizeRunningHubUsage(usage);
+}
+
+function extractTaskOutputUsage(outputValues) {
+  const outputUsage = Array.isArray(outputValues)
+    ? outputValues.find((item) => item?.consumeCoins || item?.consumeMoney || item?.thirdPartyConsumeMoney || item?.taskCostTime)
+    : null;
+
+  return normalizeRunningHubUsage(outputUsage || {});
+}
+
+function extractRunningHubResults(responseData) {
+  const responsePayload = unwrapRunningHubPayload(responseData);
+  if (Array.isArray(responsePayload?.results)) return responsePayload.results;
+  if (Array.isArray(responsePayload?.data?.results)) return responsePayload.data.results;
+  if (Array.isArray(responsePayload?.data)) return responsePayload.data;
+  if (Array.isArray(responsePayload)) return responsePayload;
+  if (Array.isArray(responseData?.results)) return responseData.results;
+  if (Array.isArray(responseData?.data?.results)) return responseData.data.results;
+  if (Array.isArray(responseData?.data)) return responseData.data;
+
+  return [];
+}
+
+function unwrapRunningHubPayload(responseData) {
+  return responseData?.eventData || responseData?.data?.eventData || responseData?.data || responseData || {};
+}
+
+function normalizeRunningHubUsage(usage) {
+  return {
+    thirdPartyConsumeMoney: String(usage?.thirdPartyConsumeMoney || ''),
+    consumeMoney: String(usage?.consumeMoney || ''),
+    consumeCoins: Number(usage?.consumeCoins || 0),
+    taskCostTime: String(usage?.taskCostTime || '')
+  };
 }
 
 function normalizeRunningStatus(status) {

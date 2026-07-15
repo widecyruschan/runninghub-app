@@ -72,6 +72,13 @@ docker compose logs -f runninghub-app
 - 编辑器：TinyMCE。
 - 本地运行：Docker Desktop、Docker Compose。
 
+## 开发规范
+
+- 前台所有用户可见文案必须使用英文，包括工具页、会员中心、交易记录、按钮、提示、空状态、Loading、错误提示、SEO 标题和描述。
+- 后台管理界面保持中文，便于运营配置、任务管理和用户管理。
+- 后端可继续保留中文管理消息和内部流水原因；前台展示时必须转换为英文，不允许回退显示中文。
+- 积分和 RunningHub RH 币换算规则只属于后端内部计费规则，前台不得展示 `consumeCoins`、RH 币、120% 公式、向下取整规则或其他计费计算细节。
+
 ## 项目文档
 
 | 文档 | 说明 |
@@ -132,3 +139,12 @@ docker compose logs -f runninghub-app
 - 增加前台显示层英文兜底映射，让默认中文分类、默认工具名称、输入提示和默认工具说明在前台显示为英文。
 - 本次仅调整前台展示文案和 README 记录，未写入任何密钥或敏感配置。
 - 针对部署后 503 增加 Node 托管兼容入口，并兼容非数字端口监听场景，便于 Hostinger 等平台启动应用。
+- 调整工具积分扣减规则：工具任务创建成功后不再按后台固定配置预扣积分，改为 RunningHub 任务成功并取得输出结果后，读取 `usage.consumeCoins`，按实际消耗的 120% 向下取整扣减用户积分。
+- 为执行任务记录新增实际消耗与已扣积分字段，避免用户重复刷新结果时重复扣减积分，并保留积分流水与任务 ID 关联。
+- 排查 Docker Desktop 本地访问 `localhost:3000` 顯示 `Not Found`：确认当前应用代码以本机 Node 方式启动可正常返回首页，但 Docker 容器、镜像 blob 与 metadata 多处出现 `input/output error`，判断为 Docker Desktop 存储层或旧容器状态异常，需重启或重置 Docker Desktop 后重建容器。
+- 修复任务完成后不扣积分与会员中心不显示记录的问题：兼容 RunningHub 输出对象内的 `consumeCoins` 字段，成功结果已有输出时也会补做一次幂等扣分；新增 `/api/me/tasks`、`/api/me/ledger`，前台 My Files 与 Transactions history 改为读取真实任务和积分流水。
+- 修复 JSON fallback 数据库的用户查询和登入奖励日期更新问题，避免在 Docker 或部署环境降级到 JSON 存储时把会员资料覆盖为空，导致会话、任务归属和会员记录读取失败。
+- 对齐 RunningHub API 文档：查询结果以 `results` 保存输出文件，以 `usage.consumeCoins` 读取运行消耗的 RH 币；用户积分扣减规则明确为 `RH 幣消耗 × 120%` 向下取整。
+- 积分扣减触发点明确为任务成功后获取输出结果接口 `/api/tasks/:taskId/outputs`，即前台准备显示结果时扣减用户积分；会员中心只读取已落库的文件和积分流水。
+- 增加前台英文文案规则，并隐藏前台交易记录中的积分计算细节；Transactions history 会把中文内部流水原因转换为英文展示。
+- 明确项目规则：前台所有用户可见内容只能显示英文；后台保持中文；积分与 RH 币换算规则仅在后端内部使用，不在前台页面、提示或 Transactions history 中展示。

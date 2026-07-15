@@ -23,7 +23,7 @@
 - 默认值与校验规则
 - 输出结果解析规则
 - 工具分类、封面、排序、价格和上下线状态
-- 前台中英文展示文案
+- 前台英文展示文案
 
 ### 1.2 参考产品拆解
 
@@ -52,7 +52,7 @@
 - 支持批量处理、历史记录、收藏工具。
 - 支持会员连接 Google Drive / Dropbox，从云盘选择文件夹或多张图片进行批量处理。
 - 支持会员推荐注册奖励，每个账号最多推荐 5 人，每成功推荐 1 人奖励 100 积分。
-- 支持前台中英双语展示，后台管理界面仅使用中文。
+- 支持前台英文展示，后台管理界面仅使用中文。
 - 后台内容、工具配置、会员、订单、任务和 Blog 均采用 Node.js 自研后台实现。
 - 支持管理后台的运营配置与数据统计。
 
@@ -92,7 +92,7 @@
 | 积分套餐/价格页 | P1 | 展示免费额度、订阅和积分包 |
 | 会员推荐奖励 | P1 | 会员邀请新用户注册，成功后奖励 100 积分，每账号最多 5 人 |
 | 会员云盘批量处理 | P1 | 会员连接 Google Drive / Dropbox 后选择图片批量执行工具 |
-| 前台中英双语 | P1 | 前台支持中文和英文切换，工具、FAQ、价格页、错误提示等均需双语 |
+| 前台英文展示 | P1 | 前台工具、FAQ、价格页、错误提示等用户可见内容均需英文 |
 | API 页面 | P2 | 面向开发者展示 API 能力与文档入口 |
 | Blog/教程 | P2 | 工具 SEO、使用教程、案例内容 |
 | 下载 APP 入口 | P2 | iOS / Android 下载引导 |
@@ -129,41 +129,38 @@
 
 #### 3.1.1 语言范围
 
-前台网站必须支持中英双语：
+前台网站当前必须固定使用英文：
 
-- 繁体中文：`zh-HK`
 - 英文：`en-US`
 
-所有页面显示给用户看的中文均必须使用繁体中文，包括前台、后台、按钮、表单、提示、错误信息、FAQ、Blog、SEO 文案和系统通知。后台管理系统只需要中文界面，不需要英文后台。
+前台所有用户可见文案必须显示英文，包括导航、按钮、表单、提示、错误信息、FAQ、Blog、SEO 文案、会员中心、交易记录和系统通知。后台管理系统固定使用中文，不需要英文后台。
 
-#### 3.1.2 前台双语覆盖范围
+#### 3.1.2 前台英文覆盖范围
 
-| 内容 | 是否双语 | 说明 |
+| 内容 | 是否英文 | 说明 |
 | --- | --- | --- |
 | 导航菜单 | 是 | 工具、价格、下载 APP、Blog、API、登录等 |
 | 首页营销文案 | 是 | Hero、热门工具、工具分类、FAQ、页脚 |
-| 工具名称和描述 | 是 | 后台录入中英文，前台按语言展示 |
+| 工具名称和描述 | 是 | 前台只展示英文名称和描述 |
 | 工具表单字段 | 是 | label、placeholder、helpText、option 文案 |
 | 错误提示和状态 | 是 | 上传失败、处理中、任务失败、积分不足等 |
 | 价格页 | 是 | 套餐名、权益、按钮、FAQ |
 | 用户中心 | 是 | 会员、积分、历史、云盘连接等 |
-| Blog / 教程 | 是 | 可按语言分别发布 |
+| Blog / 教程 | 是 | 前台发布内容使用英文 |
 | 后台管理界面 | 否 | 固定中文 |
 
-#### 3.1.3 语言切换规则
+#### 3.1.3 语言规则
 
-- 前台右上角提供语言切换入口。
-- 默认语言根据浏览器语言判断；无法判断时默认中文。
-- 用户切换语言后写入用户偏好或本地存储。
-- 已登录用户的语言偏好保存到用户资料。
-- URL 推荐使用路径前缀：`/zh-HK/...`、`/en-US/...`。
-- 同一个工具在不同语言下保持相同 slug 或配置语言别名，避免 SEO 混乱。
+- 前台不提供语言切换入口。
+- 前台默认语言固定为 `en-US`。
+- 后台可保留中文运营界面和内部备注，但任何进入前台展示层的内容必须有英文版本。
+- 同一个工具使用英文 slug 或稳定 slug，避免 SEO 混乱。
 
 #### 3.1.4 文案回退规则
 
-- 如果英文文案缺失，前台优先回退到中文，并在后台标记“翻译缺失”。
+- 如果英文文案缺失，前台不得回退显示中文，应显示英文兜底文案或隐藏该非必要内容，并在后台标记“翻译缺失”。
 - 后台保存工具时，应提示哪些前台必填文案缺少英文版本。
-- 错误码使用统一 code，前台根据当前语言映射显示文案。
+- 错误码使用统一 code，前台映射为英文友好文案。
 
 ### 3.2 首页
 
@@ -308,13 +305,13 @@ FAQ 至少包含：
 
 ### 3.3 价格页
 
-价格页参考用户提供的三列会员卡片，展示免费额度、三级订阅套餐、月付/年付切换和权益对比。前台价格页需要支持中英双语，后台套餐配置界面固定中文。
+价格页参考用户提供的三列会员卡片，展示免费额度、三级订阅套餐、月付/年付切换和权益对比。前台价格页固定使用英文，后台套餐配置界面固定中文。
 
 #### 3.3.1 订阅展示规则
 
 - 价格页默认展示 `PRO`、`PRO+`、`PRO MAX` 三个会员套餐。
-- `PRO+` 默认标记为 `Most Popular` / `最受欢迎`，卡片视觉需要比另外两档更突出。
-- 支持月付和年付切换，年付默认显示 `Save 40%` / `节省 40%` 标签，实际折扣比例由后台配置。
+- `PRO+` 默认标记为 `Most Popular`，卡片视觉需要比另外两档更突出。
+- 支持月付和年付切换，年付默认显示 `Save 40%` 标签，实际折扣比例由后台配置。
 - 价格展示格式：`US$9.99/mo`，年付切换后展示折算月费和年付总价说明。
 - 按钮文案：`Subscribe Now` / `立即订阅`。
 - 套餐权益使用勾选列表展示，支持重点数字加粗。
@@ -495,8 +492,7 @@ FAQ 至少包含：
 推荐链接格式建议：
 
 ```text
-https://example.com/zh-HK/register?ref=USER_REFERRAL_CODE
-https://example.com/en-US/register?ref=USER_REFERRAL_CODE
+https://example.com/register?ref=USER_REFERRAL_CODE
 ```
 
 如果用户通过推荐链接进入注册页：
@@ -549,11 +545,11 @@ https://example.com/en-US/register?ref=USER_REFERRAL_CODE
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
 | toolKey | 是 | 工具唯一标识，如 `remove-background` |
-| nameI18n | 是 | 前台展示名称，中英文 |
+| nameI18n | 是 | 前台展示名称，必须提供英文 |
 | slug | 是 | URL 标识，如 `/tools/remove-background` |
 | categoryId | 是 | 所属分类 |
-| shortDescriptionI18n | 是 | 卡片描述，中英文 |
-| longDescriptionI18n | 否 | 工具页详细介绍，中英文 |
+| shortDescriptionI18n | 是 | 卡片描述，必须提供英文 |
+| longDescriptionI18n | 否 | 工具页详细介绍，必须提供英文 |
 | coverImage | 是 | 卡片封面 |
 | heroImage | 否 | 工具页主视觉 |
 | tags | 否 | 热门、新品、免费等 |
@@ -562,8 +558,8 @@ https://example.com/en-US/register?ref=USER_REFERRAL_CODE
 | status | 是 | draft / active / inactive |
 | creditCost | 是 | 每次执行扣除积分 |
 | estimatedSeconds | 否 | 预计耗时 |
-| seoTitleI18n | 否 | SEO 标题，中英文 |
-| seoDescriptionI18n | 否 | SEO 描述，中英文 |
+| seoTitleI18n | 否 | SEO 标题，必须提供英文 |
+| seoDescriptionI18n | 否 | SEO 描述，必须提供英文 |
 
 #### 4.2.2 RunningHub 配置
 
@@ -588,17 +584,17 @@ https://example.com/en-US/register?ref=USER_REFERRAL_CODE
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
 | key | 是 | 前端表单字段名 |
-| labelI18n | 是 | 前台字段标签，中英文；后台表单编辑界面显示中文 |
+| labelI18n | 是 | 前台字段标签必须提供英文；后台表单编辑界面显示中文 |
 | controlType | 是 | 上传、文本、选择器、滑块等 |
 | nodeId | 是 | RunningHub 节点 ID |
 | fieldName | 是 | RunningHub 节点字段名，如 `image`、`prompt`、`value` |
 | valueType | 是 | string / number / boolean / imageUrl / videoUrl / json |
 | required | 是 | 是否必填 |
 | defaultValue | 否 | 默认值 |
-| placeholderI18n | 否 | 前台占位说明，中英文 |
-| helpTextI18n | 否 | 前台辅助说明，中英文 |
+| placeholderI18n | 否 | 前台占位说明，必须提供英文 |
+| helpTextI18n | 否 | 前台辅助说明，必须提供英文 |
 | validationRules | 否 | 文件大小、格式、范围、长度 |
-| options | 否 | select/radio 选项，选项 label 需支持中英文 |
+| options | 否 | select/radio 选项，选项 label 必须提供英文 |
 | sortOrder | 是 | 表单排序 |
 | isAdvanced | 是 | 是否高级参数 |
 
@@ -730,19 +726,19 @@ https://example.com/en-US/register?ref=USER_REFERRAL_CODE
 | 字段 | 说明 |
 | --- | --- |
 | planKey | 套餐唯一标识：`pro`、`pro_plus`、`pro_max` |
-| nameI18n | 前台套餐名称，中英文，例如 `PRO`、`PRO+`、`PRO MAX` |
+| nameI18n | 前台套餐名称，必须提供英文，例如 `PRO`、`PRO+`、`PRO MAX` |
 | monthlyPriceUsd | 月付价格，默认 9.99 / 29.99 / 49.99 |
 | yearlyPriceUsd | 年付总价，可为空时按月价和折扣自动计算 |
 | yearlyDiscountPercent | 年付折扣，默认 40 |
 | isPopular | 是否热门套餐，默认 `PRO+` 为 true |
-| popularBadgeI18n | 热门徽标文案，中英文，例如 Most Popular / 最受欢迎 |
+| popularBadgeI18n | 热门徽标文案，必须提供英文，例如 Most Popular |
 | dailyUses | 每日工具使用次数，PRO MAX 可用 `null` 表示不限 |
 | monthlyCredits | 每月积分 |
 | monthlyImages | 每月图片额度 |
 | monthlyVideos | 每月视频额度 |
 | generationPriority | 生成优先级：standard / high / highest |
 | hdWatermarkFree | 是否支持高清无水印下载 |
-| featureItemsI18n | 前台权益列表，中英文，可配置排序和重点数字 |
+| featureItemsI18n | 前台权益列表，必须提供英文，可配置排序和重点数字 |
 | batchEnabled | 是否允许批量处理 |
 | cloudDriveEnabled | 是否允许连接云盘 |
 | allowedCloudProviders | 允许的云盘来源：google_drive、dropbox |
@@ -849,8 +845,8 @@ Cockpit Headless CMS 需要引入 PHP 运行环境，和当前项目以 Node.js 
 | 模块 | 说明 |
 | --- | --- |
 | 工具基础信息 | 工具名称、描述、封面、分类、排序、上下线 |
-| 前台中英文内容 | 使用 `LocalizedText` 结构保存 `zh-HK` 与 `en-US` |
-| SEO 配置 | title、description、canonical、slug、hreflang 映射 |
+| 前台英文内容 | 使用英文展示字段，后台中文内容只作运营参考 |
+| SEO 配置 | title、description、canonical、slug |
 | Blog / 教程 / FAQ | 由自研后台提供文章、分类、作者、发布和 SEO 管理 |
 | 首页热门工具与导航 | 使用后台配置驱动前台展示 |
 | RunningHub workflowID 配置 | 保存 workflowID、instanceType、usePersonalQueue，并通过测试执行校验 |
@@ -884,25 +880,25 @@ Cockpit Headless CMS 需要引入 PHP 运行环境，和当前项目以 Node.js 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | `toolKey` | string | 工具唯一标识 |
-| `nameI18n` | LocalizedText | 前台双语名称 |
+| `nameI18n` | LocalizedText | 前台英文名称 |
 | `slug` | string | 默认 slug |
-| `localizedSlugs` | LocalizedText | 语言化 slug |
+| `localizedSlugs` | LocalizedText | 英文 slug |
 | `categoryId` | string | 关联分类 |
 | `coverImage` | string | 封面图 |
-| `shortDescriptionI18n` | LocalizedText | 双语卡片描述 |
-| `longDescriptionI18n` | LocalizedText | 双语详情描述 |
+| `shortDescriptionI18n` | LocalizedText | 英文卡片描述 |
+| `longDescriptionI18n` | LocalizedText | 英文详情描述 |
 | `runningHubConfig` | object | workflowID、instanceType、queue 配置 |
 | `inputFields` | array | nodeId、fieldName、controlType、labelI18n 等 |
 | `outputConfig` | object | 输出解析规则 |
 | `batchConfig` | object | 是否支持批量和云盘输入 |
-| `seoI18n` | object | 双语 SEO |
+| `seoI18n` | object | 英文 SEO |
 | `status` | enum | draft / active / inactive |
 | `sortOrder` | number | 排序 |
 
 #### 4.7.4 实现原则
 
 - 前台只调用 Node.js API，不直接调用 RunningHub。
-- 后台界面固定中文，但所有前台展示字段必须支持中英文录入。
+- 后台界面固定中文，但所有前台展示字段必须提供英文内容。
 - 工作流配置保存前必须支持“测试执行”，避免 nodeId / fieldName 配错后上线。
 - API Key、OAuth Token、支付密钥只存环境变量或加密存储，不进入前端和普通内容表。
 - Blog、FAQ、SEO 与工具配置走同一套权限和审计日志。
@@ -1041,15 +1037,13 @@ MVP 可先不扣费；正式版按如下流程：
 ### 6.0 通用本地化类型
 
 ```typescript
-type Locale = 'zh-HK' | 'en-US';
+type Locale = 'en-US';
 
 interface LocalizedText {
-  'zh-HK': string;
   'en-US': string;
 }
 
 interface LocalizedOptionalText {
-  'zh-HK'?: string;
   'en-US'?: string;
 }
 ```
@@ -1435,7 +1429,7 @@ interface BatchTaskItem {
 | POST | `/api/batch-tasks/:id/retry-failed` | 重试失败项 |
 | POST | `/api/batch-tasks/:id/write-back` | 将结果保存到云盘 |
 
-前台 API 需要根据 `Accept-Language`、URL locale 前缀或用户 `preferredLocale` 返回当前语言文案，同时可在管理端保留完整 i18n 字段。
+前台 API 返回英文展示文案，同时可在管理端保留中文运营字段和内部备注。
 
 ### 7.2 后台 API
 
@@ -1554,9 +1548,9 @@ interface BatchTaskItem {
 - 每个工具有独立 slug、title、description。
 - 工具页包含教程、FAQ、相关工具。
 - 首页和分类页生成可索引内容。
-- 前台中英文页面需要分别生成 title、description、canonical 和 `hreflang`。
-- 推荐路由结构为 `/zh-HK/tools/remove-background` 与 `/en-US/tools/remove-background`。
-- Blog / 教程可按语言独立发布，缺少英文版本时不要生成英文索引页。
+- 前台英文页面需要生成 title、description 和 canonical。
+- 推荐路由结构为 `/tools/remove-background`。
+- Blog / 教程前台发布英文版本，缺少英文版本时不要生成前台索引页。
 
 ### 9.4 响应式
 
@@ -1566,12 +1560,12 @@ interface BatchTaskItem {
 
 ### 9.5 国际化
 
-- 前台所有用户可见文案必须走 i18n 字典或后台本地化字段。
+- 前台所有用户可见文案必须走英文文案字典或后台英文字段。
 - 后台管理界面固定中文，不提供语言切换。
-- 所有中文显示文案必须使用繁体中文，不允许在页面中出现简体中文。
-- 后台录入前台内容时，需要支持中文和英文两个输入区。
-- 前台新增错误码时必须同时补充中文和英文错误文案。
-- 日期、数字、金额展示按当前语言 locale 格式化。
+- 前台不得展示中文；后台中文界面和内部备注不受此限制。
+- 后台录入前台内容时，需要支持英文展示字段，中文字段仅可作为运营参考或内部备注。
+- 前台新增错误码时必须补充英文错误文案。
+- 日期、数字、金额展示按英文 locale 格式化。
 
 ---
 
@@ -1582,7 +1576,7 @@ interface BatchTaskItem {
 - [ ] 首页工具市场
 - [ ] 工具分类与搜索
 - [ ] 工具详情页
-- [ ] 前台中英双语框架
+- [ ] 前台英文展示框架
 - [ ] 后端 RunningHub 代理
 - [ ] 图片背景移除工具配置化
 
@@ -1593,7 +1587,7 @@ interface BatchTaskItem {
 - [ ] 工具 CRUD
 - [ ] RunningHub workflowID 配置
 - [ ] 输入字段 nodeId / fieldName 配置
-- [ ] 工具和表单字段中英文录入
+- [ ] 工具和表单字段英文录入
 - [ ] 输出解析配置
 - [ ] 工具测试执行
 
@@ -1633,7 +1627,7 @@ interface BatchTaskItem {
 ### 11.1 前台验收
 
 - 用户能在首页看到热门工具和全部工具。
-- 用户能在前台切换中文和英文，导航、工具、表单、状态和错误提示随语言切换。
+- 用户在前台看到的导航、工具、表单、状态、错误提示、会员中心和交易记录均为英文。
 - 用户能搜索并进入指定工具页。
 - 工具页能根据后台配置动态渲染输入表单。
 - 用户上传图片后能执行 RunningHub 工作流。
@@ -1650,7 +1644,7 @@ interface BatchTaskItem {
 
 - Node.js 自研后台中能配置工具、分类、首页、FAQ、Blog 和 SEO，并由前台读取展示。
 - 管理员能新增一个工具并配置 workflowID。
-- 管理员能在中文后台为前台工具录入中文和英文名称、描述、SEO、表单字段和选项文案。
+- 管理员能在中文后台为前台工具录入英文名称、描述、SEO、表单字段和选项文案。
 - 管理员能配置至少一个图片上传字段，填写 nodeId 和 fieldName。
 - 管理员能配置输出解析规则。
 - 管理员能在后台测试该工具，成功后上线。
@@ -1670,7 +1664,7 @@ interface BatchTaskItem {
 - 推荐奖励发放必须写入 `ReferralRecord` 和 `CreditLedger`，并保证同一被推荐用户不能重复奖励。
 - Google Drive / Dropbox Token 加密存储，并支持用户主动断开连接。
 - 批量任务进入队列执行，并受会员并发限制约束。
-- 前台 API 能根据 locale 返回对应语言文案；后台接口保持中文管理体验。
+- 前台 API 返回英文展示文案；后台接口保持中文管理体验。
 - 通过基础 lint/test 检查。
 
 ---
@@ -1694,7 +1688,7 @@ interface BatchTaskItem {
 
 ### 12.2 待确认问题
 
-- 前台英文 slug 是否需要独立配置，还是中英文共用同一 slug？
+- 前台英文 slug 是否需要独立配置，还是使用工具稳定 slug？
 - MVP 是否先支持图片工具，视频工具放到第二阶段？
 - 是否需要支持游客免费试用？
 - 积分定价与 RunningHub 消耗之间的换算规则是什么？

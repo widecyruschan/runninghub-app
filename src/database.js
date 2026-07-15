@@ -130,6 +130,8 @@ function migrateDatabase(database) {
       node_info_list_json TEXT NOT NULL DEFAULT '[]',
       output_values_json TEXT NOT NULL DEFAULT '[]',
       output_urls_json TEXT NOT NULL DEFAULT '[]',
+      actual_consume_coins REAL NOT NULL DEFAULT 0,
+      charged_credits INTEGER NOT NULL DEFAULT 0,
       error_code TEXT NOT NULL DEFAULT '',
       error_message TEXT NOT NULL DEFAULT '',
       started_at TEXT,
@@ -209,6 +211,8 @@ function migrateDatabase(database) {
   ensureColumn(database, 'tools', 'last_test_error', "TEXT NOT NULL DEFAULT ''");
   ensureColumn(database, 'tools', 'last_tested_at', 'TEXT');
   ensureColumn(database, 'execution_tasks', 'user_id', "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(database, 'execution_tasks', 'actual_consume_coins', 'REAL NOT NULL DEFAULT 0');
+  ensureColumn(database, 'execution_tasks', 'charged_credits', 'INTEGER NOT NULL DEFAULT 0');
   ensureColumn(database, 'credit_ledger', 'remaining_amount', 'INTEGER NOT NULL DEFAULT 0');
   ensureColumn(database, 'credit_ledger', 'expires_at', 'TEXT');
   ensureColumn(database, 'app_users', 'last_login_credit_date', "TEXT NOT NULL DEFAULT ''");
@@ -474,6 +478,8 @@ class JsonStatement {
         task.status = payload.status;
         task.output_values_json = payload.outputValuesJson;
         task.output_urls_json = payload.outputUrlsJson;
+        task.actual_consume_coins = payload.actualConsumeCoins;
+        task.charged_credits = payload.chargedCredits;
         task.error_code = '';
         task.error_message = '';
         task.completed_at = payload.completedAt;
@@ -509,6 +515,16 @@ class JsonStatement {
       this.database.state.app_users.push(toUserRecord(payload));
       this.database.persist();
       return { changes: 1 };
+    }
+
+    if (this.normalizedSql.startsWith('UPDATE app_users SET last_login_credit_date')) {
+      const user = this.findRecord('app_users', payload.id);
+      if (user) {
+        user.last_login_credit_date = payload.lastLoginCreditDate;
+        user.updated_at = payload.updatedAt;
+        this.database.persist();
+      }
+      return { changes: user ? 1 : 0 };
     }
 
     if (this.normalizedSql.startsWith('UPDATE app_users')) {
@@ -604,6 +620,8 @@ class JsonStatement {
 
     if (this.normalizedSql.includes('WHERE id = ?')) {
       users = users.filter((user) => user.id === params[0]);
+    } else if (this.normalizedSql.includes('WHERE email = ?')) {
+      users = users.filter((user) => user.email === params[0]);
     }
 
     return users.sort(compareCreatedAtDesc);
@@ -716,6 +734,8 @@ function getJsonTableColumns(tableName) {
       'node_info_list_json',
       'output_values_json',
       'output_urls_json',
+      'actual_consume_coins',
+      'charged_credits',
       'error_code',
       'error_message',
       'started_at',
@@ -813,6 +833,8 @@ function toTaskRecord(payload) {
     node_info_list_json: payload.nodeInfoListJson,
     output_values_json: payload.outputValuesJson,
     output_urls_json: payload.outputUrlsJson,
+    actual_consume_coins: payload.actualConsumeCoins || 0,
+    charged_credits: payload.chargedCredits || 0,
     error_code: payload.errorCode,
     error_message: payload.errorMessage,
     started_at: payload.startedAt,
