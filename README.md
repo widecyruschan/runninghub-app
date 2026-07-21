@@ -148,3 +148,117 @@ docker compose logs -f runninghub-app
 - 积分扣减触发点明确为任务成功后获取输出结果接口 `/api/tasks/:taskId/outputs`，即前台准备显示结果时扣减用户积分；会员中心只读取已落库的文件和积分流水。
 - 增加前台英文文案规则，并隐藏前台交易记录中的积分计算细节；Transactions history 会把中文内部流水原因转换为英文展示。
 - 明确项目规则：前台所有用户可见内容只能显示英文；后台保持中文；积分与 RH 币换算规则仅在后端内部使用，不在前台页面、提示或 Transactions history 中展示。
+
+### 2026-07-16
+
+- 修改後台「新增 / 編輯工具配置」頁，增加搭建頁面模式，可上傳 ComfyUI API JSON 工作流並自動分析輸入節點和節點輸入參數。
+- 後台頁面內置臨時工作流分析邏輯，不保存工作流文件；分析時會排除模型載入與節點連線類內部欄位，提取可配置字段並推斷 image、video、audio、number、textarea、text、select、switch 等資料類型。
+- 搭建頁面新增組件庫、拖放畫布、屬性面板、工作流分析結果彈窗和 API 調用 JSON 預覽；分析出的節點可逐個加入或一鍵生成工具輸入配置。
+- 驗證三個視頻工作流 JSON 均可解析：去水印/去字幕工作流識別 81 個可配置字段，Wan2.2 + SeedVR2 工作流識別 37 個字段，FlashVSR 工作流識別 42 個字段。
+- 前台工具頁同步支持 audio 上傳與 switch 開關參數，後端工具輸入校驗和 RunningHub 參數轉換同步支持 audio 與 switch。
+- 本次使用 Node.js 原生後端、Vue 3 CDN 後台頁、現有 inputNodes 結構完成，未引入新依賴；後續可再增加按節點 class 預設分組、字段白名單和更精準的枚舉選項來源。
+
+### 2026-07-17
+
+- 會話的主要目的：補強後台工具搭建頁右側屬性面板的 label 與字段說明，讓節點配置更清楚。
+- 完成的主要任務：為組件標題、參數名稱、nodeId、fieldName、資料類型、可上傳文件類型、佔位提示、預設值與是否必填增加清晰標籤和輔助說明。
+- 關鍵決策和解決方案：保持現有工作流分析與 inputNodes 保存結構不變，只調整屬性面板 UI；可上傳文件類型改為完整行標籤，避免白底界面中看不清文字。
+- 使用的技術棧：Vue 3 CDN、原生 CSS、Node.js 語法檢查。
+- 新增或修改了哪些文件：修改 `frontend/admin.html` 和 `README.md`。
+- 後續建議：如需完全對齊參考圖，可再補充更細的屬性分組，例如基本屬性、節點綁定、文件限制和校驗規則。
+- 會話的主要目的：讓搭建頁點選不同組件時，右側只顯示該組件相關屬性。
+- 完成的主要任務：將右側屬性面板拆成組件信息、工作流綁定、類型專屬屬性和校驗規則；圖片/視頻/音頻顯示上傳設定，文字顯示文字設定，數字顯示數字設定，下拉顯示選項設定，開關顯示預設狀態。
+- 關鍵決策和解決方案：沿用既有 selectedBuilderNode 和 inputNodes 結構，不新增保存字段；只按 dataType 控制屬性面板顯示內容，切換資料類型時同步修正預設值、上傳類型和下拉選項。
+- 使用的技術棧：Vue 3 CDN、原生 CSS、Node.js 語法檢查。
+- 新增或修改了哪些文件：修改 `frontend/admin.html` 和 `README.md`。
+- 後續建議：可再加入數字最小值、最大值、步進值等更細校驗配置。
+- 會話的主要目的：修復搭建頁新增第二個組件後無法點回第一個組件修改的問題。
+- 完成的主要任務：將已存在的 `selectBuilderNode` 方法暴露給 Vue 模板，恢復畫布組件點選切換選中狀態。
+- 關鍵決策和解決方案：不改動畫布排序、組件保存或屬性面板結構，只修復模板可調用方法缺失導致的點選報錯。
+- 使用的技術棧：Vue 3 CDN、Node.js 語法檢查。
+- 新增或修改了哪些文件：修改 `frontend/admin.html` 和 `README.md`。
+- 後續建議：如再遇到前端點擊無反應，可優先查看瀏覽器 Console 是否有模板方法未暴露的錯誤。
+- 會話的主要目的：將搭建頁左側圖片、視頻、音頻三個上傳組件合併為一個文件上傳組件。
+- 完成的主要任務：組件庫只保留「文件上傳」，右側上傳設定中用可上傳文件類型勾選圖片、視頻或音頻；切換文件類型時同步底層 dataType，保持前台和後端現有執行鏈路兼容。
+- 關鍵決策和解決方案：不移除 image/video/audio 底層資料類型，只合併手動搭建入口；自動分析工作流生成的媒體節點仍按原始字段類型保存。
+- 使用的技術棧：Vue 3 CDN、Node.js 語法檢查。
+- 新增或修改了哪些文件：修改 `frontend/admin.html` 和 `README.md`。
+- 後續建議：可再為多選文件類型補充前台文案，如「Upload image, video or audio」。
+- 會話的主要目的：調整 Seed 數值的生成和提交規則。
+- 完成的主要任務：Seed 在前台改為獨立輸入區，支援掷骰與鎖定；未鎖定時每次提交自動換新隨機數，鎖定後保持不變；隨機範圍縮小到約 1/3 的區間以避免過大數值。
+- 關鍵決策和解決方案：Seed 不再走一般 number 的浮點解析，前端和後端都按整數字符串處理，後端校驗 0 到 18446744073709551615；普通數字欄位保持原樣。
+- 使用的技術棧：Vue 3 CDN、原生 CSS、Node.js 語法檢查。
+- 新增或修改了哪些文件：修改 `frontend/index.html`、`server.js` 和 `README.md`。
+- 後續建議：如果你要更接近示例圖，也可以再把 Seed 視覺做得更像一個單行數字卡片。
+- 會話的主要目的：修復前台 Seed 未顯示投子按鈕和固定勾選的問題。
+- 完成的主要任務：Seed 判斷改為同時識別 key、fieldName、label 和英文兜底文案；當默認值為 -1 時自動生成隨機數；投子按鈕在鎖定時禁用。
+- 關鍵決策和解決方案：保留 Seed 專用 UI 和提交邏輯，只放寬識別條件，避免已配置工具因 key 不是 seed 而回退到普通數字輸入框。
+- 使用的技術棧：Vue 3 CDN、Node.js 語法檢查。
+- 新增或修改了哪些文件：修改 `frontend/index.html` 和 `README.md`。
+- 後續建議：如需更明顯，可再把 Lock 改成只顯示圖標勾選框。
+- 會話的主要目的：為自定義數字組件增加最小值、最大值和前台 slider 調整。
+- 完成的主要任務：後台數字屬性面板新增最小值和最大值；工具配置保存 `minValue`、`maxValue`；前台普通數字字段顯示 slider 與數字輸入框，拖動時限制在兩個值之間。
+- 關鍵決策和解決方案：Seed 保持專用隨機種子 UI，不使用普通數字 slider；普通 number 字段才使用 min/max slider，後端執行時也校驗數值範圍。
+- 使用的技術棧：Vue 3 CDN、Node.js、SQLite JSON 配置。
+- 新增或修改了哪些文件：修改 `frontend/admin.html`、`frontend/index.html`、`src/toolRepository.js`、`server.js` 和 `README.md`。
+- 後續建議：可再加入 step 步進值配置，讓小數參數如 3.5 有更精準的滑動控制。
+- 會話的主要目的：確認設計相關 skills 狀態，並按設計審查流程對前台工具頁和後台搭建頁做第一輪美化。
+- 完成的主要任務：確認 `skill-installer`、`design-review`、`design-consultation`、`design-html` 等能力已可用，無需重複安裝；前台工具頁新增任務區和結果區標題層級，統一上傳、Seed、slider、表單焦點態和結果空狀態；後台搭建頁從深色混合樣式調整為淺色工作台，強化組件庫、畫布、選中態、屬性面板和工作流上傳彈窗可讀性。
+- 關鍵決策和解決方案：因工作區已有未提交功能改動，未執行 `design-review` 要求的乾淨工作區與逐項 commit 流程，改採 best-effort CSS-first 美化；前台新增文案保持英文，且不展示任何積分計算規則。
+- 使用的技術棧：Vue 3 CDN、原生 CSS、Node.js 語法檢查、gstack design skills。
+- 新增或修改了哪些文件：修改 `frontend/index.html`、`frontend/admin.html` 和 `README.md`。
+- 後續建議：如需完整視覺審查，可先提交或暫存當前功能改動，再啟動本地服務做瀏覽器截圖審查與逐項修正。
+- 會話的主要目的：按參考圖調整前台工具頁右側主工作區，左側工具 menu 保持不變。
+- 完成的主要任務：將工具頁主內容改為兩欄工作區，左欄顯示上傳、Prompt、Seed、slider、開關和提交按鈕等功能組件，右欄顯示工具標題、說明和輸出結果；窄屏時自動改為上下排列。
+- 關鍵決策和解決方案：不改動最左側工具 menu、任務提交、結果輪詢和扣分邏輯，只調整 `frontend/index.html` 的模板位置與 CSS grid；前台新增和保留文案均為英文，不展示積分計算規則。
+- 使用的技術棧：Vue 3 CDN、原生 CSS、Node.js 語法檢查。
+- 新增或修改了哪些文件：修改 `frontend/index.html` 和 `README.md`。
+- 後續建議：可啟動本地服務後用桌面與手機寬度各截圖一次，微調左欄寬度和結果區圖片高度。
+- 會話的主要目的：修復自定義數字組件在後台設置最大值、最小值後，前台 slider 範圍不生效的問題。
+- 完成的主要任務：前台數字組件讀取範圍時兼容 `minValue`、`maxValue`、`min`、`max`、`minimum`、`maximum`；後台保存工具時會把數字組件的最大值、最小值規範化為數字；後端校驗數字範圍時不再把空字符串誤判為 0。
+- 關鍵決策和解決方案：保留現有 inputNodes 結構，不新增字段；確認本地資料庫中已上線 `remove-background` 工具的舊數字節點尚未保存 `minValue/maxValue`，因此需要在後台重新保存該工具後前台才會得到新的 0-100 範圍。
+- 使用的技術棧：Vue 3 CDN、Node.js、SQLite、Node.js 語法檢查。
+- 新增或修改了哪些文件：修改 `frontend/index.html`、`frontend/admin.html`、`server.js` 和 `README.md`。
+- 後續建議：後台編輯該工具並保存一次，再刷新前台工具頁確認 slider 右側最大值顯示為 100。
+- 會話的主要目的：修復後台自定義數字最大值、最小值保存後，再次進入編輯頁顯示空白的問題。
+- 完成的主要任務：編輯工具時會同步回填數字組件的 `minValue/maxValue`，並兼容舊字段 `min/max/minimum/maximum`；保存前再次同步數字範圍；保存成功後用後端返回的工具資料更新本地列表，避免立即重新進入編輯時讀到舊資料。
+- 關鍵決策和解決方案：不改 inputNodes 資料結構，只補強後台回填與保存後刷新；用本地 Repository 模擬保存驗證 `minValue: 0`、`maxValue: 100` 可正確持久化並讀回。
+- 使用的技術棧：Vue 3 CDN、Node.js、SQLite、Node.js 語法檢查。
+- 新增或修改了哪些文件：修改 `frontend/admin.html` 和 `README.md`。
+- 後續建議：部署或重啟本地服務後，重新保存該工具，再進入編輯頁確認最大值、最小值不再空白。
+- 會話的主要目的：二次修復自定義數字組件最小值、最大值仍然無法保存的問題。
+- 完成的主要任務：後端工具保存層新增數字範圍兜底，將 `minValue/min/minimum` 和 `maxValue/max/maximum` 統一保存為 `minValue/maxValue`；後台表單模式也補上最小值、最大值輸入框，並在切換為數字類型時初始化 `0~10`。
+- 關鍵決策和解決方案：保留既有 inputNodes 結構，避免新增遷移；同時修復後端持久化兜底與後台兩個編輯入口不一致的問題，確保搭建頁面和表單模式都能保存數字範圍。
+- 使用的技術棧：Vue 3 CDN、Node.js、SQLite、Node.js 語法檢查。
+- 新增或修改了哪些文件：修改 `frontend/admin.html`、`src/toolRepository.js` 和 `README.md`。
+- 後續建議：更新 Docker 或重啟 Node 服務後，在後台重新保存工具，再進入編輯頁確認最小值、最大值仍保留。
+- 會話的主要目的：為工具編輯器增加多圖上傳組件與屬性欄動態配置。
+- 完成的主要任務：後台圖片組件新增單圖/多圖模式、最大張數、每行數量、單張大小上限和壓縮品質；前台圖片輸入支援縮略圖網格、Add 卡片與單張刪除；提交時多圖會以陣列送出，後端與 repository 也同步兼容並保留配置。
+- 關鍵決策和解決方案：沿用既有 image 組件擴展，不新增獨立多圖資料類型；前台執行層與後台編輯層共用 `uploadMode`，避免工作流 JSON 與儲存資料分叉。
+- 使用的技術棧：Vue 3 CDN、Node.js、SQLite、Node.js 語法檢查。
+- 新增或修改了哪些文件：修改 `frontend/index.html`、`frontend/admin.html`、`server.js`、`src/toolRepository.js` 和 `README.md`。
+- 後續建議：重新保存一次有圖片組件的工具，再到前台測試多圖新增、刪除與提交結果是否都正常。
+
+### 2026-07-20
+
+- 会话的主要目的：修复前台选择多行文字组件后，下面仍额外显示单行输入框的问题。
+- 完成的主要任务：将前台动态字段模板调整为同一条互斥渲染链，`textarea` 渲染后不会再继续命中默认单行输入框。
+- 关键决策和解决方案：只修复 `frontend/index.html` 中动态字段条件分支，不重构表单组件结构，避免影响 select、Aspect Ratio、Seed、number 等已有输入控件。
+- 使用的技术栈：Vue 3 CDN、Node.js 语法检查。
+- 新增或修改了哪些文件：修改 `frontend/index.html` 和 `README.md`。
+- 后续建议：刷新前台工具页面后，选择多行文字配置的字段应只显示一个多行输入框。
+
+### 2026-07-21
+
+- 会话的主要目的：参考 Kie Nano Banana Pro 文档，使用已配置的 Kie API 制作 Google Nano Banana Pro 图生图工具页，并放入图片工具分类。
+- 完成的主要任务：扩展 Kie client 支持创建任务和查询任务记录；后端工具执行链按 `kie:` 工作流标记分流到 Kie；新增 `google-nano-banana-pro` 默认工具，支持最多 8 张参考图、Prompt、Aspect Ratio、Resolution 和 Output Format。
+- 关键决策和解决方案：不新增数据库字段，使用 `workflowId = kie:nano-banana-pro` 作为内部 provider 标记；继续复用现有前台工具页、任务轮询、输出展示和图片多上传组件。
+- 使用的技术栈：Node.js、Kie API、Vue 3 CDN、SQLite/JSON repository。
+- 新增或修改了哪些文件：修改 `src/kieClient.js`、`server.js`、`src/toolRepository.js` 和 `README.md`。
+- 后续建议：重启服务后进入图片分类或 `/tools/google-nano-banana-pro`，用已登录会员账号上传参考图并测试生成结果。
+- 会话的主要目的：在后台增加 Menu 管理功能，可手动添加 Kie API 等其它功能入口，并支持分级管理。
+- 完成的主要任务：新增 `admin_menus` 持久化表与 JSON fallback；新增 `menuRepository`；提供 `/api/admin/menus` 读取和保存接口；后台侧栏显示自定义 Menu 树；后台新增 Menu 管理页，可编辑父级、目标类型、路径、排序和启停状态。
+- 关键决策和解决方案：保留系统核心后台菜单为固定入口，避免误删导致后台不可用；自定义 Menu 作为可管理扩展入口，支持一、二级层级，可挂载后台路由、外部链接或 API / 功能占位。
+- 使用的技术栈：Node.js、Vue 3 CDN、SQLite、JSON fallback。
+- 新增或修改了哪些文件：新增 `src/menuRepository.js`，修改 `src/database.js`、`server.js`、`frontend/admin.html`、`package.json` 和 `README.md`。
+- 后续建议：后续如果要把某个 API 功能做成完整页面，可直接复用自定义 Menu 的路径，并在后台路由区域增加对应功能面板。

@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const { createDatabase } = require('./src/database');
 const { createToolRepository } = require('./src/toolRepository');
 const { createCategoryRepository } = require('./src/categoryRepository');
+const { createMenuRepository } = require('./src/menuRepository');
 const { createTaskRepository } = require('./src/taskRepository');
 const { createUserRepository } = require('./src/userRepository');
 const { createMemberSessionRepository } = require('./src/memberSessionRepository');
@@ -17,6 +18,8 @@ const MAX_UPLOAD_SIZE = 12 * 1024 * 1024;
 const MAX_JSON_BODY_SIZE = 18 * 1024 * 1024;
 const MAX_RICH_EDITOR_UPLOAD_SIZE = 30 * 1024 * 1024;
 const KIE_UPLOAD_PATH = 'runninghub-app/uploads';
+const KIE_WORKFLOW_PREFIX = 'kie:';
+const KIE_NANO_BANANA_MODEL = 'nano-banana-pro';
 const RICH_EDITOR_UPLOAD_MIME_TYPES = new Set([
   'image/jpeg',
   'image/png',
@@ -24,7 +27,14 @@ const RICH_EDITOR_UPLOAD_MIME_TYPES = new Set([
   'image/gif',
   'video/mp4',
   'video/webm',
-  'video/quicktime'
+  'video/quicktime',
+  'audio/mpeg',
+  'audio/wav',
+  'audio/x-wav',
+  'audio/mp4',
+  'audio/aac',
+  'audio/ogg',
+  'audio/flac'
 ]);
 
 loadEnvFile(path.join(__dirname, '.env'));
@@ -42,12 +52,14 @@ const listenTarget = createListenTarget(process.env.PORT, process.env.HOST);
 const database = createDatabase();
 const toolRepository = createToolRepository(database);
 const categoryRepository = createCategoryRepository(database);
+const menuRepository = createMenuRepository(database);
 const taskRepository = createTaskRepository(database);
 const userRepository = createUserRepository(database);
 const memberSessionRepository = createMemberSessionRepository(database);
 const kieClient = createKieClient();
 
 toolRepository.seedDefaultTools();
+menuRepository.seedDefaultMenus();
 
 const mimeTypes = {
   '.html': 'text/html; charset=utf-8',
@@ -421,6 +433,11 @@ async function handleAdminApi(request, response) {
     return;
   }
 
+  if (url.pathname.startsWith('/api/admin/menus') && !hasPermission(adminSession, 'manage_tools')) {
+    sendForbidden(response);
+    return;
+  }
+
   if (url.pathname.startsWith('/api/admin/users') && !hasPermission(adminSession, 'manage_users')) {
     sendForbidden(response);
     return;
@@ -497,6 +514,27 @@ async function handleAdminApi(request, response) {
       success: true,
       message: '分類已儲存',
       data: savedCategory
+    });
+    return;
+  }
+
+  if (url.pathname === '/api/admin/menus' && request.method === 'GET') {
+    sendJson(response, 200, {
+      success: true,
+      message: '操作成功',
+      data: menuRepository.listMenus()
+    });
+    return;
+  }
+
+  if (url.pathname === '/api/admin/menus' && request.method === 'POST') {
+    const requestBody = await readJsonBody(request);
+    const savedMenu = menuRepository.saveMenu(requestBody);
+
+    sendJson(response, requestBody.id ? 200 : 201, {
+      success: true,
+      message: '菜單已儲存',
+      data: savedMenu
     });
     return;
   }
@@ -826,12 +864,12 @@ async function handleMeApi(request, response) {
 }
 
 async function executeConfiguredTool(idOrSlug, requestBody, request) {
-  ensureRunningHubConfigured();
-
   const tool = toolRepository.getActiveToolByIdOrSlug(idOrSlug);
   if (!tool) {
     throwHttpError('工具不存在或未上線', 'TOOL_NOT_FOUND', 404);
   }
+
+  ensureToolProviderConfigured(tool);
 
   const memberSession = requireActiveMemberSession(request);
 
@@ -842,12 +880,12 @@ async function executeConfiguredTool(idOrSlug, requestBody, request) {
 }
 
 async function testAdminTool(toolId, requestBody) {
-  ensureRunningHubConfigured();
-
   const tool = toolRepository.getToolById(toolId);
   if (!tool) {
     throwHttpError('工具不存在', 'TOOL_NOT_FOUND', 404);
   }
+
+  ensureToolProviderConfigured(tool);
 
   toolRepository.saveToolTestResult(tool.id, {
     status: 'running',
@@ -897,6 +935,10 @@ async function executeToolWithConfig(tool, requestBody, options = {}) {
     const nodeInfoList = await buildNodeInfoList(tool, rawInputValues, normalizedInputValues);
     taskRepository.updateTaskPayload(task.id, normalizedInputValues, nodeInfoList);
 
+    if (isKieTool(tool)) {
+      return await createKieToolTask(tool, task, normalizedInputValues);
+    }
+
     const runningHubResponse = await callRunningHubJson(`${runningHubApiBaseUrl}/run/workflow/${tool.workflowId}`, {
       addMetadata: true,
       nodeInfoList,
@@ -930,6 +972,53 @@ async function executeToolWithConfig(tool, requestBody, options = {}) {
   }
 }
 
+async function createKieToolTask(tool, task, inputValues) {
+  const model = getKieModelName(tool);
+  const kieInput = buildKieTaskInput(tool, inputValues);
+  const kieResponse = await kieClient.createTask({
+    model,
+    input: kieInput
+  });
+  const kieTaskId = extractKieTaskId(kieResponse);
+
+  if (!kieTaskId) {
+    throwHttpError('任務建立失敗，未返回 KIE 任務 ID', 'KIE_TASK_ID_MISSING', 502);
+  }
+
+  const savedTask = taskRepository.attachRunningHubTask(task.id, kieTaskId, 'QUEUED');
+
+  return {
+    taskId: savedTask.id,
+    runningHubTaskId: savedTask.runningHubTaskId,
+    status: savedTask.status,
+    tool: {
+      id: tool.id,
+      slug: tool.slug,
+      name: tool.name
+    }
+  };
+}
+
+function buildKieTaskInput(tool, inputValues) {
+  if (getKieModelName(tool) !== KIE_NANO_BANANA_MODEL) {
+    throwHttpError('不支援的 KIE 模型', 'KIE_MODEL_UNSUPPORTED', 422);
+  }
+
+  return {
+    prompt: String(inputValues.prompt || ''),
+    image_input: normalizeKieImageInput(inputValues.image_input),
+    aspect_ratio: String(inputValues.aspect_ratio || '1:1'),
+    resolution: String(inputValues.resolution || '1K'),
+    output_format: String(inputValues.output_format || 'png')
+  };
+}
+
+function normalizeKieImageInput(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.filter(Boolean);
+  return [value].filter(Boolean);
+}
+
 async function buildNodeInfoList(tool, rawInputValues, normalizedInputValues) {
   const inputNodes = Array.isArray(tool.inputNodes) ? tool.inputNodes : [];
 
@@ -960,6 +1049,19 @@ function sanitizeInputValues(tool, rawInputValues) {
   inputNodes.forEach((node) => {
     const value = rawInputValues[node.key];
 
+    if (Array.isArray(value)) {
+      sanitizedInputValues[node.key] = value.map((item) => {
+        if (typeof item !== 'string' || !item.startsWith('data:')) return item ?? '';
+        const dataUrlMatch = item.match(/^data:([^;,]+);base64,/);
+        return {
+          kind: 'data-url',
+          mimeType: dataUrlMatch?.[1] || '',
+          size: item.length
+        };
+      });
+      return;
+    }
+
     if (typeof value === 'string' && value.startsWith('data:')) {
       const dataUrlMatch = value.match(/^data:([^;,]+);base64,/);
       sanitizedInputValues[node.key] = {
@@ -981,11 +1083,38 @@ async function normalizeInputValue(node, inputValues) {
   const fallbackValue = node.defaultValue ?? '';
   const value = rawValue === undefined || rawValue === null || rawValue === '' ? fallbackValue : rawValue;
 
-  if (node.required && (value === undefined || value === null || value === '')) {
+  if (node.required && (value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0))) {
     throwHttpError(`${node.label || node.key} 為必填`, 'INPUT_VALUE_REQUIRED', 422);
   }
 
-  if (node.dataType === 'image' || node.dataType === 'video') {
+  if (node.dataType === 'image' || node.dataType === 'video' || node.dataType === 'audio') {
+    if (node.dataType === 'image' && isMultipleImageUploadNode(node)) {
+      if (!value) return [];
+      if (!Array.isArray(value)) {
+        throwHttpError(`${node.label || node.key} 必須是檔案 Data URL 陣列`, 'UPLOAD_VALUE_INVALID', 422);
+      }
+
+      const uploadedUrls = [];
+      for (const item of value) {
+        if (typeof item !== 'string') {
+          throwHttpError(`${node.label || node.key} 必須是檔案 Data URL 陣列`, 'UPLOAD_VALUE_INVALID', 422);
+        }
+
+        if (item.startsWith('data:')) {
+          uploadedUrls.push(await uploadMediaDataUrl(item, node.dataType));
+          continue;
+        }
+
+        if (!isHttpUrl(item)) {
+          throwHttpError(`${node.label || node.key} URL 格式不正確`, 'UPLOAD_URL_INVALID', 422);
+        }
+
+        uploadedUrls.push(item);
+      }
+
+      return uploadedUrls;
+    }
+
     if (!value) return '';
     if (typeof value !== 'string') {
       throwHttpError(`${node.label || node.key} 必須是檔案 Data URL 或 URL`, 'UPLOAD_VALUE_INVALID', 422);
@@ -1003,12 +1132,18 @@ async function normalizeInputValue(node, inputValues) {
   }
 
   if (node.dataType === 'number') {
+    if (isSeedField(node)) {
+      return normalizeSeedValue(value, node);
+    }
+
     if (value === '') return '';
 
     const numberValue = Number(value);
     if (!Number.isFinite(numberValue)) {
       throwHttpError(`${node.label || node.key} 必須是數字`, 'INPUT_NUMBER_INVALID', 422);
     }
+
+    validateNumberRange(node, numberValue);
 
     return numberValue;
   }
@@ -1020,13 +1155,84 @@ async function normalizeInputValue(node, inputValues) {
     }
   }
 
+  if (node.dataType === 'switch') {
+    if (typeof value === 'boolean') return value;
+    return String(value).toLowerCase() === 'true' || String(value) === '1';
+  }
+
   return String(value || '');
 }
 
-async function syncTaskStatus(taskId) {
-  ensureRunningHubConfigured();
+function isMultipleImageUploadNode(node) {
+  return Boolean(node)
+    && node.dataType === 'image'
+    && String(node.uploadMode || '').trim().toLowerCase() === 'multiple';
+}
 
+function isSeedField(node) {
+  const fieldName = String(node?.fieldName || node?.key || '').toLowerCase();
+  return fieldName === 'seed' || fieldName === 'noise_seed';
+}
+
+function normalizeSeedValue(value, node) {
+  const maxSeedValue = 18446744073709551615n;
+
+  if (value === '' || value === null || value === undefined) {
+    return '';
+  }
+
+  if (typeof value === 'number') {
+    if (!Number.isInteger(value) || value < 0) {
+      throwHttpError(`${node.label || node.key} 必須是 0 到 18446744073709551615 之間的整數`, 'INPUT_SEED_INVALID', 422);
+    }
+
+    return String(value);
+  }
+
+  if (typeof value !== 'string') {
+    throwHttpError(`${node.label || node.key} 必須是 0 到 18446744073709551615 之間的整數`, 'INPUT_SEED_INVALID', 422);
+  }
+
+  const trimmed = value.trim();
+  if (!/^\d+$/.test(trimmed)) {
+    throwHttpError(`${node.label || node.key} 必須是 0 到 18446744073709551615 之間的整數`, 'INPUT_SEED_INVALID', 422);
+  }
+
+  const seedValue = BigInt(trimmed);
+  if (seedValue > maxSeedValue) {
+    throwHttpError(`${node.label || node.key} 必須是 0 到 18446744073709551615 之間的整數`, 'INPUT_SEED_INVALID', 422);
+  }
+
+  return trimmed;
+}
+
+function validateNumberRange(node, value) {
+  const minValue = normalizeOptionalNumberBoundary(node.minValue);
+  const maxValue = normalizeOptionalNumberBoundary(node.maxValue);
+
+  if (minValue !== null && value < minValue) {
+    throwHttpError(`${node.label || node.key} 不可小於 ${minValue}`, 'INPUT_NUMBER_TOO_SMALL', 422);
+  }
+
+  if (maxValue !== null && value > maxValue) {
+    throwHttpError(`${node.label || node.key} 不可大於 ${maxValue}`, 'INPUT_NUMBER_TOO_LARGE', 422);
+  }
+}
+
+function normalizeOptionalNumberBoundary(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : null;
+}
+
+async function syncTaskStatus(taskId) {
   const task = getExistingTask(taskId);
+  const tool = toolRepository.getToolById(task.toolId);
+  if (isKieTool(tool)) {
+    return syncKieTaskStatus(task, tool);
+  }
+
+  ensureRunningHubConfigured();
   if (!task.runningHubTaskId || ['SUCCESS', 'FAILED'].includes(task.status)) {
     return task;
   }
@@ -1056,9 +1262,13 @@ async function syncTaskStatus(taskId) {
 }
 
 async function getTaskOutputs(taskId) {
-  ensureRunningHubConfigured();
-
   const task = await syncTaskStatus(taskId);
+  const tool = toolRepository.getToolById(task.toolId);
+  if (isKieTool(tool)) {
+    return getKieTaskOutputs(task, tool);
+  }
+
+  ensureRunningHubConfigured();
   if (!task.runningHubTaskId) {
     throwHttpError('任務尚未建立 RunningHub taskId', 'RUNNINGHUB_TASK_ID_MISSING', 409);
   }
@@ -1086,10 +1296,62 @@ async function getTaskOutputs(taskId) {
   const outputs = extractRunningHubResults(outputsResponse);
   const usage = extractRunningHubUsage(outputsResponse);
   const chargedCredits = chargeTaskCredits(task, usage);
-  const tool = toolRepository.getToolById(task.toolId);
   const outputUrls = extractOutputUrls(outputs, tool?.outputConfig);
 
   const completedTask = taskRepository.completeTask(task.id, outputs, outputUrls, usage, chargedCredits);
+  syncToolTestResult(completedTask);
+
+  return completedTask;
+}
+
+async function syncKieTaskStatus(task, tool) {
+  ensureKieConfiguredForTool(tool);
+
+  if (!task.runningHubTaskId || ['SUCCESS', 'FAILED'].includes(task.status)) {
+    return task;
+  }
+
+  const kieResponse = await kieClient.getTaskRecord(task.runningHubTaskId);
+  const kieStatus = extractKieStatus(kieResponse);
+
+  if (kieStatus === 'FAILED') {
+    const failedTask = taskRepository.markTaskStatus(task.id, 'FAILED', {
+      code: extractKieFailureCode(kieResponse),
+      message: extractKieFailureMessage(kieResponse) || 'KIE 任務執行失敗'
+    });
+    syncToolTestResult(failedTask);
+    return failedTask;
+  }
+
+  if (kieStatus === 'SUCCESS') {
+    const successTask = taskRepository.markTaskStatus(task.id, 'SUCCESS');
+    syncToolTestResult(successTask);
+    return successTask;
+  }
+
+  return taskRepository.markTaskStatus(task.id, normalizeRunningStatus(kieStatus));
+}
+
+async function getKieTaskOutputs(task, tool) {
+  ensureKieConfiguredForTool(tool);
+
+  if (!task.runningHubTaskId) {
+    throwHttpError('任務尚未建立 KIE taskId', 'KIE_TASK_ID_MISSING', 409);
+  }
+
+  if (task.outputUrls.length || task.outputValues.length) {
+    return task;
+  }
+
+  if (task.status !== 'SUCCESS') {
+    throwHttpError('任務尚未完成，暫無輸出結果', 'TASK_NOT_FINISHED', 409);
+  }
+
+  const kieResponse = await kieClient.getTaskRecord(task.runningHubTaskId);
+  const outputs = extractKieResults(kieResponse);
+  const outputUrls = extractOutputUrls(outputs, tool?.outputConfig);
+  const usage = normalizeRunningHubUsage({});
+  const completedTask = taskRepository.completeTask(task.id, outputs, outputUrls, usage, 0);
   syncToolTestResult(completedTask);
 
   return completedTask;
@@ -1203,6 +1465,35 @@ function ensureRunningHubConfigured() {
   }
 }
 
+function ensureToolProviderConfigured(tool) {
+  if (isKieTool(tool)) {
+    ensureKieConfiguredForTool(tool);
+    return;
+  }
+
+  ensureRunningHubConfigured();
+}
+
+function ensureKieConfiguredForTool(tool) {
+  if (!kieClient.isConfigured) {
+    throwHttpError('後端未配置 KIE_API_KEY', 'KIE_API_KEY_MISSING', 500);
+  }
+
+  if (!getKieModelName(tool)) {
+    throwHttpError('KIE 工具未配置模型', 'KIE_MODEL_MISSING', 422);
+  }
+}
+
+function isKieTool(tool) {
+  return String(tool?.workflowId || '').trim().startsWith(KIE_WORKFLOW_PREFIX);
+}
+
+function getKieModelName(tool) {
+  const workflowId = String(tool?.workflowId || '').trim();
+  if (!workflowId.startsWith(KIE_WORKFLOW_PREFIX)) return '';
+  return workflowId.slice(KIE_WORKFLOW_PREFIX.length).trim();
+}
+
 async function callRunningHubJson(targetUrl, payload) {
   const runningHubResponse = await fetchRunningHub(targetUrl, {
     method: 'POST',
@@ -1229,7 +1520,7 @@ async function callRunningHubJson(targetUrl, payload) {
 async function uploadMediaDataUrl(dataUrl, expectedType) {
   const parsedDataUrl = parseDataUrl(dataUrl);
   if (!parsedDataUrl.mimeType.startsWith(`${expectedType}/`)) {
-    throwHttpError(`請上傳${expectedType === 'image' ? '圖片' : '影片'}檔案`, 'UPLOAD_TYPE_INVALID', 422);
+    throwHttpError(`請上傳${getUploadTypeLabel(expectedType)}檔案`, 'UPLOAD_TYPE_INVALID', 422);
   }
 
   if (parsedDataUrl.buffer.length > MAX_UPLOAD_SIZE) {
@@ -1296,6 +1587,10 @@ function extractRunningHubTaskId(responseData) {
   return responseData?.taskId || responseData?.data?.taskId || responseData?.data?.id || '';
 }
 
+function extractKieTaskId(responseData) {
+  return responseData?.data?.taskId || responseData?.taskId || responseData?.data?.id || '';
+}
+
 function extractRunningHubStatus(responseData) {
   if (responseData?.code !== undefined && responseData.code !== 0) {
     throwHttpError(
@@ -1306,6 +1601,23 @@ function extractRunningHubStatus(responseData) {
   }
 
   return responseData?.data?.status || responseData?.data || responseData?.status || 'RUNNING';
+}
+
+function extractKieStatus(responseData) {
+  const rawState = String(responseData?.data?.state || responseData?.state || '').trim().toLowerCase();
+  if (rawState === 'success') return 'SUCCESS';
+  if (rawState === 'fail' || rawState === 'failed') return 'FAILED';
+  if (rawState === 'waiting' || rawState === 'queued') return 'QUEUED';
+  if (rawState === 'running' || rawState === 'generating') return 'RUNNING';
+  return 'RUNNING';
+}
+
+function extractKieFailureCode(responseData) {
+  return responseData?.data?.failCode || responseData?.failCode || 'KIE_TASK_FAILED';
+}
+
+function extractKieFailureMessage(responseData) {
+  return responseData?.data?.failMsg || responseData?.failMsg || responseData?.msg || '';
 }
 
 function extractRunningHubUsage(responseData) {
@@ -1346,6 +1658,44 @@ function extractRunningHubResults(responseData) {
   if (Array.isArray(responseData?.data)) return responseData.data;
 
   return [];
+}
+
+function extractKieResults(responseData) {
+  const resultJson = parseKieResultJson(responseData?.data?.resultJson || responseData?.resultJson || '');
+  if (Array.isArray(resultJson?.resultUrls)) {
+    return resultJson.resultUrls.map((url) => ({
+      url,
+      outputType: guessOutputTypeFromUrl(url)
+    }));
+  }
+
+  if (resultJson?.resultObject) {
+    return [resultJson.resultObject];
+  }
+
+  return [];
+}
+
+function parseKieResultJson(value) {
+  if (!value) return {};
+  if (typeof value === 'object') return value;
+  return parseJsonText(value);
+}
+
+function guessOutputTypeFromUrl(url) {
+  const pathname = (() => {
+    try {
+      return new URL(String(url || '')).pathname.toLowerCase();
+    } catch (error) {
+      return String(url || '').toLowerCase();
+    }
+  })();
+
+  if (pathname.endsWith('.jpg') || pathname.endsWith('.jpeg')) return 'jpg';
+  if (pathname.endsWith('.webp')) return 'webp';
+  if (pathname.endsWith('.mp4')) return 'mp4';
+  if (pathname.endsWith('.png')) return 'png';
+  return 'image';
 }
 
 function unwrapRunningHubPayload(responseData) {
@@ -1421,10 +1771,26 @@ function getExtensionFromMimeType(mimeType, fallbackType) {
     'image/gif': 'gif',
     'video/mp4': 'mp4',
     'video/webm': 'webm',
-    'video/quicktime': 'mov'
+    'video/quicktime': 'mov',
+    'audio/mpeg': 'mp3',
+    'audio/wav': 'wav',
+    'audio/x-wav': 'wav',
+    'audio/mp4': 'm4a',
+    'audio/aac': 'aac',
+    'audio/ogg': 'ogg',
+    'audio/flac': 'flac'
   };
 
-  return extensions[mimeType] || (fallbackType === 'image' ? 'png' : 'mp4');
+  if (extensions[mimeType]) return extensions[mimeType];
+  if (fallbackType === 'image') return 'png';
+  if (fallbackType === 'audio') return 'mp3';
+  return 'mp4';
+}
+
+function getUploadTypeLabel(expectedType) {
+  if (expectedType === 'image') return '圖片';
+  if (expectedType === 'audio') return '音訊';
+  return '影片';
 }
 
 function saveRichEditorUpload(payload) {
@@ -1961,7 +2327,8 @@ function isFrontendRoute(pathname) {
 async function sendStaticFile(response, filePath) {
   const extension = path.extname(filePath).toLowerCase();
   response.writeHead(200, {
-    'Content-Type': mimeTypes[extension] || 'application/octet-stream'
+    'Content-Type': mimeTypes[extension] || 'application/octet-stream',
+    ...(extension === '.html' ? { 'Cache-Control': 'no-store' } : {})
   });
   fs.createReadStream(filePath).pipe(response);
 }

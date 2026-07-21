@@ -188,6 +188,29 @@
       color: #ffffff;
     }
 
+    .nav-section-title {
+      margin: 12px 10px 4px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 850;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .nav-child-list {
+      display: grid;
+      gap: 4px;
+      margin-left: 18px;
+      padding-left: 12px;
+      border-left: 1px solid #e3ebf4;
+    }
+
+    .nav-link.is-child {
+      min-height: 36px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
     .sidebar-footer {
       border-top: 1px solid var(--line);
       padding: 14px 16px 18px;
@@ -888,6 +911,482 @@
         grid-template-columns: 1fr;
       }
     }
+
+    /* ============ 拖放式 UI 編輯器 ============ */
+    .mode-tabs {
+      display: inline-flex;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #eef3f8;
+      overflow: hidden;
+      margin-right: 8px;
+    }
+    .mode-tab {
+      background: transparent;
+      border: none;
+      min-height: 36px;
+      padding: 0 13px;
+      color: #56677d;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+    .mode-tab:hover { background: #ffffff; }
+    .mode-tab.active {
+      background: #ffffff;
+      color: #075e58;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+    }
+    .section-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .builder-grid {
+      display: grid;
+      grid-template-columns: 240px minmax(0, 1fr) 340px;
+      gap: 14px;
+      min-height: 480px;
+    }
+    .builder-column {
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #ffffff;
+      overflow: hidden;
+      box-shadow: 0 14px 32px rgba(34, 48, 73, 0.06);
+    }
+    .builder-column-header {
+      min-height: 46px;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface-soft);
+      color: var(--ink);
+      font-weight: 850;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .builder-column-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+    }
+    .builder-group { margin-bottom: 14px; }
+    .builder-group-title {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 8px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      font-weight: 850;
+    }
+    .builder-component {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 42px;
+      padding: 8px 10px;
+      border-radius: 7px;
+      background: #fbfdff;
+      border: 1px solid #dfe7f2;
+      margin-bottom: 7px;
+      cursor: grab;
+      transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+      user-select: none;
+    }
+    .builder-component:hover {
+      background: var(--accent-soft);
+      border-color: rgba(15, 118, 110, 0.35);
+      transform: translateY(-1px);
+    }
+    .builder-component:active { cursor: grabbing; }
+    .builder-component.dragging { opacity: 0.4; }
+    .builder-component-icon {
+      width: 18px;
+      font-size: 12px;
+      color: var(--accent);
+      text-align: center;
+    }
+    .builder-component-label {
+      flex: 1;
+      color: #26364a;
+      font-size: 13px;
+      font-weight: 750;
+    }
+
+    .builder-canvas-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 280px;
+      color: var(--muted);
+      text-align: center;
+      padding: 24px;
+      border: 1px dashed #c5d2df;
+      border-radius: 8px;
+      background: #fbfdff;
+      line-height: 1.6;
+    }
+    .builder-canvas-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: #ffffff;
+      border: 1px solid #dfe7f2;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .builder-canvas-item:hover {
+      border-color: rgba(15, 118, 110, 0.36);
+      background: #fbfffd;
+    }
+    .builder-canvas-item.selected {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      box-shadow: inset 3px 0 0 var(--accent);
+    }
+    .builder-canvas-item.drag-over {
+      border-color: var(--accent);
+      border-style: dashed;
+      background: #f0fdfa;
+    }
+    .builder-canvas-item-handle {
+      cursor: grab;
+      color: #94a3b8;
+      user-select: none;
+      font-size: 14px;
+    }
+    .builder-canvas-item-info { flex: 1; min-width: 0; }
+    .builder-canvas-item-title {
+      color: var(--ink);
+      font-weight: 850;
+      font-size: 13px;
+      margin-bottom: 2px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .builder-canvas-item-meta {
+      font-size: 11px;
+      color: var(--muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .builder-canvas-item-badge {
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 10px;
+      background: #dff6f1;
+      color: #075e58;
+      font-weight: 850;
+    }
+
+    .builder-prop-field {
+      margin-bottom: 14px;
+    }
+    .builder-prop-field > label,
+    .builder-prop-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 12px;
+      color: #405168;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+    .builder-prop-field input,
+    .builder-prop-field select,
+    .builder-prop-field textarea {
+      width: 100%;
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #ffffff;
+      color: var(--ink);
+      padding: 0 10px;
+      outline: none;
+    }
+    .builder-prop-field input:focus,
+    .builder-prop-field select:focus,
+    .builder-prop-field textarea:focus {
+      border-color: rgba(15, 118, 110, 0.55);
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+    }
+    .builder-prop-help {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+    .builder-prop-code {
+      color: #0f766e;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .builder-file-type-options {
+      display: grid;
+      gap: 7px;
+    }
+    .builder-file-type-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      padding: 7px 9px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--surface-soft);
+      color: #405168;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .builder-file-type-option:hover {
+      border-color: rgba(15, 118, 110, 0.35);
+      background: #effcf9;
+    }
+    .builder-file-type-option input {
+      width: 15px;
+      min-height: 15px;
+      padding: 0;
+      cursor: pointer;
+    }
+    .builder-prop-empty {
+      padding: 32px 16px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .builder-prop-summary {
+      margin-bottom: 14px;
+      padding: 10px 12px;
+      border: 1px solid rgba(15, 118, 110, 0.18);
+      border-radius: 7px;
+      background: var(--accent-soft);
+    }
+    .builder-prop-summary-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 850;
+    }
+    .builder-prop-summary-meta {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.45;
+      overflow-wrap: anywhere;
+    }
+    .builder-prop-section {
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+    }
+    .builder-prop-section:first-child {
+      margin-top: 0;
+      padding-top: 0;
+      border-top: none;
+    }
+    .builder-prop-section-title {
+      margin-bottom: 10px;
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 850;
+    }
+    .builder-number-range-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .aspect-ratio-list {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .aspect-ratio-editor {
+      border: 1px dashed #cbd5e1;
+      border-radius: 8px;
+      padding: 12px;
+      background: #fafcff;
+    }
+    .aspect-ratio-editor-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+      color: #334155;
+      font-size: 12px;
+      font-weight: 850;
+    }
+    .builder-upload-zone {
+      border: 1px dashed #aebdce;
+      border-radius: 8px;
+      padding: 36px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease;
+      background: #f8fafc;
+      color: #334155;
+    }
+    .builder-upload-zone:hover,
+    .builder-upload-zone.drag-over {
+      border-color: var(--accent);
+      background: #effcf9;
+    }
+    .builder-upload-icon { font-size: 32px; color: var(--accent); margin-bottom: 8px; }
+    .builder-upload-hint { color: var(--muted); font-size: 12px; margin-top: 4px; line-height: 1.55; }
+    .builder-upload-summary {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin: 16px 0;
+    }
+    .builder-upload-stat {
+      padding: 10px;
+      border: 1px solid var(--line);
+      background: #ffffff;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .builder-upload-stat-value { font-size: 18px; font-weight: 850; color: var(--ink); }
+    .builder-upload-stat-label { font-size: 11px; color: var(--muted); }
+    .builder-upload-node-group { margin-top: 12px; }
+    .builder-upload-node-header {
+      font-size: 12px;
+      color: #334155;
+      margin-bottom: 6px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--line);
+      font-weight: 850;
+    }
+    .builder-upload-field-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      margin-bottom: 2px;
+      color: #334155;
+    }
+    .builder-upload-field-row.added { opacity: 0.4; }
+    .builder-upload-field-row:hover { background: var(--surface-soft); }
+    .builder-upload-field-row .field-meta { color: var(--muted); font-size: 11px; }
+    .builder-upload-field-row .field-actions { margin-left: auto; }
+    .builder-upload-file-name,
+    .builder-modal-note {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+    .builder-modal-note {
+      margin-bottom: 8px;
+    }
+    .builder-upload-node-type {
+      color: var(--muted);
+      margin-left: 6px;
+      font-weight: 700;
+    }
+
+    .modal-mask {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.48);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .modal-card {
+      background: #ffffff;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 720px;
+      max-height: calc(100vh - 48px);
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--line);
+      box-shadow: 0 28px 80px rgba(15, 23, 42, 0.22);
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--line);
+    }
+    .modal-title { color: var(--ink); font-weight: 850; font-size: 15px; }
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 20px;
+      cursor: pointer;
+    }
+    .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+    .modal-footer {
+      padding: 14px 20px;
+      border-top: 1px solid var(--line);
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+    .api-preview-pre {
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 6px;
+      padding: 14px;
+      font-size: 12px;
+      line-height: 1.55;
+      color: #d6deff;
+      max-height: 360px;
+      overflow: auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .button-small {
+      min-height: 30px;
+      padding: 5px 9px;
+      font-size: 12px;
+    }
+
+    @media (max-width: 1180px) {
+      .builder-grid {
+        grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+      }
+
+      .builder-grid .builder-column:last-child {
+        grid-column: 1 / -1;
+      }
+    }
+
+    @media (max-width: 820px) {
+      .builder-grid {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
@@ -935,6 +1434,32 @@
             <span class="nav-mark">{{ item.mark }}</span>
             <span>{{ item.label }}</span>
           </a>
+
+          <div class="nav-section-title">自定義 Menu</div>
+          <template v-for="menu in menuTree" :key="menu.id">
+            <a
+              class="nav-link"
+              :class="{ 'is-active': isActiveRoute(menu.path) }"
+              :href="menu.path"
+              @click.prevent="navigateMenu(menu)"
+            >
+              <span class="nav-mark">{{ menu.mark }}</span>
+              <span>{{ menu.label }}</span>
+            </a>
+            <div v-if="menu.children && menu.children.length" class="nav-child-list">
+              <a
+                v-for="child in menu.children"
+                :key="child.id"
+                class="nav-link is-child"
+                :class="{ 'is-active': isActiveRoute(child.path) }"
+                :href="child.path"
+                @click.prevent="navigateMenu(child)"
+              >
+                <span class="nav-mark">{{ child.mark }}</span>
+                <span>{{ child.label }}</span>
+              </a>
+            </div>
+          </template>
         </nav>
 
         <div class="sidebar-footer">
@@ -1144,13 +1669,23 @@
               <div class="section-title">
                 <div>
                   <h3>輸入節點配置</h3>
-                  <p>除 workflowID 外，輸入節點均可動態新增或刪除。每個節點都需要配置 nodeId、內容項欄位和資料類型。</p>
+                  <p>可切換到「搭建頁面」透過拖放與上傳工作流檔案快速產生 UI 元件，兩種模式共享同一份輸入節點資料。</p>
                 </div>
-                <button class="button button-primary" type="button" @click="addInputNode">新增輸入節點</button>
+                <div class="section-actions">
+                  <div class="mode-tabs">
+                    <button class="mode-tab" type="button" :class="{ active: toolBuilderMode === 'form' }" @click="toolBuilderMode = 'form'">表單模式</button>
+                    <button class="mode-tab" type="button" :class="{ active: toolBuilderMode === 'builder' }" @click="toolBuilderMode = 'builder'">搭建頁面</button>
+                  </div>
+                  <button v-if="toolBuilderMode === 'form'" class="button button-primary" type="button" @click="addInputNode">新增輸入節點</button>
+                  <button v-if="toolBuilderMode === 'builder'" class="button" type="button" @click="openBuilderUploadModal">上傳工作流</button>
+                  <button v-if="toolBuilderMode === 'builder' && builderState.workflowAnalysis" class="button" type="button" @click="autoApplyAnalysis">自動參數</button>
+                  <button v-if="toolBuilderMode === 'builder'" class="button" type="button" @click="openApiCallModal">API 調用</button>
+                </div>
               </div>
 
-              <div class="node-list">
-                <article v-for="(node, nodeIndex) in toolForm.inputNodes" :key="node.uid" class="node-card">
+              <div v-show="toolBuilderMode === 'form'">
+                <div class="node-list">
+                  <article v-for="(node, nodeIndex) in toolForm.inputNodes" :key="node.uid" class="node-card">
                   <div class="node-card-header">
                     <h4 class="node-card-title">輸入節點 {{ nodeIndex + 1 }}</h4>
                     <button class="button button-danger" type="button" @click="removeInputNode(node.uid)">刪除節點</button>
@@ -1171,7 +1706,7 @@
                       </div>
                       <div class="field">
                         <label>資料類型</label>
-                        <select v-model="node.dataType">
+                        <select v-model="node.dataType" @change="handleBuilderDataTypeChange(node)">
                           <option v-for="type in inputDataTypes" :key="type.value" :value="type.value">{{ type.label }}</option>
                         </select>
                       </div>
@@ -1194,6 +1729,14 @@
                           <option :value="false">選填</option>
                         </select>
                       </div>
+                      <div v-if="node.dataType === 'number'" class="field">
+                        <label>最小值</label>
+                        <input v-model="node.minValue" type="number" placeholder="例如：0">
+                      </div>
+                      <div v-if="node.dataType === 'number'" class="field">
+                        <label>最大值</label>
+                        <input v-model="node.maxValue" type="number" placeholder="例如：10">
+                      </div>
                     </div>
 
                     <div v-if="node.dataType === 'select'" class="option-list">
@@ -1212,6 +1755,454 @@
                     </div>
                   </div>
                 </article>
+              </div>
+              </div>
+
+              <div v-show="toolBuilderMode === 'builder'">
+                <div class="builder-grid">
+                  <!-- 左：組件庫 -->
+                  <div class="builder-column">
+                    <div class="builder-column-header">組件庫</div>
+                    <div class="builder-column-body">
+                      <div v-for="group in builderPalette" :key="group.title" class="builder-group">
+                        <div class="builder-group-title">{{ group.title }}</div>
+                        <div
+                          v-for="item in group.items"
+                          :key="item.key"
+                          class="builder-component"
+                          draggable="true"
+                          @dragstart="onPaletteDragStart($event, item)"
+                          @dragend="onPaletteDragEnd"
+                          @click="addPaletteItemToCanvas(item)"
+                          title="點擊加入畫布，拖拽亦可"
+                        >
+                          <span class="builder-component-icon">{{ item.icon }}</span>
+                          <span class="builder-component-label">{{ item.label }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 中：畫布 -->
+                  <div class="builder-column">
+                    <div class="builder-column-header">
+                      <span>畫布（{{ toolForm.inputNodes.length }} 個元件）</span>
+                      <button
+                        type="button"
+                        class="button button-small button-danger"
+                        :disabled="!selectedBuilderNode"
+                        @click="removeSelectedBuilderNode"
+                      >刪除選中</button>
+                    </div>
+                    <div class="builder-column-body">
+                      <div
+                        v-if="!toolForm.inputNodes.length"
+                        class="builder-canvas-empty"
+                        @dragover.prevent="builderState.dropTargetUid = 'canvas-end'"
+                        @drop="onCanvasDrop($event, -1)"
+                        @dragleave="builderState.dropTargetUid = null"
+                      >
+                        <div style="font-size: 32px; margin-bottom: 8px;">＋</div>
+                        <div>從左側拖入或點擊元件，或先點擊「上傳工作流」自動產生</div>
+                      </div>
+                      <div
+                        v-for="(node, idx) in toolForm.inputNodes"
+                        :key="node.uid"
+                        class="builder-canvas-item"
+                        :class="{
+                          selected: builderState.selectedNodeUid === node.uid,
+                          'drag-over': builderState.dropTargetUid === node.uid
+                        }"
+                        draggable="true"
+                        @dragstart="onCanvasItemDragStart($event, idx)"
+                        @dragover.prevent="builderState.dropTargetUid = node.uid"
+                        @drop="onCanvasDrop($event, idx)"
+                        @click.stop="selectBuilderNode(node.uid)"
+                      >
+                        <span class="builder-canvas-item-handle">⋮⋮</span>
+                        <div class="builder-canvas-item-info">
+                          <div class="builder-canvas-item-title">
+                            <span>{{ node.label || node.fieldName }}</span>
+                            <span class="builder-canvas-item-badge">{{ dataTypeLabel(node.dataType) }}</span>
+                          </div>
+                          <div class="builder-canvas-item-meta">
+                            節點 {{ node.nodeId || '?' }} · 欄位 {{ node.fieldName }} · 鍵 {{ node.key }}
+                          </div>
+                        </div>
+                        <button type="button" class="button button-small button-danger" @click.stop="removeInputNode(node.uid)">刪除</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 右：屬性面板 -->
+                  <div class="builder-column">
+                    <div class="builder-column-header">屬性</div>
+                    <div class="builder-column-body">
+                      <div v-if="!selectedBuilderNode" class="builder-prop-empty">
+                        點擊畫布中的元件以編輯屬性
+                      </div>
+                      <div v-else>
+                        <div class="builder-prop-summary">
+                          <div class="builder-prop-summary-title">
+                            <span>{{ getBuilderNodePropertyTitle(selectedBuilderNode) }}</span>
+                            <span class="builder-canvas-item-badge">{{ dataTypeLabel(selectedBuilderNode.dataType) }}</span>
+                          </div>
+                          <div class="builder-prop-summary-meta">
+                            {{ getBuilderNodePropertyDescription(selectedBuilderNode) }}
+                          </div>
+                        </div>
+
+                        <div class="builder-prop-section">
+                          <div class="builder-prop-section-title">組件信息</div>
+                          <div class="builder-prop-field">
+                            <label>組件標題</label>
+                            <input v-model="selectedBuilderNode.label" placeholder="例如：上傳影片">
+                            <div class="builder-prop-help">顯示在前台工具表單的字段名稱。</div>
+                          </div>
+                          <div class="builder-prop-field">
+                            <label>參數名稱（key）</label>
+                            <input v-model="selectedBuilderNode.key" placeholder="例如：sourceVideo">
+                            <div class="builder-prop-help">用於前端提交值的唯一鍵，建議使用英文。</div>
+                          </div>
+                          <div class="builder-prop-field">
+                            <label>資料類型</label>
+                            <select v-model="selectedBuilderNode.dataType" @change="handleBuilderDataTypeChange(selectedBuilderNode)">
+                              <option v-for="type in inputDataTypes" :key="type.value" :value="type.value">{{ type.label }}</option>
+                            </select>
+                            <div class="builder-prop-help">切換後右側只顯示該組件相關屬性。</div>
+                          </div>
+                        </div>
+
+                        <div class="builder-prop-section">
+                          <div class="builder-prop-section-title">工作流綁定</div>
+                          <div v-if="isMediaBuilderNode(selectedBuilderNode)" class="builder-prop-field">
+                            <label>選擇節點（nodeId）</label>
+                            <select
+                              :value="selectedBuilderNode.nodeId"
+                              @change="handleBuilderMediaNodeChange(selectedBuilderNode, $event.target.value)"
+                            >
+                              <option value="">請選擇節點</option>
+                              <option
+                                v-for="nodeOption in mediaWorkflowNodeOptions"
+                                :key="nodeOption.nodeId"
+                                :value="nodeOption.nodeId"
+                              >
+                                [{{ nodeOption.nodeId }}] {{ nodeOption.title }}
+                              </option>
+                            </select>
+                            <div class="builder-prop-help">對應工作流 JSON 裡的節點 ID，例如 <span class="builder-prop-code">3</span>。</div>
+                          </div>
+                          <div v-else class="builder-prop-field">
+                            <label>選擇節點（nodeId）</label>
+                            <input v-model="selectedBuilderNode.nodeId" placeholder="例如：27">
+                            <div class="builder-prop-help">對應工作流 JSON 裡的節點 ID。</div>
+                          </div>
+                          <div v-if="isMediaBuilderNode(selectedBuilderNode)" class="builder-prop-field">
+                            <label>內容項欄位（fieldName）</label>
+                            <select
+                              :value="selectedBuilderNode.fieldName"
+                              @change="handleBuilderMediaFieldChange(selectedBuilderNode, $event.target.value)"
+                            >
+                              <option value="">請選擇參數</option>
+                              <option
+                                v-for="fieldOption in getMediaFieldOptions(selectedBuilderNode.nodeId)"
+                                :key="fieldOption.fieldName"
+                                :value="fieldOption.fieldName"
+                              >
+                                {{ fieldOption.fieldName }} · {{ dataTypeLabel(fieldOption.dataType) }}
+                              </option>
+                            </select>
+                            <div class="builder-prop-help">對應該節點 inputs 裡的字段，例如 <span class="builder-prop-code">video</span>。</div>
+                          </div>
+                          <div v-else class="builder-prop-field">
+                            <label>內容項欄位（fieldName）</label>
+                            <input v-model="selectedBuilderNode.fieldName" placeholder="例如：strength">
+                            <div class="builder-prop-help">對應該節點 inputs 裡的字段名稱。</div>
+                          </div>
+                        </div>
+
+                        <div class="builder-prop-section">
+                          <div class="builder-prop-section-title">{{ getBuilderSpecificSectionTitle(selectedBuilderNode) }}</div>
+                          <div v-if="isMediaBuilderNode(selectedBuilderNode)">
+                            <div v-if="selectedBuilderNode.dataType === 'image'" class="builder-prop-field">
+                              <label>上傳模式</label>
+                              <select v-model="selectedBuilderNode.uploadMode" @change="handleBuilderUploadModeChange(selectedBuilderNode)">
+                                <option value="single">單圖</option>
+                                <option value="multiple">多圖</option>
+                              </select>
+                              <div class="builder-prop-help">多圖模式會在前台顯示縮略圖網格，可動態新增和刪除圖片。</div>
+                            </div>
+                            <div class="builder-prop-field">
+                              <div class="builder-prop-label">可上傳文件類型</div>
+                              <div class="builder-file-type-options">
+                                <label
+                                  v-for="fileType in uploadFileTypeOptions"
+                                  :key="fileType.value"
+                                  class="builder-file-type-option"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    :checked="getAcceptedFileTypes(selectedBuilderNode).includes(fileType.value)"
+                                    @change="toggleAcceptedFileType(selectedBuilderNode, fileType.value, $event.target.checked)"
+                                  >
+                                  <span>{{ fileType.label }}</span>
+                                </label>
+                              </div>
+                              <div class="builder-prop-help">只在這裡選擇圖片、視頻或音頻；無需在左側建立多個上傳組件。</div>
+                            </div>
+                            <div class="builder-prop-field">
+                              <label>上傳提示</label>
+                              <input v-model="selectedBuilderNode.placeholder" :placeholder="getBuilderPlaceholderExample(selectedBuilderNode)">
+                              <div class="builder-prop-help">顯示在前台上傳框內的提示文字。</div>
+                            </div>
+                            <div v-if="selectedBuilderNode.dataType === 'image' && selectedBuilderNode.uploadMode === 'multiple'" class="builder-multi-upload-grid">
+                              <div class="builder-prop-field">
+                                <label>最大張數</label>
+                                <input v-model="selectedBuilderNode.maxFiles" type="number" min="1" step="1" placeholder="例如：6">
+                              </div>
+                              <div class="builder-prop-field">
+                                <label>每行顯示數量</label>
+                                <input v-model="selectedBuilderNode.uploadColumns" type="number" min="1" step="1" placeholder="例如：3">
+                              </div>
+                              <div class="builder-prop-field">
+                                <label>單張大小上限（MB）</label>
+                                <input v-model="selectedBuilderNode.maxFileSizeMb" type="number" min="1" step="1" placeholder="例如：10">
+                              </div>
+                              <div class="builder-prop-field">
+                                <label>壓縮品質</label>
+                                <input v-model="selectedBuilderNode.compressQuality" type="number" min="1" max="100" step="1" placeholder="例如：85">
+                              </div>
+                            </div>
+                          </div>
+
+                          <div v-else-if="selectedBuilderNode.dataType === 'text' || selectedBuilderNode.dataType === 'textarea'">
+                            <div class="builder-prop-field">
+                              <label>佔位提示</label>
+                              <input v-model="selectedBuilderNode.placeholder" :placeholder="getBuilderPlaceholderExample(selectedBuilderNode)">
+                              <div class="builder-prop-help">前台輸入框內的提示文字。</div>
+                            </div>
+                            <div v-if="selectedBuilderNode.dataType === 'textarea'" class="builder-prop-field">
+                              <label>提示詞類型</label>
+                              <select v-model="selectedBuilderNode.textareaMode" @change="handleTextareaModeChange(selectedBuilderNode)">
+                                <option value="positive">正面提示詞</option>
+                                <option value="negative">負面提示詞</option>
+                              </select>
+                              <div class="builder-prop-help">正面提示詞顯示為主輸入框，負面提示詞會出現在前台的負面區塊。</div>
+                            </div>
+                            <div class="builder-prop-field">
+                              <label>{{ selectedBuilderNode.dataType === 'textarea' && selectedBuilderNode.textareaMode === 'negative' ? '負面提示詞內容' : '預設文字' }}</label>
+                              <textarea
+                                v-model="selectedBuilderNode.defaultValue"
+                                :placeholder="selectedBuilderNode.textareaMode === 'negative' ? '例如：low quality, blurry' : '可選'"
+                              ></textarea>
+                              <div class="builder-prop-help">文字類組件在前台載入時的預設內容。</div>
+                            </div>
+                          </div>
+
+                          <div v-else-if="selectedBuilderNode.dataType === 'number'">
+                            <div class="builder-prop-field">
+                              <label>數字提示</label>
+                              <input v-model="selectedBuilderNode.placeholder" placeholder="例如：請輸入放大倍率">
+                              <div class="builder-prop-help">前台數字輸入框內的提示文字。</div>
+                            </div>
+                            <div class="builder-number-range-grid">
+                              <div class="builder-prop-field">
+                                <label>最小值</label>
+                                <input v-model="selectedBuilderNode.minValue" type="number" placeholder="例如：0">
+                              </div>
+                              <div class="builder-prop-field">
+                                <label>最大值</label>
+                                <input v-model="selectedBuilderNode.maxValue" type="number" placeholder="例如：10">
+                              </div>
+                            </div>
+                            <div class="builder-prop-field">
+                              <label>預設數值</label>
+                              <input v-model="selectedBuilderNode.defaultValue" placeholder="例如：2">
+                              <div class="builder-prop-help">前台會用 slider 在最小值和最大值之間調整。</div>
+                            </div>
+                          </div>
+
+                          <div v-else-if="selectedBuilderNode.dataType === 'switch'">
+                            <div class="builder-prop-field">
+                              <label>預設狀態</label>
+                              <select :value="selectedBuilderNode.defaultValue ? 'true' : 'false'" @change="selectedBuilderNode.defaultValue = $event.target.value === 'true'">
+                                <option value="true">開啟</option>
+                                <option value="false">關閉</option>
+                              </select>
+                              <div class="builder-prop-help">前台開關初始狀態。</div>
+                            </div>
+                          </div>
+
+                          <div v-else-if="selectedBuilderNode.dataType === 'select'">
+                            <div class="builder-prop-field">
+                              <label>佔位提示</label>
+                              <input v-model="selectedBuilderNode.placeholder" placeholder="例如：請選擇比例">
+                              <div class="builder-prop-help">前台下拉框未選擇時的提示文字。</div>
+                            </div>
+                            <div class="builder-prop-field">
+                              <label>預設選項值</label>
+                              <input v-model="selectedBuilderNode.defaultValue" placeholder="例如：option_1">
+                              <div class="builder-prop-help">需與下方其中一個選項值一致。</div>
+                            </div>
+                            <div v-if="isAspectRatioNode(selectedBuilderNode)">
+                              <div class="builder-prop-field">
+                                <label>比例項目</label>
+                                <div class="builder-prop-help">可動態新增、修改或刪除比例按鈕，前台會直接顯示成選擇卡片。</div>
+                              </div>
+                              <div class="aspect-ratio-list">
+                                <div v-for="option in selectedBuilderNode.options" :key="option.uid" class="aspect-ratio-editor">
+                                  <div class="aspect-ratio-editor-header">
+                                    <span>選項</span>
+                                    <button class="button button-small button-danger" type="button" @click="removeNodeOption(selectedBuilderNode, option.uid)">刪除</button>
+                                  </div>
+                                  <div class="builder-prop-field">
+                                    <label>標籤</label>
+                                    <input v-model="option.label" placeholder="例如：Auto / 16:9">
+                                  </div>
+                                  <div class="builder-prop-field">
+                                    <label>值</label>
+                                    <input v-model="option.value" placeholder="例如：auto / 16:9">
+                                  </div>
+                                  <div class="builder-prop-field">
+                                    <label>icon</label>
+                                    <input v-model="option.icon" placeholder="可留空">
+                                  </div>
+                                  <div class="builder-prop-field">
+                                    <label>計費權重</label>
+                                    <input v-model="option.creditWeight" type="number" min="1" step="1">
+                                  </div>
+                                </div>
+                              </div>
+                              <button class="button button-small" type="button" @click="addAspectRatioOption(selectedBuilderNode)">新增比例</button>
+                            </div>
+                            <div v-else>
+                              <div class="section-title" style="margin-top: 12px;">
+                                <div><h3 style="font-size: 13px;">下拉選項</h3></div>
+                                <button class="button button-small" type="button" @click="addNodeOption(selectedBuilderNode)">新增選項</button>
+                              </div>
+                              <div v-for="option in selectedBuilderNode.options" :key="option.uid" class="option-row">
+                                <input v-model="option.label" placeholder="選項文案">
+                                <input v-model="option.value" placeholder="值">
+                                <button class="button button-small button-danger" type="button" @click="removeNodeOption(selectedBuilderNode, option.uid)">刪除</button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="builder-prop-section">
+                          <div class="builder-prop-section-title">校驗規則</div>
+                          <div class="builder-prop-field">
+                            <label>是否必填</label>
+                            <select :value="selectedBuilderNode.required ? 'true' : 'false'" @change="selectedBuilderNode.required = $event.target.value === 'true'">
+                              <option value="true">必填</option>
+                              <option value="false">選填</option>
+                            </select>
+                            <div class="builder-prop-help">必填項會在前台提交前校驗。</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 上傳工作流 modal -->
+              <div v-if="builderState.showUploadModal" class="modal-mask" @click.self="closeBuilderUploadModal">
+                <div class="modal-card">
+                  <div class="modal-header">
+                    <div class="modal-title">上傳 ComfyUI 工作流（API 格式）</div>
+                    <button class="modal-close" type="button" @click="closeBuilderUploadModal">×</button>
+                  </div>
+                  <div class="modal-body">
+                    <div
+                      v-if="!builderState.workflowAnalysis"
+                      class="builder-upload-zone"
+                      :class="{ 'drag-over': builderState.uploadDragOver }"
+                      @click="$refs.builderFileInput && $refs.builderFileInput.click()"
+                      @dragover.prevent="builderState.uploadDragOver = true"
+                      @dragleave="builderState.uploadDragOver = false"
+                      @drop.prevent="handleBuilderFileDrop"
+                    >
+                      <div class="builder-upload-icon">☁︎</div>
+                      <div>點擊選擇或者將您的工作流文件（API 格式）拖拽到這裡</div>
+                      <div class="builder-upload-hint">在 ComfyUI 介面右側選項卡上小齒輪進入設置，勾選「啟用開發模式」後即可保存為 API 格式</div>
+                      <input
+                        ref="builderFileInput"
+                        type="file"
+                        accept=".json,application/json"
+                        style="display: none;"
+                        @change="handleBuilderFileSelect"
+                      >
+                    </div>
+                    <div v-else>
+                      <div class="builder-upload-summary">
+                        <div class="builder-upload-stat">
+                          <div class="builder-upload-stat-value">{{ builderState.workflowAnalysis.nodeCount }}</div>
+                          <div class="builder-upload-stat-label">節點</div>
+                        </div>
+                        <div class="builder-upload-stat">
+                          <div class="builder-upload-stat-value">{{ builderState.workflowAnalysis.inputCount }}</div>
+                          <div class="builder-upload-stat-label">可配置字段</div>
+                        </div>
+                        <div class="builder-upload-stat">
+                          <div class="builder-upload-stat-value">{{ workflowAnalysisAddedCount }}</div>
+                          <div class="builder-upload-stat-label">已加入畫布</div>
+                        </div>
+                      </div>
+                      <div v-if="builderState.workflowFileName" class="builder-upload-file-name">
+                        文件：{{ builderState.workflowFileName }}
+                      </div>
+                      <div v-for="node in builderState.workflowAnalysis.nodes" :key="node.nodeId" class="builder-upload-node-group">
+                        <div v-if="node.fields && node.fields.length">
+                          <div class="builder-upload-node-header">
+                            節點 {{ node.nodeId }} · {{ node.title }}
+                            <span class="builder-upload-node-type">{{ node.classType }}</span>
+                          </div>
+                          <div v-for="field in node.fields" :key="field.uid" class="builder-upload-field-row" :class="{ added: isWorkflowFieldAdded(field) }">
+                            <span style="font-weight: 500;">{{ field.fieldName }}</span>
+                            <span class="field-meta">→ {{ field.dataTypeLabel }} · 預設 {{ String(field.defaultValue).slice(0, 30) }}</span>
+                            <button
+                              v-if="!isWorkflowFieldAdded(field)"
+                              class="button button-small button-primary"
+                              type="button"
+                              @click="addWorkflowFieldToCanvas(field)"
+                            >加入</button>
+                            <span v-else class="field-meta">已加入</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="modal-footer">
+                    <button class="button" type="button" @click="closeBuilderUploadModal">關閉</button>
+                    <button
+                      v-if="builderState.workflowAnalysis"
+                      class="button button-primary"
+                      type="button"
+                      @click="addAllWorkflowFieldsToCanvas"
+                    >全部加入畫布</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- API 調用 modal -->
+              <div v-if="builderState.showApiModal" class="modal-mask" @click.self="builderState.showApiModal = false">
+                <div class="modal-card">
+                  <div class="modal-header">
+                    <div class="modal-title">當前輸入節點（API 調用 JSON）</div>
+                    <button class="modal-close" type="button" @click="builderState.showApiModal = false">×</button>
+                  </div>
+                  <div class="modal-body">
+                    <div class="builder-modal-note">
+                      共 {{ toolForm.inputNodes.length }} 個輸入節點。儲存工具後，前台會按照這個結構產生表單。
+                    </div>
+                    <pre class="api-preview-pre">{{ inputNodesApiPreview }}</pre>
+                  </div>
+                  <div class="modal-footer">
+                    <button class="button" type="button" @click="copyInputNodesJson">複製 JSON</button>
+                    <button class="button button-primary" type="button" @click="builderState.showApiModal = false">關閉</button>
+                  </div>
+                </div>
               </div>
 
               <section class="test-panel">
@@ -1248,19 +2239,20 @@
                 </div>
                 <div class="test-panel-body">
                   <div class="form-grid">
-                    <div
-                      v-for="node in toolForm.inputNodes"
-                      :key="`test-${node.uid}`"
-                      class="field"
-                      :class="{ 'field-full': node.dataType === 'textarea' || node.dataType === 'image' || node.dataType === 'video' }"
-                    >
-                      <label>{{ node.label || node.key || node.fieldName }}</label>
-                      <input
-                        v-if="node.dataType === 'image' || node.dataType === 'video'"
-                        :accept="node.dataType === 'image' ? 'image/*' : 'video/*'"
-                        type="file"
-                        @change="handleTestFileChange(node, $event)"
+                      <div
+                        v-for="node in toolForm.inputNodes"
+                        :key="`test-${node.uid}`"
+                        class="field"
+                        :class="{ 'field-full': node.dataType === 'textarea' || isMediaDataType(node.dataType) }"
                       >
+                        <label>{{ node.label || node.key || node.fieldName }}</label>
+                        <input
+                          v-if="isMediaDataType(node.dataType)"
+                          :accept="getAdminUploadAccept(node)"
+                          type="file"
+                          :multiple="node.dataType === 'image' && resolveUploadMode(node) === 'multiple'"
+                          @change="handleTestFileChange(node, $event)"
+                        >
                       <textarea
                         v-else-if="node.dataType === 'textarea'"
                         v-model="toolTestValues[node.key]"
@@ -1274,6 +2266,10 @@
                           {{ option.label || option.value }}
                         </option>
                       </select>
+                      <label v-else-if="node.dataType === 'switch'" class="inline-check">
+                        <input v-model="toolTestValues[node.key]" type="checkbox">
+                        <span>{{ toolTestValues[node.key] ? '啟用' : '停用' }}</span>
+                      </label>
                       <input
                         v-else
                         v-model="toolTestValues[node.key]"
@@ -1394,6 +2390,104 @@
                   </tr>
                 </tbody>
               </table>
+            </div>
+          </section>
+
+          <section v-else-if="currentRoute === '/admin/menus'" class="panel">
+            <div class="panel-header">
+              <h2 class="panel-title">Menu 管理</h2>
+              <span class="status-pill status-active">{{ menus.length }} 個菜單</span>
+            </div>
+            <div class="panel-body">
+              <div class="toolbar">
+                <div class="toolbar-group">
+                  <button class="button button-primary" type="button" @click="resetMenuForm">新增 Menu</button>
+                  <button class="button" type="button" @click="loadMenus">刷新 Menu</button>
+                </div>
+              </div>
+
+              <div class="category-grid">
+                <article v-for="menu in menuTree" :key="menu.id" class="category-card">
+                  <div class="category-card-header">
+                    <span class="status-pill" :class="menu.statusClass">{{ menu.statusLabel }}</span>
+                    <button class="button" type="button" @click="editMenu(menu)">編輯</button>
+                  </div>
+                  <h3>{{ menu.label }}</h3>
+                  <p>{{ menu.path }} · {{ menu.targetTypeLabel }}</p>
+                  <div v-if="menu.children && menu.children.length" class="hint-list">
+                    <div v-for="child in menu.children" :key="child.id" class="hint-item">
+                      {{ child.label }} · {{ child.path }}
+                      <button class="button" type="button" @click="editMenu(child)">編輯</button>
+                    </div>
+                  </div>
+                </article>
+                <article v-if="!menuTree.length" class="category-card">
+                  <h3>暫無自定義 Menu</h3>
+                  <p>可新增 Kie API、外部工具或其它後台功能入口。</p>
+                </article>
+              </div>
+
+              <div class="section-title">
+                <div>
+                  <h3>新增 / 編輯 Menu</h3>
+                  <p>支持一級與二級菜單，可掛載後台路由、外部連結或 API / 功能入口。</p>
+                </div>
+              </div>
+
+              <div class="form-grid">
+                <div class="field">
+                  <label for="menu-label">Menu 名稱</label>
+                  <input id="menu-label" v-model="menuForm.label" placeholder="例如：Kie API">
+                </div>
+                <div class="field">
+                  <label for="menu-key">識別碼</label>
+                  <input id="menu-key" v-model="menuForm.menuKey" placeholder="例如：kie-api">
+                </div>
+                <div class="field">
+                  <label for="menu-parent">父級 Menu</label>
+                  <select id="menu-parent" v-model="menuForm.parentId">
+                    <option value="">一級 Menu</option>
+                    <option
+                      v-for="menu in parentMenuOptions"
+                      :key="menu.id"
+                      :value="menu.id"
+                    >
+                      {{ menu.label }}
+                    </option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="menu-target-type">目標類型</label>
+                  <select id="menu-target-type" v-model="menuForm.targetType">
+                    <option v-for="type in menuTargetTypes" :key="type.value" :value="type.value">
+                      {{ type.label }}
+                    </option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="menu-path">路徑 / 連結</label>
+                  <input id="menu-path" v-model="menuForm.path" placeholder="/admin/kie-api">
+                </div>
+                <div class="field">
+                  <label for="menu-mark">標記</label>
+                  <input id="menu-mark" v-model="menuForm.mark" maxlength="2" placeholder="K">
+                </div>
+                <div class="field">
+                  <label for="menu-sort">排序</label>
+                  <input id="menu-sort" v-model.number="menuForm.sortOrder" type="number" min="0">
+                </div>
+                <div class="field">
+                  <label for="menu-status">狀態</label>
+                  <select id="menu-status" v-model="menuForm.status">
+                    <option value="active">啟用</option>
+                    <option value="inactive">停用</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-actions">
+                <button class="button" type="button" @click="resetMenuForm">清空</button>
+                <button class="button button-primary" type="button" @click="saveMenu">儲存 Menu</button>
+              </div>
             </div>
           </section>
 
@@ -1759,9 +2853,15 @@
           <section v-else class="panel">
             <div class="panel-header">
               <h2 class="panel-title">{{ currentPage.title }}</h2>
-              <span class="status-pill status-draft">頁面框架</span>
+              <span class="status-pill status-draft">{{ selectedCustomMenu ? selectedCustomMenu.targetTypeLabel : '頁面框架' }}</span>
             </div>
             <div class="panel-body">
+              <div v-if="selectedCustomMenu" class="hint-list">
+                <div class="hint-item">Menu：{{ selectedCustomMenu.label }}</div>
+                <div class="hint-item">路徑：{{ selectedCustomMenu.path }}</div>
+                <div class="hint-item">類型：{{ selectedCustomMenu.targetTypeLabel }}</div>
+                <button class="button button-primary" type="button" @click="editMenu(selectedCustomMenu); navigateTo('/admin/menus')">編輯此 Menu</button>
+              </div>
               <div class="hint-list">
                 <div v-for="item in currentPage.todo" :key="item" class="hint-item">{{ item }}</div>
               </div>
@@ -1775,6 +2875,7 @@
   <script>
     const { createApp, computed, onMounted, ref } = Vue;
     const LAST_EDITING_TOOL_ID_KEY = 'runninghub:lastEditingToolId';
+    const BUILDER_DRAG_MIME = 'application/x-runninghub-builder';
 
     const routeDefinitions = {
       '/admin': {
@@ -1793,6 +2894,12 @@
         title: '分類管理',
         description: '管理工具主分類和前台工具導航，目前包含圖像、視頻、音頻、文本。',
         primaryAction: '新增分類',
+        todo: []
+      },
+      '/admin/menus': {
+        title: 'Menu 管理',
+        description: '手動添加 Kie API、外部連結和其它功能入口，支持一級與二級菜單。',
+        primaryAction: '新增 Menu',
         todo: []
       },
       '/admin/users': {
@@ -1855,10 +2962,12 @@
         const toolTestResult = ref(createEmptyToolTestResult());
         const isTestingTool = ref(false);
         const categoryForm = ref(createEmptyCategoryForm());
+        const menuForm = ref(createEmptyMenuForm());
         const userKeyword = ref('');
         const userForm = ref(createEmptyUserForm());
         const creditForm = ref(createEmptyCreditForm());
         const categories = ref([]);
+        const menus = ref([]);
         const tools = ref([]);
         const users = ref([]);
         const tasks = ref([]);
@@ -1867,11 +2976,14 @@
         const taskUserFilter = ref('all');
         const selectedTask = ref(null);
         const creditLedger = ref([]);
+        const toolBuilderMode = ref('builder');
+        const builderState = ref(createEmptyBuilderState());
 
         const navItems = [
           { path: '/admin', label: '儀表板', mark: '總' },
           { path: '/admin/tools', label: '工具管理', mark: '工' },
           { path: '/admin/categories', label: '分類管理', mark: '類' },
+          { path: '/admin/menus', label: 'Menu 管理', mark: 'M' },
           { path: '/admin/users', label: '後台帳號', mark: '帳' },
           { path: '/admin/members', label: '註冊會員', mark: '員' },
           { path: '/admin/memberships', label: '會員套餐', mark: '會' },
@@ -1892,13 +3004,49 @@
           description: routeDefinitions[item.path].description
         }));
 
+        const menuTargetTypes = [
+          { value: 'route', label: '後台路由' },
+          { value: 'external', label: '外部連結' },
+          { value: 'api', label: 'API / 功能' }
+        ];
+
         const inputDataTypes = [
           { value: 'image', label: 'image' },
           { value: 'video', label: 'video' },
+          { value: 'audio', label: 'audio' },
           { value: 'number', label: '數字' },
           { value: 'textarea', label: '多行文字' },
           { value: 'text', label: '單行文字' },
-          { value: 'select', label: '下拉列表' }
+          { value: 'select', label: '下拉列表' },
+          { value: 'switch', label: '開關' }
+        ];
+
+        const builderPalette = [
+          {
+            title: '基礎',
+            items: [
+              { key: 'upload', label: '文件上傳', icon: '□', dataType: 'image', fieldName: 'file', required: true, acceptedFileTypes: ['image'] },
+              { key: 'seed', label: '隨機種子', icon: '◇', dataType: 'number', fieldName: 'seed', defaultValue: -1, minValue: 0, maxValue: 10 },
+              { key: 'number', label: '自定義數字', icon: '①', dataType: 'number', fieldName: 'value', defaultValue: 5, minValue: 0, maxValue: 10 },
+              { key: 'switch', label: '控制開關', icon: '◐', dataType: 'switch', fieldName: 'enabled', defaultValue: false },
+              { key: 'textarea', label: '多行文字', icon: '¶', dataType: 'textarea', fieldName: 'text' },
+              { key: 'select', label: '比例選擇', icon: '▤', dataType: 'select', fieldName: 'aspect_ratio' }
+            ]
+          },
+          {
+            title: '影片參數',
+            items: [
+              { key: 'frame-rate', label: '幀率', icon: '↔', dataType: 'number', fieldName: 'frame_rate', defaultValue: 24, minValue: 1, maxValue: 120 },
+              { key: 'resolution', label: '解析度', icon: '▥', dataType: 'number', fieldName: 'resolution', defaultValue: 768, minValue: 256, maxValue: 4096 },
+              { key: 'scale', label: '放大倍率', icon: '＋', dataType: 'number', fieldName: 'scale', defaultValue: 2, minValue: 1, maxValue: 8 },
+              { key: 'crf', label: '輸出 CRF', icon: '▦', dataType: 'number', fieldName: 'crf', defaultValue: 19, minValue: 0, maxValue: 51 }
+            ]
+          }
+        ];
+        const uploadFileTypeOptions = [
+          { value: 'image', label: '圖片' },
+          { value: 'video', label: '視頻' },
+          { value: 'audio', label: '音頻' }
         ];
 
         const backendUserRoleOptions = [
@@ -1937,7 +3085,19 @@
           { id: 'task-3', name: '消除筆', status: '失敗待排查', time: '18 分鐘前' }
         ];
 
-        const currentPage = computed(() => routeDefinitions[currentRoute.value] || routeDefinitions['/admin']);
+        const currentPage = computed(() => {
+          if (routeDefinitions[currentRoute.value]) return routeDefinitions[currentRoute.value];
+          const menu = menus.value.find((item) => item.path === currentRoute.value);
+          if (menu) {
+            return {
+              title: menu.label,
+              description: `${menu.targetTypeLabel} · ${menu.path}`,
+              primaryAction: '編輯 Menu',
+              todo: ['此入口已加入自定義 Menu，可在 Menu 管理中修改層級、路徑、排序和狀態。']
+            };
+          }
+          return routeDefinitions['/admin'];
+        });
         const activeCategories = computed(() => categories.value.filter((category) => category.status === 'active'));
         const backendUsers = computed(() => users.value.filter((user) => user.accountType === 'backend'));
         const frontendUsers = computed(() => users.value.filter((user) => user.accountType === 'frontend'));
@@ -1985,6 +3145,28 @@
           ));
         }
 
+        function buildMenuTree(menuList) {
+          const menuMap = new Map(menuList.map((menu) => [menu.id, { ...menu, children: [] }]));
+          const roots = [];
+
+          menuMap.forEach((menu) => {
+            const parent = menu.parentId ? menuMap.get(menu.parentId) : null;
+            if (parent) {
+              parent.children.push(menu);
+            } else {
+              roots.push(menu);
+            }
+          });
+
+          const sortMenus = (items) => {
+            items.sort((left, right) => (left.sortOrder - right.sortOrder) || left.label.localeCompare(right.label));
+            items.forEach((item) => sortMenus(item.children));
+            return items;
+          };
+
+          return sortMenus(roots);
+        }
+
         const filteredTools = computed(() => {
           const keyword = toolKeyword.value.trim().toLowerCase();
           if (!keyword) return tools.value;
@@ -1996,10 +3178,50 @@
             String(tool.shortDescription || tool.description || '').toLowerCase().includes(keyword)
           ));
         });
+        const menuTree = computed(() => buildMenuTree(menus.value.filter((menu) => menu.status === 'active')));
+        const parentMenuOptions = computed(() => menus.value.filter((menu) => menu.id !== menuForm.value.id && !menu.parentId));
+        const selectedCustomMenu = computed(() => menus.value.find((menu) => menu.path === currentRoute.value) || null);
+        const selectedBuilderNode = computed(() => (
+          toolForm.value.inputNodes.find((node) => node.uid === builderState.value.selectedNodeUid) || null
+        ));
+        const workflowAnalysisAddedCount = computed(() => {
+          const fields = builderState.value.workflowAnalysis?.fields || [];
+          return fields.filter(isWorkflowFieldAdded).length;
+        });
+        const mediaWorkflowNodeOptions = computed(() => {
+          const nodes = builderState.value.workflowAnalysis?.nodes || [];
+          return nodes
+            .map((node) => ({
+              nodeId: node.nodeId,
+              title: node.title,
+              classType: node.classType,
+              fields: (node.fields || []).filter((field) => isMediaDataType(field.dataType))
+            }))
+            .filter((node) => node.fields.length);
+        });
+        const inputNodesApiPreview = computed(() => JSON.stringify(
+          toolForm.value.inputNodes.map((node) => ({
+            nodeId: node.nodeId,
+            fieldName: node.fieldName,
+            key: node.key,
+            dataType: node.dataType,
+            label: node.label,
+            placeholder: node.placeholder,
+            defaultValue: node.defaultValue,
+            minValue: node.minValue,
+            maxValue: node.maxValue,
+            required: node.required,
+            acceptedFileTypes: node.acceptedFileTypes,
+            options: node.options
+          })),
+          null,
+          2
+        ));
 
         function normalizeRoute(pathname) {
           const trimmedPath = pathname.replace(/\/$/, '') || '/admin';
-          return routeDefinitions[trimmedPath] ? trimmedPath : '/admin';
+          if (routeDefinitions[trimmedPath]) return trimmedPath;
+          return menus.value.some((menu) => menu.path === trimmedPath) ? trimmedPath : '/admin';
         }
 
         function navigateTo(path) {
@@ -2015,6 +3237,15 @@
           return currentRoute.value === path;
         }
 
+        function navigateMenu(menu) {
+          if (menu.targetType === 'external') {
+            window.open(menu.path, '_blank', 'noopener,noreferrer');
+            return;
+          }
+
+          navigateTo(menu.path);
+        }
+
         function handlePrimaryAction() {
           if (currentRoute.value === '/admin/workflows') {
             saveToolDraft();
@@ -2023,6 +3254,11 @@
 
           if (currentRoute.value === '/admin/categories') {
             resetCategoryForm();
+            return;
+          }
+
+          if (currentRoute.value === '/admin/menus') {
+            resetMenuForm();
             return;
           }
 
@@ -2036,6 +3272,12 @@
             return;
           }
 
+          if (selectedCustomMenu.value) {
+            editMenu(selectedCustomMenu.value);
+            navigateTo('/admin/menus');
+            return;
+          }
+
           openToolForm();
         }
 
@@ -2046,10 +3288,19 @@
             fieldName: '',
             key: '',
             dataType: 'image',
+            textareaMode: 'plain',
+            uploadMode: 'single',
             label: '',
             placeholder: '',
             defaultValue: '',
+            minValue: '',
+            maxValue: '',
+            maxFiles: 1,
+            uploadColumns: 1,
+            maxFileSizeMb: 10,
+            compressQuality: 85,
             required: true,
+            acceptedFileTypes: [],
             options: [],
             ...overrides
           };
@@ -2059,7 +3310,22 @@
           return {
             uid: `option-${Date.now()}-${Math.random().toString(16).slice(2)}`,
             label,
-            value
+            value,
+            icon: '',
+            creditWeight: 1
+          };
+        }
+
+        function createEmptyBuilderState() {
+          return {
+            showUploadModal: false,
+            showApiModal: false,
+            uploadDragOver: false,
+            workflowAnalysis: null,
+            workflowFileName: '',
+            selectedNodeUid: '',
+            dropTargetUid: null,
+            draggedCanvasIndex: null
           };
         }
 
@@ -2086,10 +3352,16 @@
             inputNodes: [
               createInputNode({
                 dataType: 'image',
-                fieldName: 'image',
-                key: 'sourceImage',
-                label: '上傳圖片',
-                placeholder: '資料類型使用 image；影片上傳請選 video'
+                fieldName: 'file',
+                key: 'sourceFile',
+                label: '文件上傳',
+                placeholder: '可在上傳設定選擇圖片、視頻或音頻',
+                uploadMode: 'single',
+                acceptedFileTypes: ['image'],
+                maxFiles: 1,
+                uploadColumns: 1,
+                maxFileSizeMb: 10,
+                compressQuality: 85
               })
             ]
           };
@@ -2109,6 +3381,20 @@
             id: '',
             name: '',
             categoryKey: '',
+            sortOrder: 100,
+            status: 'active'
+          };
+        }
+
+        function createEmptyMenuForm() {
+          return {
+            id: '',
+            parentId: '',
+            menuKey: '',
+            label: '',
+            mark: '',
+            path: '',
+            targetType: 'api',
             sortOrder: 100,
             status: 'active'
           };
@@ -2138,10 +3424,458 @@
         }
 
         function cloneInputNode(node) {
-          return createInputNode({
+          const clonedNode = createInputNode({
             ...node,
-            options: (node.options || []).map((option) => createNodeOption(option.label, option.value))
+            options: (node.options || []).map(normalizeBuilderOption)
           });
+          syncNumberRangeFields(clonedNode);
+          return clonedNode;
+        }
+
+        function createInputNodeFromField(field) {
+          const safeFieldName = String(field.fieldName || field.key || 'value');
+          const safeNodeId = String(field.nodeId || '');
+          const textareaMode = resolveTextareaMode(field);
+          const uploadMode = resolveUploadMode(field);
+          return createInputNode({
+            nodeId: safeNodeId,
+            fieldName: safeFieldName,
+            key: createUniqueInputKey(toCamelCase(`${field.nodeTitle || 'node'} ${safeNodeId} ${safeFieldName}`)),
+            dataType: field.dataType || 'text',
+            textareaMode,
+            uploadMode,
+            label: isMediaDataType(field.dataType) ? getMediaUploadLabel(field.dataType) : (field.label || humanizeBuilderLabel(safeFieldName)),
+            placeholder: field.placeholder || '',
+            defaultValue: normalizeBuilderDefaultValue(field.defaultValue, field.dataType),
+            minValue: field.dataType === 'number' ? normalizeNumberRangeValue(field.defaultValue, 'min') : '',
+            maxValue: field.dataType === 'number' ? normalizeNumberRangeValue(field.defaultValue, 'max') : '',
+            maxFiles: field.dataType === 'image' && uploadMode === 'multiple' ? normalizeUploadBoundaryValue(field.maxFiles, 4) : 1,
+            uploadColumns: field.dataType === 'image' && uploadMode === 'multiple' ? normalizeUploadBoundaryValue(field.uploadColumns, 3) : 1,
+            maxFileSizeMb: field.dataType === 'image' ? normalizeUploadBoundaryValue(field.maxFileSizeMb, 10) : '',
+            compressQuality: field.dataType === 'image' ? normalizeUploadBoundaryValue(field.compressQuality, 85) : '',
+            required: Boolean(field.required),
+            acceptedFileTypes: getDefaultAcceptedFileTypes(field.dataType),
+            options: Array.isArray(field.options) ? field.options.map(normalizeBuilderOption) : []
+          });
+        }
+
+        function createInputNodeFromPaletteItem(item) {
+          const dataType = item.dataType || 'text';
+          const isAspectRatioNode = dataType === 'select' && item.fieldName === 'aspect_ratio';
+          const textareaMode = dataType === 'textarea' ? (item.textareaMode || 'plain') : 'plain';
+          const uploadMode = dataType === 'image' ? (item.uploadMode || 'single') : 'single';
+          return createInputNode({
+            nodeId: '',
+            fieldName: item.fieldName || 'value',
+            key: createUniqueInputKey(toCamelCase(item.label || item.fieldName || dataType)),
+            dataType,
+            textareaMode,
+            uploadMode,
+            label: item.label || dataTypeLabel(dataType),
+            placeholder: '',
+            defaultValue: normalizeBuilderDefaultValue(isAspectRatioNode ? 'auto' : item.defaultValue, dataType),
+            minValue: dataType === 'number' ? (item.minValue ?? 0) : '',
+            maxValue: dataType === 'number' ? (item.maxValue ?? 10) : '',
+            maxFiles: dataType === 'image' && uploadMode === 'multiple' ? (item.maxFiles ?? 4) : 1,
+            uploadColumns: dataType === 'image' && uploadMode === 'multiple' ? (item.uploadColumns ?? 3) : 1,
+            maxFileSizeMb: dataType === 'image' ? (item.maxFileSizeMb ?? 10) : '',
+            compressQuality: dataType === 'image' ? (item.compressQuality ?? 85) : '',
+            required: item.required ?? (dataType === 'image' || dataType === 'video' || dataType === 'audio'),
+            acceptedFileTypes: Array.isArray(item.acceptedFileTypes) ? item.acceptedFileTypes : getDefaultAcceptedFileTypes(dataType),
+            options: isAspectRatioNode ? createAspectRatioOptions() : (dataType === 'select' ? [
+              createNodeOption('Option 1', 'option_1'),
+              createNodeOption('Option 2', 'option_2')
+            ] : [])
+          });
+        }
+
+        function normalizeBuilderOption(option) {
+          const normalizedOption = createNodeOption(option?.label, option?.value);
+          normalizedOption.icon = String(option?.icon || '').trim();
+          normalizedOption.creditWeight = normalizeOptionWeight(option?.creditWeight);
+          return normalizedOption;
+        }
+
+        function resolveTextareaMode(field) {
+          const rawMode = String(field?.textareaMode || field?.textMode || '').trim().toLowerCase();
+          if (rawMode === 'positive' || rawMode === 'negative') return rawMode;
+
+          const key = String(field?.key || '').toLowerCase();
+          const fieldName = String(field?.fieldName || '').toLowerCase();
+          const label = String(field?.label || '').toLowerCase();
+          const combined = `${key} ${fieldName} ${label}`;
+
+          if (combined.includes('negative')) return 'negative';
+          if (combined.includes('positive')) return 'positive';
+          return 'plain';
+        }
+
+        function normalizeOptionWeight(value) {
+          const numberValue = Number(value);
+          if (!Number.isFinite(numberValue) || numberValue <= 0) return 1;
+          return Math.floor(numberValue);
+        }
+
+        function createAspectRatioOptions() {
+          return [
+            createAspectRatioOption('Auto', 'auto'),
+            createAspectRatioOption('1:1', '1:1'),
+            createAspectRatioOption('4:3', '4:3'),
+            createAspectRatioOption('3:4', '3:4'),
+            createAspectRatioOption('3:2', '3:2'),
+            createAspectRatioOption('2:3', '2:3'),
+            createAspectRatioOption('16:9', '16:9'),
+            createAspectRatioOption('9:16', '9:16')
+          ];
+        }
+
+        function createAspectRatioOption(label, value) {
+          const option = createNodeOption(label, value);
+          option.creditWeight = 1;
+          return option;
+        }
+
+        function createUniqueInputKey(baseKey) {
+          const normalizedBaseKey = String(baseKey || 'field').replace(/[^A-Za-z0-9_]/g, '') || 'field';
+          const usedKeys = new Set(toolForm.value.inputNodes.map((node) => node.key));
+          if (!usedKeys.has(normalizedBaseKey)) return normalizedBaseKey;
+
+          let index = 2;
+          while (usedKeys.has(`${normalizedBaseKey}${index}`)) index += 1;
+          return `${normalizedBaseKey}${index}`;
+        }
+
+        function toCamelCase(value) {
+          const words = String(value || '')
+            .replace(/[^A-Za-z0-9]+/g, ' ')
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean);
+          if (!words.length) return 'field';
+
+          return words
+            .map((word, index) => {
+              const lowerWord = word.toLowerCase();
+              return index === 0 ? lowerWord : lowerWord.charAt(0).toUpperCase() + lowerWord.slice(1);
+            })
+            .join('');
+        }
+
+        function humanizeBuilderLabel(value) {
+          const text = String(value || '').replace(/[_-]+/g, ' ').trim();
+          return text ? text.charAt(0).toUpperCase() + text.slice(1) : 'Input';
+        }
+
+        function normalizeBuilderDefaultValue(value, dataType) {
+          if (dataType === 'switch') return Boolean(value);
+          return value ?? '';
+        }
+
+        function normalizeUploadBoundaryValue(value, fallback) {
+          if (value === undefined || value === null || value === '') return fallback;
+          const numberValue = Number(value);
+          return Number.isFinite(numberValue) && numberValue > 0 ? Math.floor(numberValue) : fallback;
+        }
+
+        function normalizeOptionalBuilderNumber(value) {
+          if (value === undefined || value === null || value === '') return '';
+          const numberValue = Number(value);
+          return Number.isFinite(numberValue) ? numberValue : '';
+        }
+
+        function getBuilderNumberBoundary(node, keys) {
+          for (const key of keys) {
+            const value = normalizeOptionalBuilderNumber(node?.[key]);
+            if (value !== '') return value;
+          }
+          return '';
+        }
+
+        function syncNumberRangeFields(node) {
+          if (!node || node.dataType !== 'number') {
+            if (node) {
+              node.minValue = '';
+              node.maxValue = '';
+            }
+            return node;
+          }
+
+          node.minValue = getBuilderNumberBoundary(node, ['minValue', 'min', 'minimum']);
+          node.maxValue = getBuilderNumberBoundary(node, ['maxValue', 'max', 'maximum']);
+          return node;
+        }
+
+        function resolveUploadMode(node) {
+          const rawMode = String(node?.uploadMode || '').trim().toLowerCase();
+          return rawMode === 'multiple' ? 'multiple' : 'single';
+        }
+
+        function normalizeNumberRangeValue(value, boundary) {
+          const numberValue = Number(value);
+          if (!Number.isFinite(numberValue)) {
+            return boundary === 'min' ? 0 : 10;
+          }
+
+          if (boundary === 'min') {
+            return Math.min(0, Math.floor(numberValue));
+          }
+
+          return Math.max(10, Math.ceil(numberValue));
+        }
+
+        function normalizeInputNodeForSave(node) {
+          const isNumberNode = node.dataType === 'number';
+          const uploadMode = node.dataType === 'image' ? resolveUploadMode(node) : 'single';
+          syncNumberRangeFields(node);
+          return {
+            nodeId: node.nodeId,
+            fieldName: node.fieldName,
+            key: node.key,
+            dataType: node.dataType,
+            textareaMode: node.dataType === 'textarea' ? (node.textareaMode || 'plain') : '',
+            uploadMode,
+            label: node.label,
+            placeholder: node.placeholder,
+            defaultValue: node.defaultValue,
+            minValue: isNumberNode ? normalizeOptionalBuilderNumber(node.minValue) : '',
+            maxValue: isNumberNode ? normalizeOptionalBuilderNumber(node.maxValue) : '',
+            maxFiles: node.dataType === 'image' && uploadMode === 'multiple' ? normalizeUploadBoundaryValue(node.maxFiles, 4) : 1,
+            uploadColumns: node.dataType === 'image' && uploadMode === 'multiple' ? normalizeUploadBoundaryValue(node.uploadColumns, 3) : 1,
+            maxFileSizeMb: node.dataType === 'image' ? normalizeUploadBoundaryValue(node.maxFileSizeMb, 10) : '',
+            compressQuality: node.dataType === 'image' ? normalizeUploadBoundaryValue(node.compressQuality, 85) : '',
+            required: node.required,
+            acceptedFileTypes: node.acceptedFileTypes,
+            options: node.options
+          };
+        }
+
+        function getDefaultAcceptedFileTypes(dataType) {
+          return isMediaDataType(dataType) ? [dataType] : [];
+        }
+
+        function isMediaDataType(dataType) {
+          return dataType === 'image' || dataType === 'video' || dataType === 'audio';
+        }
+
+        function isMediaBuilderNode(node) {
+          return Boolean(node && isMediaDataType(node.dataType));
+        }
+
+        function getBuilderNodePropertyTitle(node) {
+          if (!node) return '組件屬性';
+          if (isMediaBuilderNode(node)) return '文件上傳組件';
+          return `${dataTypeLabel(node.dataType)}組件`;
+        }
+
+        function getBuilderNodePropertyDescription(node) {
+          if (!node) return '';
+          if (isMediaBuilderNode(node)) {
+            return '配置上傳文件類型，並綁定工作流中的媒體輸入節點和字段。';
+          }
+          if (node.dataType === 'select') return '配置下拉選項、預設值，並綁定工作流枚舉字段。';
+          if (node.dataType === 'switch') return '配置開關預設狀態，並綁定工作流布林字段。';
+          if (node.dataType === 'number') return '配置數字提示與預設值，並綁定工作流數值字段。';
+          if (node.dataType === 'textarea') return '配置多行文本提示與預設文字，適合 prompt 類字段。';
+          return '配置單行文本提示與預設文字，並綁定工作流文本字段。';
+        }
+
+        function getBuilderSpecificSectionTitle(node) {
+          if (!node) return '組件屬性';
+          if (isMediaBuilderNode(node)) return '上傳設定';
+          if (node.dataType === 'select') return '下拉設定';
+          if (node.dataType === 'switch') return '開關設定';
+          if (node.dataType === 'number') return '數字設定';
+          return '文字設定';
+        }
+
+        function isAspectRatioNode(node) {
+          if (!node || node.dataType !== 'select') return false;
+          const key = String(node.key || '').toLowerCase();
+          const fieldName = String(node.fieldName || '').toLowerCase();
+          const label = String(node.label || '').toLowerCase();
+          return key === 'aspect_ratio'
+            || key === 'aspectratio'
+            || fieldName === 'aspect_ratio'
+            || label.includes('aspect ratio')
+            || label.includes('比例');
+        }
+
+        function addAspectRatioOption(node) {
+          if (!node) return;
+          const nextIndex = node.options.length + 1;
+          const option = createNodeOption(`自定義 ${nextIndex}`, `custom_${nextIndex}`);
+          option.creditWeight = 1;
+          node.options.push(option);
+          if (!node.defaultValue) {
+            node.defaultValue = option.value;
+          }
+        }
+
+        function getBuilderPlaceholderExample(node) {
+          if (!node) return '可選';
+          if (isMediaBuilderNode(node)) return 'Upload a file';
+          if (node.dataType === 'textarea') return node.textareaMode === 'negative' ? 'Enter negative prompt' : 'Enter your prompt';
+          if (node.dataType === 'text') return 'Enter text';
+          return '可選';
+        }
+
+        function handleBuilderDataTypeChange(node) {
+          if (!node) return;
+          node.defaultValue = normalizeBuilderDefaultValue(node.defaultValue, node.dataType);
+          node.acceptedFileTypes = getDefaultAcceptedFileTypes(node.dataType);
+          if (node.dataType === 'number') {
+            node.minValue = getBuilderNumberBoundary(node, ['minValue', 'min', 'minimum']);
+            node.maxValue = getBuilderNumberBoundary(node, ['maxValue', 'max', 'maximum']);
+            if (node.minValue === '') node.minValue = 0;
+            if (node.maxValue === '') node.maxValue = 10;
+          } else {
+            node.minValue = '';
+            node.maxValue = '';
+          }
+          if (node.dataType === 'image') {
+            node.uploadMode = resolveUploadMode(node);
+            node.maxFiles = node.uploadMode === 'multiple' ? normalizeUploadBoundaryValue(node.maxFiles, 4) : 1;
+            node.uploadColumns = node.uploadMode === 'multiple' ? normalizeUploadBoundaryValue(node.uploadColumns, 3) : 1;
+            node.maxFileSizeMb = normalizeUploadBoundaryValue(node.maxFileSizeMb, 10);
+            node.compressQuality = normalizeUploadBoundaryValue(node.compressQuality, 85);
+          } else {
+            node.uploadMode = 'single';
+            node.maxFiles = 1;
+            node.uploadColumns = 1;
+            node.maxFileSizeMb = '';
+            node.compressQuality = '';
+          }
+          if (node.dataType === 'select' && (!Array.isArray(node.options) || !node.options.length)) {
+            node.options = [
+              createNodeOption('Option 1', 'option_1'),
+              createNodeOption('Option 2', 'option_2')
+            ];
+          }
+          if (node.dataType !== 'textarea') {
+            node.textareaMode = 'plain';
+          } else if (!node.textareaMode) {
+            node.textareaMode = 'plain';
+          }
+        }
+
+        function handleTextareaModeChange(node) {
+          if (!node || node.dataType !== 'textarea') return;
+          node.textareaMode = node.textareaMode === 'negative' ? 'negative' : 'positive';
+          if (node.textareaMode === 'positive' && String(node.label || '').includes('Negative')) {
+            node.label = 'Prompt';
+          }
+          if (node.textareaMode === 'negative' && !String(node.label || '').toLowerCase().includes('negative')) {
+            node.label = 'Negative Prompt';
+          }
+        }
+
+        function getAcceptedFileTypes(node) {
+          if (!node) return [];
+          if (!Array.isArray(node.acceptedFileTypes) || !node.acceptedFileTypes.length) {
+            node.acceptedFileTypes = getDefaultAcceptedFileTypes(node.dataType);
+          }
+          return node.acceptedFileTypes;
+        }
+
+        function toggleAcceptedFileType(node, fileType, checked) {
+          const currentTypes = new Set(getAcceptedFileTypes(node));
+          if (checked) {
+            currentTypes.add(fileType);
+          } else {
+            currentTypes.delete(fileType);
+          }
+
+          node.acceptedFileTypes = Array.from(currentTypes);
+          if (!node.acceptedFileTypes.length) {
+            node.acceptedFileTypes = getDefaultAcceptedFileTypes(node.dataType);
+          }
+          syncUploadNodeDataType(node);
+        }
+
+        function syncUploadNodeDataType(node) {
+          if (!node || !isMediaBuilderNode(node)) return;
+          const acceptedTypes = getAcceptedFileTypes(node);
+          if (acceptedTypes.length === 1) {
+            node.dataType = acceptedTypes[0];
+            if (node.dataType === 'image') {
+              node.uploadMode = resolveUploadMode(node);
+              node.maxFiles = node.uploadMode === 'multiple' ? normalizeUploadBoundaryValue(node.maxFiles, 4) : 1;
+              node.uploadColumns = node.uploadMode === 'multiple' ? normalizeUploadBoundaryValue(node.uploadColumns, 3) : 1;
+              node.maxFileSizeMb = normalizeUploadBoundaryValue(node.maxFileSizeMb, 10);
+              node.compressQuality = normalizeUploadBoundaryValue(node.compressQuality, 85);
+            } else {
+              node.uploadMode = 'single';
+              node.maxFiles = 1;
+              node.uploadColumns = 1;
+              node.maxFileSizeMb = '';
+              node.compressQuality = '';
+            }
+            if (['image', 'video', 'audio'].includes(node.fieldName)) {
+              node.fieldName = acceptedTypes[0];
+            }
+            return;
+          }
+          node.dataType = 'image';
+          node.uploadMode = 'single';
+          node.maxFiles = 1;
+          node.uploadColumns = 1;
+        }
+
+        function handleBuilderUploadModeChange(node) {
+          if (!node || node.dataType !== 'image') return;
+          node.uploadMode = resolveUploadMode(node);
+          if (node.uploadMode === 'multiple') {
+            node.maxFiles = normalizeUploadBoundaryValue(node.maxFiles, 4);
+            node.uploadColumns = normalizeUploadBoundaryValue(node.uploadColumns, 3);
+            node.maxFileSizeMb = normalizeUploadBoundaryValue(node.maxFileSizeMb, 10);
+            node.compressQuality = normalizeUploadBoundaryValue(node.compressQuality, 85);
+            return;
+          }
+
+          node.maxFiles = 1;
+          node.uploadColumns = 1;
+        }
+
+        function getMediaFieldOptions(nodeId) {
+          const nodeOption = mediaWorkflowNodeOptions.value.find((node) => String(node.nodeId) === String(nodeId));
+          return nodeOption ? nodeOption.fields : [];
+        }
+
+        function handleBuilderMediaNodeChange(node, nodeId) {
+          node.nodeId = nodeId;
+          const firstField = getMediaFieldOptions(nodeId)[0];
+          if (firstField) applyWorkflowFieldBinding(node, firstField);
+        }
+
+        function handleBuilderMediaFieldChange(node, fieldName) {
+          const field = getMediaFieldOptions(node.nodeId).find((item) => item.fieldName === fieldName);
+          if (field) {
+            applyWorkflowFieldBinding(node, field);
+            return;
+          }
+
+          node.fieldName = fieldName;
+        }
+
+        function applyWorkflowFieldBinding(node, field) {
+          node.nodeId = field.nodeId;
+          node.fieldName = field.fieldName;
+          node.dataType = field.dataType;
+          node.defaultValue = normalizeBuilderDefaultValue(field.defaultValue, field.dataType);
+          node.acceptedFileTypes = getDefaultAcceptedFileTypes(field.dataType);
+          if (!node.label || isMediaDataType(node.dataType)) {
+            node.label = getMediaUploadLabel(field.dataType);
+          }
+        }
+
+        function getMediaUploadLabel(dataType) {
+          if (dataType === 'video') return '上傳影片';
+          if (dataType === 'audio') return '上傳音訊';
+          return '上傳圖片';
+        }
+
+        function getAdminUploadAccept(node) {
+          return getAcceptedFileTypes(node).map((type) => `${type}/*`).join(',');
         }
 
         function openToolForm(tool) {
@@ -2174,6 +3908,7 @@
           }
 
           resetToolTestValues();
+          resetBuilderSelection();
           destroyToolDetailEditor();
           navigateTo('/admin/workflows');
           initToolDetailEditor();
@@ -2191,6 +3926,24 @@
 
         function resetCategoryForm() {
           categoryForm.value = createEmptyCategoryForm();
+        }
+
+        function editMenu(menu) {
+          menuForm.value = {
+            id: menu.id,
+            parentId: menu.parentId || '',
+            menuKey: menu.menuKey || menu.key,
+            label: menu.label,
+            mark: menu.mark,
+            path: menu.path,
+            targetType: menu.targetType || 'route',
+            sortOrder: menu.sortOrder,
+            status: menu.status || 'active'
+          };
+        }
+
+        function resetMenuForm() {
+          menuForm.value = createEmptyMenuForm();
         }
 
         function openUserForm(user) {
@@ -2277,8 +4030,10 @@
         }
 
         function removeInputNode(uid) {
-          if (toolForm.value.inputNodes.length === 1) return;
           toolForm.value.inputNodes = toolForm.value.inputNodes.filter((node) => node.uid !== uid);
+          if (builderState.value.selectedNodeUid === uid) {
+            builderState.value.selectedNodeUid = toolForm.value.inputNodes[0]?.uid || '';
+          }
         }
 
         function addNodeOption(node) {
@@ -2289,11 +4044,343 @@
           node.options = node.options.filter((option) => option.uid !== uid);
         }
 
+        function dataTypeLabel(dataType) {
+          return inputDataTypes.find((type) => type.value === dataType)?.label || dataType || 'text';
+        }
+
+        function selectBuilderNode(uid) {
+          builderState.value.selectedNodeUid = uid;
+        }
+
+        function resetBuilderSelection() {
+          builderState.value.selectedNodeUid = toolForm.value.inputNodes[0]?.uid || '';
+          builderState.value.dropTargetUid = null;
+          builderState.value.draggedCanvasIndex = null;
+        }
+
+        function addPaletteItemToCanvas(item) {
+          addNodeToCanvas(createInputNodeFromPaletteItem(item));
+        }
+
+        function addNodeToCanvas(node, index = toolForm.value.inputNodes.length) {
+          const nextNodes = [...toolForm.value.inputNodes];
+          const targetIndex = index < 0 ? nextNodes.length : Math.min(index, nextNodes.length);
+          nextNodes.splice(targetIndex, 0, node);
+          toolForm.value.inputNodes = nextNodes;
+          selectBuilderNode(node.uid);
+          resetToolTestValues();
+        }
+
+        function removeSelectedBuilderNode() {
+          if (!selectedBuilderNode.value) return;
+          removeInputNode(selectedBuilderNode.value.uid);
+          resetToolTestValues();
+        }
+
+        function onPaletteDragStart(event, item) {
+          event.dataTransfer.effectAllowed = 'copy';
+          event.dataTransfer.setData(BUILDER_DRAG_MIME, JSON.stringify({ type: 'palette', item }));
+        }
+
+        function onPaletteDragEnd() {
+          builderState.value.dropTargetUid = null;
+        }
+
+        function onCanvasItemDragStart(event, index) {
+          builderState.value.draggedCanvasIndex = index;
+          event.dataTransfer.effectAllowed = 'move';
+          event.dataTransfer.setData(BUILDER_DRAG_MIME, JSON.stringify({ type: 'canvas', index }));
+        }
+
+        function onCanvasDrop(event, targetIndex) {
+          const payload = parseBuilderDragPayload(event.dataTransfer.getData(BUILDER_DRAG_MIME));
+          builderState.value.dropTargetUid = null;
+          if (!payload) return;
+
+          if (payload.type === 'palette') {
+            addNodeToCanvas(createInputNodeFromPaletteItem(payload.item), targetIndex < 0 ? toolForm.value.inputNodes.length : targetIndex);
+            return;
+          }
+
+          if (payload.type === 'canvas') {
+            moveCanvasNode(payload.index, targetIndex);
+          }
+        }
+
+        function parseBuilderDragPayload(rawPayload) {
+          try {
+            return rawPayload ? JSON.parse(rawPayload) : null;
+          } catch (error) {
+            return null;
+          }
+        }
+
+        function moveCanvasNode(fromIndex, toIndex) {
+          if (fromIndex === null || fromIndex === undefined || fromIndex < 0) return;
+          const nextNodes = [...toolForm.value.inputNodes];
+          const [movingNode] = nextNodes.splice(fromIndex, 1);
+          if (!movingNode) return;
+
+          const adjustedIndex = toIndex < 0
+            ? nextNodes.length
+            : Math.min(toIndex > fromIndex ? toIndex - 1 : toIndex, nextNodes.length);
+          nextNodes.splice(adjustedIndex, 0, movingNode);
+          toolForm.value.inputNodes = nextNodes;
+          selectBuilderNode(movingNode.uid);
+          builderState.value.draggedCanvasIndex = null;
+        }
+
+        function openBuilderUploadModal() {
+          builderState.value.showUploadModal = true;
+        }
+
+        function closeBuilderUploadModal() {
+          builderState.value.showUploadModal = false;
+          builderState.value.uploadDragOver = false;
+        }
+
+        function openApiCallModal() {
+          builderState.value.showApiModal = true;
+        }
+
+        async function handleBuilderFileDrop(event) {
+          builderState.value.uploadDragOver = false;
+          const file = event.dataTransfer.files && event.dataTransfer.files[0];
+          if (file) await analyzeBuilderWorkflowFile(file);
+        }
+
+        async function handleBuilderFileSelect(event) {
+          const file = event.target.files && event.target.files[0];
+          event.target.value = '';
+          if (file) await analyzeBuilderWorkflowFile(file);
+        }
+
+        async function analyzeBuilderWorkflowFile(file) {
+          if (!file.name.toLowerCase().endsWith('.json')) {
+            window.alert('請上傳 JSON 格式的工作流文件');
+            return;
+          }
+
+          try {
+            const workflow = JSON.parse(await readFileAsText(file));
+            const analysis = analyzeWorkflowInBrowser(workflow);
+            builderState.value.workflowAnalysis = analysis;
+            builderState.value.workflowFileName = file.name;
+            toolBuilderMode.value = 'builder';
+          } catch (error) {
+            window.alert(error.message || '工作流 JSON 分析失敗');
+          }
+        }
+
+        function readFileAsText(file) {
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (event) => resolve(event.target.result);
+            reader.onerror = () => reject(new Error('讀取工作流文件失敗'));
+            reader.readAsText(file);
+          });
+        }
+
+        function analyzeWorkflowInBrowser(rawWorkflow) {
+          if (!rawWorkflow || typeof rawWorkflow !== 'object' || Array.isArray(rawWorkflow)) {
+            throw new Error('工作流 JSON 必須是一個以節點 ID 為鍵的物件');
+          }
+
+          const nodeEntries = Object.entries(rawWorkflow);
+          if (!nodeEntries.length) {
+            throw new Error('工作流 JSON 不包含任何節點');
+          }
+
+          const nodes = [];
+          const fields = [];
+
+          nodeEntries.forEach(([nodeId, node]) => {
+            if (!node || typeof node !== 'object') return;
+
+            const classType = String(node.class_type || '').trim();
+            const title = String(node._meta?.title || classType || nodeId).trim();
+            const inputs = node.inputs && typeof node.inputs === 'object' ? node.inputs : {};
+            const nodeSummary = {
+              nodeId: String(nodeId),
+              classType,
+              title,
+              fields: []
+            };
+
+            if (isWorkflowModelLoaderClass(classType)) {
+              nodeSummary.skipped = true;
+              nodeSummary.skipReason = '模型/檢查點載入節點，預設排除';
+              nodes.push(nodeSummary);
+              return;
+            }
+
+            Object.entries(inputs).forEach(([fieldName, value]) => {
+              if (isWorkflowConnection(value)) return;
+              if (isIgnorableWorkflowInput(classType, fieldName, value)) return;
+
+              const dataType = inferWorkflowDataType(classType, fieldName, value);
+              const field = {
+                uid: `wf-${nodeId}-${fieldName}`,
+                nodeId: String(nodeId),
+                fieldName: String(fieldName),
+                key: String(fieldName),
+                dataType,
+                dataTypeLabel: dataTypeLabel(dataType),
+                classType,
+                nodeTitle: title,
+                label: humanizeBuilderLabel(fieldName),
+                defaultValue: normalizeBuilderDefaultValue(value, dataType),
+                required: dataType === 'image' || dataType === 'video' || dataType === 'audio',
+                placeholder: '',
+                options: []
+              };
+
+              fields.push(field);
+              nodeSummary.fields.push(field);
+            });
+
+            nodes.push(nodeSummary);
+          });
+
+          return {
+            nodeCount: nodeEntries.length,
+            inputCount: fields.length,
+            nodes,
+            fields
+          };
+        }
+
+        function isWorkflowConnection(value) {
+          return Array.isArray(value)
+            && value.length === 2
+            && typeof value[0] === 'string'
+            && Number.isInteger(value[1]);
+        }
+
+        function isWorkflowConnectionHint(fieldName) {
+          return /^(image|images?|video|audio|mask|latent|samples?|positive|negative|clip|guider|sampler|sigmas|noise|conditioning|model_patches|model_options|dit)$/i.test(fieldName);
+        }
+
+        function isWorkflowModelLoaderClass(classType) {
+          return [
+            /^CheckpointLoader/i,
+            /^CLIPLoader/i,
+            /^ControlNetLoader/i,
+            /^DiffusersLoader/i,
+            /^DualCLIPLoader/i,
+            /^LoraLoader/i,
+            /^LTXICLoRALoaderModelOnly$/i,
+            /^LTXVAudioVAELoader$/i,
+            /^LTXAVTextEncoderLoader$/i,
+            /^PhotoMakerLoader/i,
+            /^PulIDModelLoader/i,
+            /^StyleModelLoader/i,
+            /^T2IAdapterLoader/i,
+            /^UNETLoader/i,
+            /^UpscaleModelLoader/i,
+            /^VAELoader/i,
+            /^unCLIPCheckpointLoader/i,
+            /ModelLoaderModelOnly/i,
+            /LoadDiT/i,
+            /LoadVAEModel/i,
+            /LoadAudioModel/i,
+            /Load Text Encoder/i,
+            /FlashVSR_SM_Model$/i,
+            /SeedVR2Load/i
+          ].some((pattern) => pattern.test(classType || ''));
+        }
+
+        function isIgnorableWorkflowInput(classType, fieldName, value) {
+          if (['output', 'unique_id', 'prompt', 'extra_pnginfo'].includes(fieldName)) return true;
+          if (isWorkflowModelLoaderClass(classType)) return true;
+          if (isWorkflowConnectionHint(fieldName) && (value === null || value === undefined || value === '')) return true;
+          return value === null || value === undefined;
+        }
+
+        function inferWorkflowDataType(classType, fieldName, value) {
+          const lowerName = String(fieldName || '').toLowerCase();
+          const lowerClass = String(classType || '').toLowerCase();
+          if (typeof value === 'boolean') return 'switch';
+          if (lowerName === 'video') return 'video';
+          if (lowerName === 'audio') return 'audio';
+          if (lowerName === 'mask') return 'image';
+          if (lowerName === 'image' && lowerClass.includes('loadimage')) return 'image';
+
+          if (typeof value === 'string') {
+            if (/\.(mp4|webm|mov|avi|mkv|m4v)$/i.test(value)) return 'video';
+            if (/\.(mp3|wav|flac|ogg|m4a|aac)$/i.test(value)) return 'audio';
+            if (/\.(png|jpg|jpeg|webp|gif|bmp|tif|tiff|exr)$/i.test(value)) return 'image';
+          }
+
+          if ([
+            'aspect_ratio',
+            'fit',
+            'method',
+            'scale_to_side',
+            'force_size',
+            'format',
+            'pix_fmt',
+            'color_correction',
+            'offload_device',
+            'crop',
+            'resize_type',
+            'sage_attention'
+          ].includes(lowerName)) return 'select';
+
+          if (lowerName === 'seed' || lowerName === 'noise_seed') return 'number';
+          if (['prompt', 'text', 'description'].some((keyword) => lowerName.includes(keyword))
+            || lowerClass.includes('textmultiline')
+            || lowerClass.includes('cliptextencode')) return 'textarea';
+          if (['filename_prefix', 'background_color', 'round_to_multiple', 'sigmas', 'preview_rate', 'color'].includes(lowerName)) return 'text';
+          if (typeof value === 'number') return 'number';
+          if (typeof value === 'string' && /^-?\d+(\.\d+)?$/.test(value)) return 'number';
+          return 'text';
+        }
+
+        function addWorkflowFieldToCanvas(field) {
+          if (isWorkflowFieldAdded(field)) return;
+          addNodeToCanvas(createInputNodeFromField(field));
+        }
+
+        function addAllWorkflowFieldsToCanvas() {
+          const fields = builderState.value.workflowAnalysis?.fields || [];
+          fields.forEach((field) => {
+            if (!isWorkflowFieldAdded(field)) {
+              addNodeToCanvas(createInputNodeFromField(field));
+            }
+          });
+        }
+
+        function autoApplyAnalysis() {
+          if (!builderState.value.workflowAnalysis) return;
+          toolForm.value.inputNodes = [];
+          addAllWorkflowFieldsToCanvas();
+          resetBuilderSelection();
+          resetToolTestValues();
+        }
+
+        function isWorkflowFieldAdded(field) {
+          return toolForm.value.inputNodes.some((node) => (
+            String(node.nodeId) === String(field.nodeId)
+            && String(node.fieldName) === String(field.fieldName)
+          ));
+        }
+
+        async function copyInputNodesJson() {
+          const text = inputNodesApiPreview.value;
+          try {
+            await navigator.clipboard.writeText(text);
+            window.alert('已複製 JSON');
+          } catch (error) {
+            window.prompt('複製 JSON', text);
+          }
+        }
+
         function resetToolTestValues() {
           const nextValues = {};
 
           toolForm.value.inputNodes.forEach((node) => {
-            if (node.dataType === 'image' || node.dataType === 'video') {
+            if (node.dataType === 'image' || node.dataType === 'video' || node.dataType === 'audio') {
               nextValues[node.key] = '';
               return;
             }
@@ -2356,6 +4443,17 @@
           }
         }
 
+        async function loadMenus() {
+          const response = await adminFetch('/api/admin/menus');
+          const payload = await response.json();
+
+          if (!payload.success) {
+            throw new Error(payload.message || 'Menu 列表載入失敗');
+          }
+
+          menus.value = payload.data;
+        }
+
         async function loadUsers() {
           const response = await adminFetch('/api/admin/users');
           const payload = await response.json();
@@ -2415,6 +4513,35 @@
 
           await loadCategories();
           resetCategoryForm();
+        }
+
+        async function saveMenu() {
+          const payload = {
+            id: menuForm.value.id,
+            parentId: menuForm.value.parentId,
+            menuKey: menuForm.value.menuKey,
+            label: menuForm.value.label,
+            mark: menuForm.value.mark,
+            path: menuForm.value.path,
+            targetType: menuForm.value.targetType,
+            sortOrder: menuForm.value.sortOrder,
+            status: menuForm.value.status
+          };
+
+          const response = await adminFetch('/api/admin/menus', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const result = await response.json();
+
+          if (!result.success) {
+            window.alert(result.message || 'Menu 儲存失敗');
+            return;
+          }
+
+          await loadMenus();
+          resetMenuForm();
         }
 
         async function saveUser() {
@@ -2495,17 +4622,7 @@
             instanceType: toolForm.value.instanceType,
             status: toolForm.value.status || 'draft',
             sortOrder: 100,
-            inputNodes: toolForm.value.inputNodes.map((node) => ({
-              nodeId: node.nodeId,
-              fieldName: node.fieldName,
-              key: node.key,
-              dataType: node.dataType,
-              label: node.label,
-              placeholder: node.placeholder,
-              defaultValue: node.defaultValue,
-              required: node.required,
-              options: node.options
-            }))
+            inputNodes: toolForm.value.inputNodes.map(normalizeInputNodeForSave)
           };
 
           const response = await adminFetch('/api/admin/tools', {
@@ -2521,6 +4638,18 @@
           }
 
           window.localStorage.removeItem(LAST_EDITING_TOOL_ID_KEY);
+          if (result.data?.id) {
+            const savedTool = {
+              ...result.data,
+              nodeId: result.data.inputNodes?.[0]?.nodeId || '待配置'
+            };
+            const savedToolIndex = tools.value.findIndex((tool) => tool.id === savedTool.id);
+            if (savedToolIndex >= 0) {
+              tools.value.splice(savedToolIndex, 1, savedTool);
+            } else {
+              tools.value.unshift(savedTool);
+            }
+          }
           await loadTools();
           navigateTo('/admin/tools');
         }
@@ -2879,6 +5008,7 @@
         async function loadAdminData() {
           await Promise.all([
             loadCategories(),
+            loadMenus(),
             loadTools(),
             loadUsers(),
             loadTasks()
@@ -2927,6 +5057,12 @@
           categoryForm,
           creditForm,
           creditLedger,
+          menus,
+          menuForm,
+          menuTargetTypes,
+          menuTree,
+          parentMenuOptions,
+          selectedCustomMenu,
           backendUsers,
           frontendUsers,
           availableUserRoleOptions,
@@ -2934,6 +5070,7 @@
           filteredFrontendUsers,
           filteredTasks,
           formatJson,
+          getAdminUploadAccept,
           getTaskUserLabel,
           filteredTools,
           getTaskStatusClass,
@@ -2941,29 +5078,55 @@
           handleUserAccountTypeChange,
           isTestingTool,
           addInputNode,
+          addAllWorkflowFieldsToCanvas,
           addNodeOption,
+          addPaletteItemToCanvas,
+          addWorkflowFieldToCanvas,
           adjustUserCredits,
+          autoApplyAnalysis,
+          builderPalette,
+          builderState,
+          closeBuilderUploadModal,
+          copyInputNodesJson,
+          dataTypeLabel,
           handlePrimaryAction,
+          handleBuilderFileDrop,
+          handleBuilderFileSelect,
           inputDataTypes,
+          inputNodesApiPreview,
           isActiveRoute,
+          isMediaBuilderNode,
+          isMediaDataType,
+          isWorkflowFieldAdded,
+          isAspectRatioNode,
           loginAdmin,
           logoutAdmin,
           membershipPlans,
           memberPlanOptions,
           metrics,
           navItems,
+          navigateMenu,
           navigateTo,
+          onCanvasDrop,
+          onCanvasItemDragStart,
+          onPaletteDragEnd,
+          onPaletteDragStart,
           openCreditForm,
+          openApiCallModal,
           openBackendUserForm,
+          openBuilderUploadModal,
           openTaskDetail,
           openToolForm,
           openUserForm,
           openUserTaskHistory,
           editCategory,
+          editMenu,
+          loadMenus,
           removeInputNode,
           removeNodeOption,
           resetCreditForm,
           resetCategoryForm,
+          resetMenuForm,
           resetToolTestValues,
           resetUserForm,
           handleTestFileChange,
@@ -2971,9 +5134,25 @@
           recentTasks,
           routeCards,
           saveCategory,
+          saveMenu,
           saveToolDraft,
           saveUser,
+          selectBuilderNode,
           selectedTask,
+          selectedBuilderNode,
+          mediaWorkflowNodeOptions,
+          getBuilderNodePropertyTitle,
+          getBuilderNodePropertyDescription,
+          getBuilderSpecificSectionTitle,
+          getBuilderPlaceholderExample,
+          getMediaFieldOptions,
+          getAcceptedFileTypes,
+          resolveUploadMode,
+          handleBuilderDataTypeChange,
+          handleBuilderUploadModeChange,
+          addAspectRatioOption,
+          handleBuilderMediaNodeChange,
+          handleBuilderMediaFieldChange,
           tasks,
           taskKeyword,
           taskStatusFilter,
@@ -2984,11 +5163,16 @@
           updateCurrentToolStatus,
           updateToolStatus,
           toolForm,
+          toolBuilderMode,
           toolKeyword,
           tools,
+          removeSelectedBuilderNode,
           userForm,
           userKeyword,
-          users
+          users,
+          uploadFileTypeOptions,
+          toggleAcceptedFileType,
+          workflowAnalysisAddedCount
         };
       }
     }).mount('#admin-app');

@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 
 const VALID_TOOL_STATUS = new Set(['draft', 'active', 'inactive']);
-const VALID_INPUT_DATA_TYPES = new Set(['image', 'video', 'number', 'textarea', 'text', 'select']);
+const VALID_INPUT_DATA_TYPES = new Set(['image', 'video', 'audio', 'number', 'textarea', 'text', 'select', 'switch']);
 
 function createToolRepository(database) {
   const statements = {
@@ -265,39 +265,143 @@ function createToolRepository(database) {
 
   function seedDefaultTools() {
     const { count } = statements.count.get();
-    if (count > 0) return;
+    if (count === 0) {
+      saveTool({
+        toolKey: 'remove-background',
+        name: '圖片背景移除',
+        slug: 'remove-background',
+        categoryId: 'image',
+        shortDescription: '上傳圖片後自動移除背景，輸出透明 PNG。',
+        detailHtml: '<h2>工具說明</h2><p>上傳圖片後，系統會自動移除背景並輸出透明 PNG，適合商品圖、頭像和素材處理。</p>',
+        previewImageUrl: 'https://images.unsplash.com/photo-1520975682031-a87d82c5b6d8?auto=format&fit=crop&w=900&q=80',
+        creditCost: 1,
+        workflowId: '2075488908690935809',
+        instanceType: 'default',
+        status: 'active',
+        sortOrder: 10,
+        inputNodes: [
+          {
+            nodeId: '9',
+            fieldName: 'image',
+            key: 'sourceImage',
+            dataType: 'image',
+            label: '上傳圖片',
+            placeholder: '請選擇 JPG、PNG 或 WebP 圖片',
+            required: true,
+            options: []
+          }
+        ],
+        outputConfig: {
+          outputType: 'image',
+          previewMode: 'image',
+          fallbackPaths: ['fileUrl', 'url', 'file_url', 'download_url']
+        }
+      });
+    }
 
-    saveTool({
-      toolKey: 'remove-background',
-      name: '圖片背景移除',
-      slug: 'remove-background',
+    seedToolIfMissing({
+      toolKey: 'google-nano-banana-pro',
+      name: 'Google Nano Banana Pro',
+      slug: 'google-nano-banana-pro',
       categoryId: 'image',
-      shortDescription: '上傳圖片後自動移除背景，輸出透明 PNG。',
-      detailHtml: '<h2>工具說明</h2><p>上傳圖片後，系統會自動移除背景並輸出透明 PNG，適合商品圖、頭像和素材處理。</p>',
-      previewImageUrl: 'https://images.unsplash.com/photo-1520975682031-a87d82c5b6d8?auto=format&fit=crop&w=900&q=80',
+      shortDescription: 'Use Nano Banana Pro to transform reference images into polished banners, posters, and product visuals.',
+      topDetailHtml: '<p>Upload up to 8 reference images, describe the banner or visual you want, then generate a new image with Google Nano Banana Pro.</p>',
+      detailHtml: '<h2>Best for</h2><p>Marketing banners, product posters, social visuals, creative composites, and image-to-image reference generation.</p>',
+      previewImageUrl: 'https://images.unsplash.com/photo-1611224923853-80b023f02d71?auto=format&fit=crop&w=900&q=80',
       creditCost: 1,
-      workflowId: '2075488908690935809',
+      workflowId: 'kie:nano-banana-pro',
       instanceType: 'default',
       status: 'active',
-      sortOrder: 10,
+      sortOrder: 20,
       inputNodes: [
         {
-          nodeId: '9',
-          fieldName: 'image',
-          key: 'sourceImage',
+          nodeId: 'kie-input',
+          fieldName: 'image_input',
+          key: 'image_input',
           dataType: 'image',
-          label: '上傳圖片',
-          placeholder: '請選擇 JPG、PNG 或 WebP 圖片',
+          uploadMode: 'multiple',
+          label: 'Reference Images',
+          placeholder: 'Upload JPG, PNG, or WebP images',
+          required: false,
+          maxFiles: 8,
+          uploadColumns: 4,
+          maxFileSizeMb: 30,
+          compressQuality: 90,
+          acceptedFileTypes: ['image'],
+          options: []
+        },
+        {
+          nodeId: 'kie-input',
+          fieldName: 'prompt',
+          key: 'prompt',
+          dataType: 'textarea',
+          label: 'Prompt',
+          placeholder: 'Describe the banner, poster, layout, style, text, and details you want',
+          defaultValue: 'Create a clean product banner with strong composition, polished lighting, readable headline space, premium commercial styling, and a professional advertising layout.',
           required: true,
           options: []
+        },
+        {
+          nodeId: 'kie-input',
+          fieldName: 'aspect_ratio',
+          key: 'aspect_ratio',
+          dataType: 'select',
+          label: 'Aspect Ratio',
+          defaultValue: '16:9',
+          required: false,
+          options: [
+            { label: 'Auto', value: 'auto' },
+            { label: '1:1', value: '1:1' },
+            { label: '2:3', value: '2:3' },
+            { label: '3:2', value: '3:2' },
+            { label: '3:4', value: '3:4' },
+            { label: '4:3', value: '4:3' },
+            { label: '4:5', value: '4:5' },
+            { label: '5:4', value: '5:4' },
+            { label: '9:16', value: '9:16' },
+            { label: '16:9', value: '16:9' },
+            { label: '21:9', value: '21:9' }
+          ]
+        },
+        {
+          nodeId: 'kie-input',
+          fieldName: 'resolution',
+          key: 'resolution',
+          dataType: 'select',
+          label: 'Resolution',
+          defaultValue: '1K',
+          required: false,
+          options: [
+            { label: '1K', value: '1K' },
+            { label: '2K', value: '2K' },
+            { label: '4K', value: '4K' }
+          ]
+        },
+        {
+          nodeId: 'kie-input',
+          fieldName: 'output_format',
+          key: 'output_format',
+          dataType: 'select',
+          label: 'Output Format',
+          defaultValue: 'png',
+          required: false,
+          options: [
+            { label: 'PNG', value: 'png' },
+            { label: 'JPG', value: 'jpg' }
+          ]
         }
       ],
       outputConfig: {
         outputType: 'image',
         previewMode: 'image',
-        fallbackPaths: ['fileUrl', 'url', 'file_url', 'download_url']
+        fallbackPaths: ['url', 'fileUrl', 'file_url', 'download_url', 'resultUrls']
       }
     });
+  }
+
+  function seedToolIfMissing(tool) {
+    if (statements.findByToolKey.get(tool.toolKey)) return;
+    saveTool(tool);
   }
 
   return {
@@ -317,7 +421,7 @@ function createToolRepository(database) {
 function normalizeToolPayload(rawTool) {
   const tool = rawTool && typeof rawTool === 'object' ? rawTool : {};
   const inputNodes = Array.isArray(tool.inputNodes) ? tool.inputNodes : [];
-  const normalizedInputNodes = inputNodes.map(normalizeInputNode);
+  const normalizedInputNodes = collapseTextInputNodes(inputNodes.map(normalizeInputNode));
   const status = String(tool.status || 'draft').trim();
 
   if (!tool.name || !String(tool.name).trim()) {
@@ -387,12 +491,55 @@ function normalizeInputNode(rawNode, index) {
     fieldName: String(node.fieldName).trim(),
     key: String(node.key || node.fieldName).trim(),
     dataType,
+    uploadMode: dataType === 'image' ? normalizeUploadMode(node.uploadMode) : 'single',
     label: String(node.label || '').trim(),
     placeholder: String(node.placeholder || '').trim(),
     defaultValue: node.defaultValue ?? '',
+    minValue: dataType === 'number' ? getOptionalNumberBoundary(node, ['minValue', 'min', 'minimum']) : '',
+    maxValue: dataType === 'number' ? getOptionalNumberBoundary(node, ['maxValue', 'max', 'maximum']) : '',
+    maxFiles: dataType === 'image' && normalizeUploadMode(node.uploadMode) === 'multiple' ? normalizePositiveInteger(node.maxFiles, 4) : 1,
+    uploadColumns: dataType === 'image' && normalizeUploadMode(node.uploadMode) === 'multiple' ? normalizePositiveInteger(node.uploadColumns, 3) : 1,
+    maxFileSizeMb: dataType === 'image' ? normalizePositiveInteger(node.maxFileSizeMb, 10) : '',
+    compressQuality: dataType === 'image' ? normalizePositiveInteger(node.compressQuality, 85) : '',
     required: Boolean(node.required),
+    acceptedFileTypes: normalizeAcceptedFileTypes(node.acceptedFileTypes, dataType),
     options: normalizeNodeOptions(node.options)
   };
+}
+
+function getOptionalNumberBoundary(node, keys) {
+  for (const key of keys) {
+    const value = normalizeOptionalNumberValue(node[key]);
+    if (value !== '') return value;
+  }
+
+  return '';
+}
+
+function normalizeOptionalNumberValue(value) {
+  if (value === undefined || value === null || value === '') return '';
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : '';
+}
+
+function normalizePositiveInteger(value, fallback) {
+  if (value === undefined || value === null || value === '') return fallback;
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) && numberValue > 0 ? Math.floor(numberValue) : fallback;
+}
+
+function normalizeUploadMode(value) {
+  return String(value || '').trim().toLowerCase() === 'multiple' ? 'multiple' : 'single';
+}
+
+function normalizeAcceptedFileTypes(rawTypes, dataType) {
+  const validTypes = new Set(['image', 'video', 'audio']);
+  if (!['image', 'video', 'audio'].includes(dataType)) return [];
+
+  const acceptedTypes = Array.isArray(rawTypes)
+    ? rawTypes.map((type) => String(type || '').trim()).filter((type) => validTypes.has(type))
+    : [];
+  return acceptedTypes.length ? Array.from(new Set(acceptedTypes)) : [dataType];
 }
 
 function normalizeNodeOptions(rawOptions) {
@@ -401,9 +548,18 @@ function normalizeNodeOptions(rawOptions) {
   return rawOptions
     .map((option) => ({
       label: String(option?.label || '').trim(),
-      value: String(option?.value || '').trim()
+      value: String(option?.value || '').trim(),
+      icon: String(option?.icon || '').trim(),
+      creditWeight: normalizeOptionWeight(option?.creditWeight)
     }))
     .filter((option) => option.label || option.value);
+}
+
+function normalizeOptionWeight(value) {
+  if (value === undefined || value === null || value === '') return 1;
+  const numberValue = Number(value);
+  if (!Number.isFinite(numberValue) || numberValue <= 0) return 1;
+  return Math.floor(numberValue);
 }
 
 function normalizeOutputConfig(outputConfig) {
@@ -418,7 +574,26 @@ function normalizeOutputConfig(outputConfig) {
   return outputConfig;
 }
 
+function collapseTextInputNodes(inputNodes) {
+  if (!Array.isArray(inputNodes) || !inputNodes.length) return [];
+
+  const textareaFieldNames = new Set(
+    inputNodes
+      .filter((node) => node && node.dataType === 'textarea')
+      .map((node) => String(node.fieldName || node.key || '').trim().toLowerCase())
+      .filter(Boolean)
+  );
+
+  return inputNodes.filter((node) => {
+    if (!node || node.dataType !== 'text') return true;
+    const fieldName = String(node.fieldName || node.key || '').trim().toLowerCase();
+    return !textareaFieldNames.has(fieldName);
+  });
+}
+
 function mapToolRecord(record) {
+  const inputNodes = collapseTextInputNodes(parseJson(record.input_nodes_json, []));
+
   return {
     id: record.id,
     toolKey: record.tool_key,
@@ -448,7 +623,7 @@ function mapToolRecord(record) {
     lastTestError: record.last_test_error || '',
     lastTestedAt: record.last_tested_at,
     sortOrder: record.sort_order,
-    inputNodes: parseJson(record.input_nodes_json, []),
+    inputNodes,
     outputConfig: parseJson(record.output_config_json, {}),
     createdAt: record.created_at,
     updatedAt: record.updated_at

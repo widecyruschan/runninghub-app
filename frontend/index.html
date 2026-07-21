@@ -679,8 +679,10 @@
 
     .tool-main {
       min-width: 0;
-      display: flex;
-      flex-direction: column;
+      display: block;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(248, 250, 252, 0) 360px),
+        var(--page-bg);
     }
 
     .hero {
@@ -694,11 +696,14 @@
     }
 
     .tool-hero {
-      width: min(1180px, 100%);
+      width: 100%;
+      padding: 0;
     }
 
     .hero-copy {
-      max-width: 890px;
+      max-width: 860px;
+      margin: 0 auto;
+      text-align: center;
     }
 
     .eyebrow {
@@ -707,23 +712,23 @@
       font-weight: 800;
       letter-spacing: 0.34em;
       text-transform: uppercase;
-      margin-bottom: 22px;
+      margin-bottom: 16px;
     }
 
     .hero-title {
       color: var(--strong);
-      font-size: clamp(44px, 6.2vw, 68px);
-      line-height: 0.98;
+      font-size: clamp(34px, 4.2vw, 54px);
+      line-height: 1.04;
       font-weight: 850;
       letter-spacing: 0;
-      margin-bottom: 24px;
+      margin-bottom: 16px;
     }
 
     .hero-description {
       color: #334155;
-      font-size: clamp(17px, 1.6vw, 20px);
-      line-height: 1.75;
-      margin-bottom: 28px;
+      font-size: clamp(15px, 1.3vw, 18px);
+      line-height: 1.65;
+      margin: 0 auto;
     }
 
     .tag-list {
@@ -961,11 +966,38 @@
     }
 
     .tool-card {
-      width: min(1180px, 100%);
+      width: min(1480px, 100%);
+      display: grid;
+      grid-template-columns: minmax(360px, 0.42fr) minmax(0, 1fr);
+      gap: 0;
+      margin: 0 auto;
+      padding: 34px clamp(20px, 4vw, 34px) 48px;
+      border-radius: 8px;
+    }
+
+    .tool-workspace-left,
+    .tool-workspace-right {
+      min-width: 0;
+    }
+
+    .tool-workspace-left {
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid #e3ebf4;
+      background: #ffffff;
+      border-radius: 8px 0 0 8px;
+      box-shadow: 0 20px 55px rgba(27, 39, 52, 0.08);
+      overflow: hidden;
+    }
+
+    .tool-workspace-right {
       display: grid;
       gap: 22px;
-      margin: 0 auto;
-      padding: 0 clamp(20px, 4vw, 30px) 48px;
+      align-content: start;
+      background: #fbfdff;
+      padding: clamp(24px, 4vw, 46px);
+      border-radius: 0 8px 8px 0;
+      box-shadow: 0 20px 55px rgba(27, 39, 52, 0.08);
     }
 
     .tool-input-panel,
@@ -977,6 +1009,50 @@
       overflow: hidden;
     }
 
+    .tool-input-panel {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+    }
+
+    .tool-workspace-right .result-panel {
+      box-shadow: 0 18px 45px rgba(27, 39, 52, 0.08);
+    }
+
+    .tool-workspace-left .tool-detail-section,
+    .tool-workspace-right .tool-detail-section {
+      width: 100%;
+    }
+
+    .tool-panel-header,
+    .result-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      border-bottom: 1px solid #e3ebf4;
+      background: #fbfdff;
+      padding: 18px;
+    }
+
+    .tool-panel-title,
+    .result-title {
+      color: var(--strong);
+      font-size: 18px;
+      line-height: 1.25;
+      font-weight: 850;
+    }
+
+    .tool-panel-description {
+      margin-top: 5px;
+      color: #64748b;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
     .media-upload-card {
       margin: 16px;
       border: 1px dashed #cbd8e6;
@@ -986,9 +1062,17 @@
 
     .form-action-row {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
       gap: 10px;
-      align-items: center;
+      align-items: stretch;
+      border-top: 1px solid #edf2f7;
+      margin-top: auto;
+      padding: 16px;
+    }
+
+    .form-action-row .primary-button,
+    .form-action-row .notice,
+    .form-action-row .status-box {
+      width: 100%;
     }
 
     .file-name {
@@ -1071,7 +1155,7 @@
     }
 
     .image-stage {
-      min-height: 382px;
+      min-height: 220px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1088,15 +1172,15 @@
     }
 
     .image-stage.is-empty {
-      min-height: 382px;
-      border: 2px dashed #c9d6e4;
-      background: #f6f9fc;
+      min-height: 220px;
+      border: 1px dashed #b9cadb;
+      background: #f7fafc;
     }
 
     .upload-target {
       width: 100%;
       height: 100%;
-      min-height: 378px;
+      min-height: 216px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -1106,6 +1190,7 @@
       color: #53657a;
       text-align: center;
       cursor: pointer;
+      transition: background 0.18s ease, color 0.18s ease;
     }
 
     .upload-target.is-dragover {
@@ -1118,7 +1203,7 @@
       height: 58px;
       display: grid;
       place-items: center;
-      border-radius: 16px;
+      border-radius: 8px;
       background: #ffffff;
       color: var(--mint-dark);
       box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
@@ -1139,8 +1224,12 @@
     .preview-image {
       display: block;
       width: 100%;
-      max-height: 382px;
+      max-height: 320px;
       object-fit: contain;
+    }
+
+    .preview-audio {
+      width: min(460px, calc(100% - 32px));
     }
 
     .download-button {
@@ -1171,9 +1260,10 @@
 
     .dynamic-field-list {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 18px;
+      grid-template-columns: 1fr;
+      gap: 16px;
       padding: 18px;
+      border-top: 1px solid #edf2f7;
     }
 
     .dynamic-field {
@@ -1202,6 +1292,15 @@
       color: var(--strong);
       padding: 0 12px;
       outline: none;
+      transition: border-color 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    .dynamic-field input:focus,
+    .dynamic-field select:focus,
+    .dynamic-field textarea:focus,
+    .marketplace-search input:focus {
+      border-color: rgba(15, 118, 110, 0.55);
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.11);
     }
 
     .dynamic-field textarea {
@@ -1209,6 +1308,249 @@
       padding: 10px 12px;
       resize: vertical;
       line-height: 1.5;
+    }
+
+    .prompt-stack {
+      display: grid;
+      gap: 14px;
+    }
+
+    .prompt-block {
+      display: grid;
+      gap: 7px;
+    }
+
+    .prompt-block.is-negative textarea {
+      min-height: 110px;
+      background: #fbfcff;
+      border-style: dashed;
+    }
+
+    .prompt-label-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .prompt-toggle {
+      display: inline-flex;
+      gap: 6px;
+      border: 1px solid #d6dfeb;
+      border-radius: 999px;
+      padding: 4px;
+      background: #f8fafc;
+    }
+
+    .prompt-toggle button {
+      min-height: 30px;
+      border: 0;
+      border-radius: 999px;
+      padding: 0 12px;
+      background: transparent;
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .prompt-toggle button.is-active {
+      background: #4f46e5;
+      color: #ffffff;
+    }
+
+    .aspect-ratio-picker {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .aspect-ratio-option {
+      min-width: 92px;
+      min-height: 92px;
+      padding: 14px 12px;
+      border: 1px solid #d9e2ef;
+      border-radius: 8px;
+      background: #f7f9fc;
+      color: #0f172a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
+      font-weight: 750;
+    }
+
+    .aspect-ratio-option:hover {
+      border-color: rgba(99, 102, 241, 0.55);
+      background: #eef2ff;
+      transform: translateY(-1px);
+    }
+
+    .aspect-ratio-option.is-active {
+      border-color: #4f46e5;
+      background: #4f46e5;
+      color: #ffffff;
+      box-shadow: 0 12px 24px rgba(79, 70, 229, 0.24);
+    }
+
+    .aspect-ratio-icon {
+      border: 2px solid currentColor;
+      border-radius: 2px;
+      opacity: 0.92;
+      display: inline-block;
+    }
+
+    .aspect-ratio-option[data-ratio="auto"] .aspect-ratio-icon {
+      width: 32px;
+      height: 32px;
+    }
+
+    .aspect-ratio-option[data-ratio="1:1"] .aspect-ratio-icon {
+      width: 26px;
+      height: 26px;
+    }
+
+    .aspect-ratio-option[data-ratio="4:3"] .aspect-ratio-icon {
+      width: 30px;
+      height: 24px;
+    }
+
+    .aspect-ratio-option[data-ratio="3:4"] .aspect-ratio-icon {
+      width: 24px;
+      height: 30px;
+    }
+
+    .aspect-ratio-option[data-ratio="3:2"] .aspect-ratio-icon {
+      width: 30px;
+      height: 20px;
+    }
+
+    .aspect-ratio-option[data-ratio="2:3"] .aspect-ratio-icon {
+      width: 20px;
+      height: 30px;
+    }
+
+    .aspect-ratio-option[data-ratio="16:9"] .aspect-ratio-icon {
+      width: 30px;
+      height: 18px;
+    }
+    .aspect-ratio-option[data-ratio="21:9"] .aspect-ratio-icon {
+      width: 42px;
+      height: 18px;
+    }
+
+    .aspect-ratio-option[data-ratio="9:16"] .aspect-ratio-icon {
+      width: 18px;
+      height: 30px;
+    }
+
+    .aspect-ratio-label {
+      font-size: 18px;
+      line-height: 1.2;
+      font-weight: 850;
+    }
+
+    .dynamic-seed-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .dynamic-seed-row input {
+      min-width: 0;
+    }
+
+    .seed-roll-button {
+      width: 44px;
+      height: 42px;
+      border-radius: 6px;
+      border: 1px solid #cdd9e6;
+      background: #f8fafc;
+      color: #17324b;
+      font-size: 13px;
+      font-weight: 850;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+    }
+
+    .seed-roll-button:hover {
+      border-color: rgba(15, 118, 110, 0.45);
+      background: #ecfdf8;
+      transform: translateY(-1px);
+    }
+
+    .seed-roll-button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .seed-lock {
+      min-height: 42px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #334155;
+      font-weight: 700;
+      padding: 0 8px;
+      border: 1px solid #d6dfeb;
+      border-radius: 6px;
+      background: #ffffff;
+    }
+
+    .seed-lock input {
+      width: 16px;
+      min-height: 16px;
+      height: 16px;
+      padding: 0;
+      accent-color: var(--mint);
+    }
+
+    .dynamic-slider-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 110px;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .dynamic-slider-row input[type="range"] {
+      padding: 0;
+      accent-color: var(--mint-dark);
+      cursor: pointer;
+      min-height: 32px;
+    }
+
+    .dynamic-slider-value {
+      text-align: center;
+    }
+
+    .dynamic-slider-meta {
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .dynamic-switch {
+      min-height: 42px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: #334155;
+      font-weight: 700;
+    }
+
+    .dynamic-switch input {
+      width: 18px;
+      min-height: 18px;
+      height: 18px;
+      padding: 0;
+      accent-color: var(--mint);
     }
 
     .status-box {
@@ -1236,18 +1578,13 @@
 
     .result-panel {
       display: grid;
-      gap: 14px;
-      padding: 16px;
-    }
-
-    .result-title {
-      color: var(--strong);
-      font-size: 18px;
-      font-weight: 850;
+      gap: 16px;
+      padding: 0 16px 16px;
+      align-self: start;
     }
 
     .result-media-card {
-      min-height: 320px;
+      min-height: 420px;
       display: grid;
       place-items: center;
       position: relative;
@@ -1279,7 +1616,7 @@
 
     .result-compare-slider {
       --compare-position: 50%;
-      min-height: 320px;
+      min-height: 420px;
       aspect-ratio: 16 / 9;
       position: relative;
       border-radius: 8px;
@@ -1386,11 +1723,12 @@
     }
 
     .result-empty {
-      min-height: 220px;
+      min-height: 280px;
       display: grid;
       place-items: center;
       border: 1px dashed #cbd8e6;
       border-radius: 8px;
+      background: #fbfdff;
       color: #64748b;
       font-size: 14px;
       font-weight: 750;
@@ -1472,9 +1810,25 @@
 
       .form-action-row,
       .dynamic-field-list,
+      .dynamic-seed-row,
+      .dynamic-slider-row,
+      .tool-card,
       .member-grid,
       .member-page-header {
         grid-template-columns: 1fr;
+      }
+
+      .tool-card {
+        padding-top: 24px;
+      }
+
+      .tool-workspace-left,
+      .tool-workspace-right {
+        border-radius: 8px;
+      }
+
+      .tool-workspace-left {
+        border-right: 0;
       }
 
       .hero-copy {
@@ -1907,135 +2261,278 @@
         </aside>
 
         <div class="tool-main">
-          <section class="hero tool-hero">
-            <div class="hero-copy">
-              <p class="eyebrow">{{ toolCategoryLabel }}</p>
-              <h1 class="hero-title">{{ toolTitle }}</h1>
-              <p class="hero-description">{{ toolDescription }}</p>
+          <section class="tool-card" :aria-label="`${toolTitle} workspace`">
+            <div class="tool-workspace-left">
+              <section v-if="topDetailHtml" class="tool-detail-section" aria-label="Tool page top description">
+                <div class="tool-detail-content" v-html="topDetailHtml"></div>
+              </section>
+
+              <section class="tool-input-panel">
+                <div class="tool-panel-header">
+                  <div>
+                    <h2 class="tool-panel-title">Create Task</h2>
+                    <p class="tool-panel-description">Upload your source file, adjust the parameters, then start generation.</p>
+                  </div>
+                </div>
+                <div
+                  v-for="node in mediaInputNodes"
+                  :key="node.key"
+                  class="media-upload-card"
+                >
+                  <div v-if="isMultipleImageUploadNode(node)" class="multi-image-upload">
+                    <div class="multi-image-grid" :style="getMultiImageGridStyle(node)">
+                      <label
+                        v-for="(item, index) in getUploadedImages(node)"
+                        :key="item.id"
+                        class="multi-image-item"
+                      >
+                        <img :src="item.preview" alt="Uploaded image preview">
+                        <button type="button" class="multi-image-remove" :aria-label="`Remove image ${index + 1}`" @click="removeUploadedImage(node, index)">×</button>
+                      </label>
+                      <label
+                        v-if="canAddMoreImages(node)"
+                        class="multi-image-add"
+                        :class="{ 'is-dragover': isDragover }"
+                        @dragover.prevent="isDragover = true"
+                        @dragleave="isDragover = false"
+                        @drop.prevent="handleMediaDrop(node, $event)"
+                      >
+                        <span class="upload-icon" aria-hidden="true">⇧</span>
+                        <span class="upload-title">Add Image</span>
+                        <span class="upload-hint">{{ getUploadMetaHint(node) }}</span>
+                        <input
+                          class="hidden-input"
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          @change="handleMediaFileSelect(node, $event)"
+                        >
+                      </label>
+                    </div>
+                  </div>
+                  <div v-else class="image-stage" :class="{ 'is-empty': !getMediaPreview(node) }">
+                    <label
+                      v-if="!getMediaPreview(node)"
+                      class="upload-target"
+                      :class="{ 'is-dragover': isDragover }"
+                      @dragover.prevent="isDragover = true"
+                      @dragleave="isDragover = false"
+                      @drop.prevent="handleMediaDrop(node, $event)"
+                    >
+                      <span class="upload-icon" aria-hidden="true">⇧</span>
+                      <span class="upload-title">{{ getDisplayText(node.label) || 'Upload File' }}</span>
+                      <span class="upload-hint">{{ getDisplayText(node.placeholder) || getUploadMetaHint(node) }}</span>
+                      <input
+                        class="hidden-input"
+                        type="file"
+                        :accept="getUploadAccept(node)"
+                        :multiple="isMultipleImageUploadNode(node)"
+                        @change="handleMediaFileSelect(node, $event)"
+                      >
+                    </label>
+                    <img
+                      v-else-if="node.dataType === 'image'"
+                      class="preview-image"
+                      :src="getMediaPreview(node)"
+                      alt="Input image preview"
+                    >
+                    <audio
+                      v-else-if="node.dataType === 'audio'"
+                      class="preview-audio"
+                      :src="getMediaPreview(node)"
+                      controls
+                    ></audio>
+                    <video
+                      v-else
+                      class="preview-image"
+                      :src="getMediaPreview(node)"
+                      controls
+                    ></video>
+                  </div>
+                </div>
+
+                <div v-if="dynamicInputFields.length" class="dynamic-field-list">
+                  <div
+                    v-for="field in dynamicInputFields"
+                    :key="field.key"
+                    class="dynamic-field"
+                    :class="{ 'is-full': field.dataType === 'textarea' || field.dataType === 'text' }"
+                  >
+                    <label :for="`field-${field.key}`">{{ getDisplayText(field.label) || field.key }}</label>
+                    <textarea
+                      v-if="field.dataType === 'textarea'"
+                      :id="`field-${field.key}`"
+                      v-model="formValues[field.key]"
+                      :placeholder="getDisplayText(field.placeholder)"
+                    ></textarea>
+                    <select
+                      v-else-if="field.dataType === 'select' && !isAspectRatioField(field)"
+                      :id="`field-${field.key}`"
+                      v-model="formValues[field.key]"
+                    >
+                      <option
+                        v-for="option in field.options"
+                        :key="option.value"
+                        :value="option.value"
+                      >
+                        {{ getDisplayText(option.label) || option.value }}
+                      </option>
+                    </select>
+                    <div v-else-if="isAspectRatioField(field)" class="aspect-ratio-picker">
+                      <button
+                        v-for="option in field.options"
+                        :key="option.value"
+                        type="button"
+                        class="aspect-ratio-option"
+                        :class="{ 'is-active': formValues[field.key] === option.value }"
+                        :data-ratio="option.value"
+                        @click="formValues[field.key] = option.value"
+                      >
+                        <span class="aspect-ratio-icon" aria-hidden="true"></span>
+                        <span class="aspect-ratio-label">{{ getDisplayText(option.label) || option.value }}</span>
+                      </button>
+                    </div>
+                    <label
+                      v-else-if="field.dataType === 'switch'"
+                      class="dynamic-switch"
+                      :for="`field-${field.key}`"
+                    >
+                      <input
+                        :id="`field-${field.key}`"
+                        v-model="formValues[field.key]"
+                        type="checkbox"
+                      >
+                      <span>{{ formValues[field.key] ? 'Enabled' : 'Disabled' }}</span>
+                    </label>
+                    <div v-else-if="isSeedField(field)" class="dynamic-seed-row">
+                      <input
+                        :id="`field-${field.key}`"
+                        v-model="formValues[field.key]"
+                        type="text"
+                        inputmode="numeric"
+                        placeholder="0 - 6148914691236517205"
+                      >
+                      <button
+                        type="button"
+                        class="seed-roll-button"
+                        :title="`Roll ${getDisplayText(field.label) || field.key}`"
+                        :disabled="lockedSeedFields[field.key]"
+                        @click="rollSeedField(field)"
+                      >Roll</button>
+                      <label class="seed-lock">
+                        <input
+                          v-model="lockedSeedFields[field.key]"
+                          type="checkbox"
+                        >
+                        <span>Lock</span>
+                      </label>
+                    </div>
+                    <div v-else-if="field.dataType === 'number'" class="dynamic-slider-field">
+                      <div class="dynamic-slider-row">
+                        <input
+                          :id="`field-${field.key}`"
+                          v-model.number="formValues[field.key]"
+                          type="range"
+                          :min="getNumberFieldMin(field)"
+                          :max="getNumberFieldMax(field)"
+                          :step="getNumberFieldStep(field)"
+                          @input="clampNumberFieldValue(field)"
+                        >
+                        <input
+                          v-model.number="formValues[field.key]"
+                          class="dynamic-slider-value"
+                          type="number"
+                          :min="getNumberFieldMin(field)"
+                          :max="getNumberFieldMax(field)"
+                          :step="getNumberFieldStep(field)"
+                          @change="clampNumberFieldValue(field)"
+                        >
+                      </div>
+                      <div class="dynamic-slider-meta">
+                        <span>{{ getNumberFieldMin(field) }}</span>
+                        <span>{{ getNumberFieldMax(field) }}</span>
+                      </div>
+                    </div>
+                    <input
+                      v-else
+                      :id="`field-${field.key}`"
+                      v-model="formValues[field.key]"
+                      type="text"
+                      :placeholder="getDisplayText(field.placeholder)"
+                    >
+                  </div>
+                </div>
+
+                <div class="form-action-row">
+                  <div v-if="statusMessage" class="status-box" :class="statusClass">
+                    {{ statusMessage }}
+                  </div>
+                  <div v-else class="notice">
+                    <span aria-hidden="true">i</span>
+                    <span>{{ memberLoggedIn ? 'Credits are charged after the result is generated' : 'Please register or log in before using AI generation' }}</span>
+                  </div>
+                  <button
+                    class="primary-button"
+                    type="button"
+                    :disabled="!canExecute || isExecuting"
+                    @click="executeWorkflow"
+                  >
+                    {{ isExecuting ? 'Generating' : (memberLoggedIn ? 'Start Generation' : 'Log In to Generate') }}
+                  </button>
+                </div>
+              </section>
             </div>
 
-          </section>
-
-          <section class="tool-card" :aria-label="`${toolTitle} workspace`">
-            <section v-if="topDetailHtml" class="tool-detail-section" aria-label="Tool page top description">
-              <div class="tool-detail-content" v-html="topDetailHtml"></div>
-            </section>
-
-            <section class="tool-input-panel">
-              <div
-                v-for="node in mediaInputNodes"
-                :key="node.key"
-                class="media-upload-card"
-              >
-                <div class="image-stage" :class="{ 'is-empty': !getMediaPreview(node) }">
-                  <label
-                    v-if="!getMediaPreview(node)"
-                    class="upload-target"
-                    :class="{ 'is-dragover': isDragover }"
-                    @dragover.prevent="isDragover = true"
-                    @dragleave="isDragover = false"
-                    @drop.prevent="handleMediaDrop(node, $event)"
-                  >
-                    <span class="upload-icon" aria-hidden="true">⇧</span>
-                    <span class="upload-title">{{ getDisplayText(node.label) || 'Upload File' }}</span>
-                    <span class="upload-hint">{{ getDisplayText(node.placeholder) || getUploadMetaHint(node) }}</span>
-                    <input
-                      class="hidden-input"
-                      type="file"
-                      :accept="getUploadAccept(node)"
-                      @change="handleMediaFileSelect(node, $event)"
-                    >
-                  </label>
-                  <img
-                    v-else-if="node.dataType === 'image'"
-                    class="preview-image"
-                    :src="getMediaPreview(node)"
-                    alt="Input image preview"
-                  >
-                  <video
-                    v-else
-                    class="preview-image"
-                    :src="getMediaPreview(node)"
-                    controls
-                  ></video>
+            <div class="tool-workspace-right">
+              <section class="hero tool-hero">
+                <div class="hero-copy">
+                  <p class="eyebrow">{{ toolCategoryLabel }}</p>
+                  <h1 class="hero-title">{{ toolTitle }}</h1>
+                  <p class="hero-description">{{ toolDescription }}</p>
                 </div>
-              </div>
+              </section>
 
-              <div v-if="dynamicInputFields.length" class="dynamic-field-list">
+              <section class="result-panel" aria-label="Output result">
+                <div class="result-header">
+                  <h2 class="result-title">Output Result</h2>
+                </div>
                 <div
-                  v-for="field in dynamicInputFields"
-                  :key="field.key"
-                  class="dynamic-field"
-                  :class="{ 'is-full': field.dataType === 'textarea' || field.dataType === 'text' }"
+                  v-if="resultImageUrl && hasMediaResultComparison"
+                  class="result-compare-slider"
+                  :style="compareSliderStyle"
+                  role="img"
+                  aria-label="Before and After result comparison"
+                  @pointerdown="startCompareDrag"
+                  @pointermove="updateCompareFromPointer"
+                  @pointerup="stopCompareDrag"
+                  @pointercancel="stopCompareDrag"
+                  @pointerleave="stopCompareDrag"
                 >
-                  <label :for="`field-${field.key}`">{{ getDisplayText(field.label) || field.key }}</label>
-                  <textarea
-                    v-if="field.dataType === 'textarea'"
-                    :id="`field-${field.key}`"
-                    v-model="formValues[field.key]"
-                    :placeholder="getDisplayText(field.placeholder)"
-                  ></textarea>
-                  <select
-                    v-else-if="field.dataType === 'select'"
-                    :id="`field-${field.key}`"
-                    v-model="formValues[field.key]"
-                  >
-                    <option
-                      v-for="option in field.options"
-                      :key="option.value"
-                      :value="option.value"
+                  <div class="result-compare-layer result-compare-before">
+                    <img v-if="primaryMediaInput?.dataType === 'image'" :src="primaryMediaPreview" alt="Input image">
+                    <video v-else :src="primaryMediaPreview" muted playsinline></video>
+                  </div>
+                  <div class="result-compare-layer result-compare-after">
+                    <img
+                      v-if="isResultImage"
+                      :src="resultImageUrl"
+                      alt="Generated result"
                     >
-                      {{ getDisplayText(option.label) || option.value }}
-                    </option>
-                  </select>
-                  <input
-                    v-else
-                    :id="`field-${field.key}`"
-                    v-model="formValues[field.key]"
-                    :type="field.dataType === 'number' ? 'number' : 'text'"
-                    :placeholder="getDisplayText(field.placeholder)"
-                  >
+                    <video
+                      v-else
+                      :src="resultImageUrl"
+                      muted
+                      playsinline
+                    ></video>
+                  </div>
+                  <span class="result-compare-label is-before">Before</span>
+                  <span class="result-compare-caption">Real results</span>
+                  <span class="result-compare-label is-after">After</span>
+                  <span class="result-compare-line" aria-hidden="true"></span>
+                  <span class="result-compare-handle" aria-hidden="true">‹›</span>
                 </div>
-              </div>
-
-              <div class="form-action-row">
-                <div v-if="statusMessage" class="status-box" :class="statusClass">
-                  {{ statusMessage }}
-                </div>
-                <div v-else class="notice">
-                  <span aria-hidden="true">♢</span>
-                  <span>{{ memberLoggedIn ? 'Credits are charged after the result is generated' : 'Please register or log in before using AI generation' }}</span>
-                </div>
-                <button
-                  class="primary-button"
-                  type="button"
-                  :disabled="!canExecute || isExecuting"
-                  @click="executeWorkflow"
-                >
-                  ✨ {{ isExecuting ? 'Generating' : (memberLoggedIn ? 'Start Generation' : 'Log In to Generate') }}
-                </button>
-              </div>
-            </section>
-
-            <section class="result-panel" aria-label="Output result">
-              <h2 class="result-title">Output Result</h2>
-              <div
-                v-if="resultImageUrl && hasMediaResultComparison"
-                class="result-compare-slider"
-                :style="compareSliderStyle"
-                role="img"
-                aria-label="Before and After result comparison"
-                @pointerdown="startCompareDrag"
-                @pointermove="updateCompareFromPointer"
-                @pointerup="stopCompareDrag"
-                @pointercancel="stopCompareDrag"
-                @pointerleave="stopCompareDrag"
-              >
-                <div class="result-compare-layer result-compare-before">
-                  <img v-if="primaryMediaInput?.dataType === 'image'" :src="primaryMediaPreview" alt="Input image">
-                  <video v-else :src="primaryMediaPreview" muted playsinline></video>
-                </div>
-                <div class="result-compare-layer result-compare-after">
+                <div v-else-if="resultImageUrl" class="result-media-card">
+                  <span class="result-badge">Result</span>
                   <img
                     v-if="isResultImage"
                     :src="resultImageUrl"
@@ -2044,45 +2541,26 @@
                   <video
                     v-else
                     :src="resultImageUrl"
-                    muted
-                    playsinline
+                    controls
                   ></video>
                 </div>
-                <span class="result-compare-label is-before">Before</span>
-                <span class="result-compare-caption">Real results</span>
-                <span class="result-compare-label is-after">After</span>
-                <span class="result-compare-line" aria-hidden="true"></span>
-                <span class="result-compare-handle" aria-hidden="true">‹›</span>
-              </div>
-              <div v-else-if="resultImageUrl" class="result-media-card">
-                <span class="result-badge">Result</span>
-                <img
-                  v-if="isResultImage"
-                  :src="resultImageUrl"
-                  alt="Generated result"
+                <div v-else class="result-empty">
+                  Generated results will appear here.
+                </div>
+                <button
+                  class="download-button"
+                  type="button"
+                  :disabled="!resultImageUrl"
+                  @click="downloadResult"
                 >
-                <video
-                  v-else
-                  :src="resultImageUrl"
-                  controls
-                ></video>
-              </div>
-              <div v-else class="result-empty">
-                Generated results will appear here.
-              </div>
-              <button
-                class="download-button"
-                type="button"
-                :disabled="!resultImageUrl"
-                @click="downloadResult"
-              >
-                ⇩ Download Result
-              </button>
-            </section>
+                  ⇩ Download Result
+                </button>
+              </section>
 
-            <section v-if="toolDetailHtml" class="tool-detail-section" aria-label="Tool page bottom description">
-              <div class="tool-detail-content" v-html="toolDetailHtml"></div>
-            </section>
+              <section v-if="toolDetailHtml" class="tool-detail-section" aria-label="Tool page bottom description">
+                <div class="tool-detail-content" v-html="toolDetailHtml"></div>
+              </section>
+            </div>
           </section>
         </div>
       </div>
@@ -2160,6 +2638,7 @@
       setup() {
         const mediaFiles = ref({});
         const mediaPreviews = ref({});
+        const lockedSeedFields = ref({});
         const resultImageUrl = ref('');
         const comparePosition = ref(50);
         const isCompareDragging = ref(false);
@@ -2374,11 +2853,18 @@
 
         const mediaInputNodes = computed(() => {
           const inputNodes = toolConfig.value?.inputNodes || [];
-          return inputNodes.filter((node) => node.dataType === 'image' || node.dataType === 'video');
+          return inputNodes.filter((node) => node.dataType === 'image' || node.dataType === 'video' || node.dataType === 'audio');
         });
 
+        const isMultipleImageUploadNode = (node) => node?.dataType === 'image' && resolveUploadMode(node) === 'multiple';
+
         const primaryMediaInput = computed(() => mediaInputNodes.value[0] || null);
-        const primaryMediaPreview = computed(() => (primaryMediaInput.value ? mediaPreviews.value[primaryMediaInput.value.key] || '' : ''));
+        const primaryMediaPreview = computed(() => {
+          if (!primaryMediaInput.value) return '';
+          const previewValue = mediaPreviews.value[primaryMediaInput.value.key];
+          if (Array.isArray(previewValue)) return previewValue[0]?.preview || '';
+          return previewValue || '';
+        });
         const hasMediaResultComparison = computed(() => Boolean(primaryMediaPreview.value));
         const compareSliderStyle = computed(() => ({
           '--compare-position': `${comparePosition.value}%`
@@ -2410,7 +2896,7 @@
 
         const canExecute = computed(() => (
           memberLoggedIn.value
-          && mediaInputNodes.value.every((node) => !node.required || Boolean(mediaFiles.value[node.key]))
+          && mediaInputNodes.value.every((node) => !node.required || hasMediaUploadValue(node))
           && !isExecuting.value
         ));
 
@@ -2421,23 +2907,39 @@
         }));
 
         const handleMediaFileSelect = (node, event) => {
-          const file = event.target.files && event.target.files[0];
+          const files = Array.from(event.target.files || []);
+          if (!files.length) return;
+
+          if (isMultipleImageUploadNode(node)) {
+            setMultipleMediaFiles(node, files);
+            event.target.value = '';
+            return;
+          }
+
+          const file = files[0];
           if (file) setMediaFile(node, file);
           event.target.value = '';
         };
 
         const handleMediaDrop = (node, event) => {
           isDragover.value = false;
-          const expectedPrefix = node.dataType === 'video' ? 'video/' : 'image/';
-          const file = Array.from(event.dataTransfer.files).find(item => item.type.startsWith(expectedPrefix));
-          if (file) setMediaFile(node, file);
+          const acceptedPrefixes = getUploadMimePrefixes(node);
+          const files = Array.from(event.dataTransfer.files).filter((item) => acceptedPrefixes.some((prefix) => item.type.startsWith(prefix)));
+          if (!files.length) return;
+
+          if (isMultipleImageUploadNode(node)) {
+            setMultipleMediaFiles(node, files);
+            return;
+          }
+
+          setMediaFile(node, files[0]);
         };
 
         const setMediaFile = (node, file) => {
-          const expectedPrefix = node.dataType === 'video' ? 'video/' : 'image/';
-          const expectedLabel = node.dataType === 'video' ? 'video' : 'image';
+          const acceptedPrefixes = getUploadMimePrefixes(node);
+          const expectedLabel = getUploadTypeLabel(node);
 
-          if (!file.type.startsWith(expectedPrefix)) {
+          if (!acceptedPrefixes.some((prefix) => file.type.startsWith(prefix))) {
             setStatus(`Please upload a ${expectedLabel} file`, 'error');
             return;
           }
@@ -2466,11 +2968,125 @@
           reader.readAsDataURL(file);
         };
 
-        const getUploadAccept = (node) => (node.dataType === 'video' ? 'video/*' : 'image/*');
+        const setMultipleMediaFiles = async (node, files) => {
+          const acceptedPrefixes = getUploadMimePrefixes(node);
+          const existingItems = getUploadedImages(node);
+          const maxFiles = getMaxUploadFiles(node);
+          const nextItems = [...existingItems];
 
-        const getUploadMetaHint = (node) => (node.dataType === 'video' ? 'MP4 / WebM / MOV · Max 10MB' : 'JPG / PNG / WebP · Max 10MB');
+          for (const file of files) {
+            if (nextItems.length >= maxFiles) break;
+            if (!acceptedPrefixes.some((prefix) => file.type.startsWith(prefix))) {
+              continue;
+            }
+            if (file.size > getMaxUploadSizeBytes(node)) {
+              continue;
+            }
 
-        const getMediaPreview = (node) => mediaPreviews.value[node.key] || '';
+            const preview = await readFileAsDataUrl(file);
+            nextItems.push({
+              id: `${node.key}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+              file,
+              preview
+            });
+          }
+
+          if (!nextItems.length) {
+            setStatus(`Please upload a ${getUploadTypeLabel(node)} file`, 'error');
+            return;
+          }
+
+          mediaFiles.value = {
+            ...mediaFiles.value,
+            [node.key]: nextItems.map((item) => item.file)
+          };
+          mediaPreviews.value = {
+            ...mediaPreviews.value,
+            [node.key]: nextItems
+          };
+          resultImageUrl.value = '';
+          latestTaskId.value = '';
+          comparePosition.value = 50;
+          setStatus(`${getUploadTypeLabel(node)} loaded. You can start processing now.`, 'success');
+        };
+
+        const getAcceptedUploadTypes = (node) => {
+          const configuredTypes = Array.isArray(node.acceptedFileTypes) ? node.acceptedFileTypes : [];
+          const validTypes = configuredTypes.filter((type) => ['image', 'video', 'audio'].includes(type));
+          return validTypes.length ? validTypes : [node.dataType === 'audio' ? 'audio' : (node.dataType === 'video' ? 'video' : 'image')];
+        };
+
+        const getUploadMimePrefixes = (node) => getAcceptedUploadTypes(node).map((type) => `${type}/`);
+
+        const getUploadAccept = (node) => getAcceptedUploadTypes(node).map((type) => `${type}/*`).join(',');
+
+        const getUploadTypeLabel = (node) => getAcceptedUploadTypes(node).join(' / ');
+
+        function resolveUploadMode(node) {
+          const rawMode = String(node?.uploadMode || '').trim().toLowerCase();
+          return rawMode === 'multiple' ? 'multiple' : 'single';
+        }
+
+        const getUploadMetaHint = (node) => {
+          const hints = {
+            image: 'JPG / PNG / WebP',
+            video: 'MP4 / WebM / MOV',
+            audio: 'MP3 / WAV / M4A'
+          };
+          const sizeLabel = `Max ${getMaxUploadSizeMb(node)}MB`;
+          if (isMultipleImageUploadNode(node)) {
+            return `${getAcceptedUploadTypes(node).map((type) => hints[type]).filter(Boolean).join(' · ')} · ${sizeLabel} · ${getMaxUploadFiles(node)} files`;
+          }
+          return `${getAcceptedUploadTypes(node).map((type) => hints[type]).filter(Boolean).join(' · ')} · ${sizeLabel}`;
+        };
+
+        const getMediaPreview = (node) => {
+          const previewValue = mediaPreviews.value[node.key] || '';
+          if (Array.isArray(previewValue)) return previewValue[0]?.preview || '';
+          return previewValue;
+        };
+
+        const hasMediaUploadValue = (node) => {
+          const value = mediaFiles.value[node.key];
+          if (Array.isArray(value)) return value.length > 0;
+          return Boolean(value);
+        };
+
+        const getUploadedImages = (node) => {
+          const previewValue = mediaPreviews.value[node.key];
+          return Array.isArray(previewValue) ? previewValue : [];
+        };
+
+        const canAddMoreImages = (node) => getUploadedImages(node).length < getMaxUploadFiles(node);
+
+        const removeUploadedImage = (node, index) => {
+          const currentItems = getUploadedImages(node);
+          const nextItems = currentItems.filter((_, itemIndex) => itemIndex !== index);
+          mediaFiles.value = {
+            ...mediaFiles.value,
+            [node.key]: nextItems.map((item) => item.file)
+          };
+          mediaPreviews.value = {
+            ...mediaPreviews.value,
+            [node.key]: nextItems
+          };
+        };
+
+        const getMaxUploadFiles = (node) => {
+          const value = Number(node?.maxFiles);
+          return Number.isFinite(value) && value > 0 ? Math.floor(value) : 4;
+        };
+
+        const getMaxUploadSizeMb = (node) => {
+          const value = Number(node?.maxFileSizeMb);
+          return Number.isFinite(value) && value > 0 ? Math.floor(value) : 10;
+        };
+
+        const getMaxUploadSizeBytes = (node) => getMaxUploadSizeMb(node) * 1024 * 1024;
+
+        const getMultiImageGridStyle = (node) => ({
+          '--upload-columns': Math.max(1, Math.min(4, Number(node?.uploadColumns) || 3))
+        });
 
         const updateComparePosition = (event) => {
           const bounds = event.currentTarget.getBoundingClientRect();
@@ -2822,17 +3438,42 @@
 
         const initializeFormValues = (inputNodes) => {
           const nextValues = {};
+          const nextSeedLocks = {};
 
           inputNodes.forEach((node) => {
-            if (node.dataType === 'image' || node.dataType === 'video') return;
+            if (node.dataType === 'image' || node.dataType === 'video' || node.dataType === 'audio') {
+              if (isMultipleImageUploadNode(node)) {
+                nextValues[node.key] = [];
+              }
+              return;
+            }
+            if (isSeedField(node)) {
+              nextValues[node.key] = getSeedInitialValue(node);
+              nextSeedLocks[node.key] = false;
+              return;
+            }
+
             nextValues[node.key] = node.defaultValue ?? '';
 
             if (node.dataType === 'select' && !nextValues[node.key] && node.options?.[0]) {
               nextValues[node.key] = node.options[0].value;
             }
+
+            if (isAspectRatioField(node) && !nextValues[node.key]) {
+              nextValues[node.key] = node.options?.[0]?.value || 'auto';
+            }
+
+            if (node.dataType === 'switch') {
+              nextValues[node.key] = node.defaultValue === true || String(node.defaultValue).toLowerCase() === 'true';
+            }
+
+            if (node.dataType === 'number') {
+              nextValues[node.key] = getClampedNumberValue(node, node.defaultValue);
+            }
           });
 
           formValues.value = nextValues;
+          lockedSeedFields.value = nextSeedLocks;
         };
 
         const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
@@ -2841,6 +3482,118 @@
           reader.onerror = () => reject(new Error('File reading failed'));
           reader.readAsDataURL(file);
         });
+
+        const isSeedField = (field) => {
+          const parts = [
+            field?.key,
+            field?.fieldName,
+            field?.label,
+            getDisplayText(field?.label)
+          ].map((value) => String(value || '').trim().toLowerCase());
+
+          return parts.some((value) => (
+            value === 'seed'
+            || value === 'noise_seed'
+            || value === 'random_seed'
+            || value.includes('seed')
+            || value.includes('隨機種子')
+            || value.includes('随机种子')
+          ));
+        };
+
+        const isAspectRatioField = (field) => {
+          const parts = [
+            field?.key,
+            field?.fieldName,
+            field?.label,
+            getDisplayText(field?.label)
+          ].map((value) => String(value || '').trim().toLowerCase());
+
+          return parts.some((value) => (
+            value === 'aspect_ratio'
+            || value === 'aspectratio'
+            || value.includes('aspect ratio')
+            || value.includes('ratio')
+            || value.includes('比例')
+          ));
+        };
+
+        const getSeedInitialValue = (field) => {
+          const defaultValue = field?.defaultValue;
+          if (
+            defaultValue !== undefined
+            && defaultValue !== null
+            && String(defaultValue) !== ''
+            && Number(defaultValue) >= 0
+          ) {
+            return String(defaultValue);
+          }
+          return generateSeedValue();
+        };
+
+        const generateSeedValue = () => {
+          const maxSeed = 18446744073709551615n;
+          const seedWindow = maxSeed / 3n;
+          const randomBytes = new Uint8Array(8);
+          window.crypto.getRandomValues(randomBytes);
+
+          let randomValue = 0n;
+          for (const byte of randomBytes) {
+            randomValue = (randomValue << 8n) + BigInt(byte);
+          }
+
+          return (randomValue % seedWindow).toString();
+        };
+
+        const rollSeedField = (field) => {
+          if (!field || !isSeedField(field) || lockedSeedFields.value[field.key]) return;
+          formValues.value = {
+            ...formValues.value,
+            [field.key]: generateSeedValue()
+          };
+        };
+
+        const getNumberBoundaryValue = (field, keys) => {
+          for (const key of keys) {
+            const rawValue = field?.[key];
+            if (rawValue === undefined || rawValue === null || rawValue === '') continue;
+            const value = Number(rawValue);
+            if (Number.isFinite(value)) return value;
+          }
+          return null;
+        };
+
+        const getNumberFieldMin = (field) => {
+          const value = getNumberBoundaryValue(field, ['minValue', 'min', 'minimum']);
+          return Number.isFinite(value) ? value : 0;
+        };
+
+        const getNumberFieldMax = (field) => {
+          const minValue = getNumberFieldMin(field);
+          const value = getNumberBoundaryValue(field, ['maxValue', 'max', 'maximum']);
+          return Number.isFinite(value) && value > minValue ? value : minValue + 10;
+        };
+
+        const getNumberFieldStep = (field) => {
+          const defaultValue = String(field?.defaultValue ?? '');
+          return defaultValue.includes('.') ? 0.1 : 1;
+        };
+
+        const getClampedNumberValue = (field, value) => {
+          const minValue = getNumberFieldMin(field);
+          const maxValue = getNumberFieldMax(field);
+          const numberValue = Number(value);
+          if (!Number.isFinite(numberValue)) return minValue;
+          return Math.min(maxValue, Math.max(minValue, numberValue));
+        };
+
+        const clampNumberFieldValue = (field) => {
+          if (!field || field.dataType !== 'number' || isSeedField(field)) return;
+          formValues.value = {
+            ...formValues.value,
+            [field.key]: getClampedNumberValue(field, formValues.value[field.key])
+          };
+        };
 
         const createToolTask = async () => {
           if (!toolConfig.value) {
@@ -2851,8 +3604,26 @@
 
           for (const node of mediaInputNodes.value) {
             const mediaFile = mediaFiles.value[node.key];
+            if (isMultipleImageUploadNode(node)) {
+              if (Array.isArray(mediaFile) && mediaFile.length) {
+                inputValues[node.key] = [];
+                for (const item of mediaFile) {
+                  inputValues[node.key].push(await readFileAsDataUrl(item));
+                }
+              }
+              continue;
+            }
+
             if (mediaFile) {
               inputValues[node.key] = await readFileAsDataUrl(mediaFile);
+            }
+          }
+
+          for (const node of toolConfig.value.inputNodes || []) {
+            if (isSeedField(node) && !lockedSeedFields.value[node.key]) {
+              inputValues[node.key] = String(generateSeedValue());
+            } else if (isSeedField(node)) {
+              inputValues[node.key] = String(inputValues[node.key] ?? getSeedInitialValue(node));
             }
           }
 
@@ -3052,6 +3823,7 @@
           toolCategoryLabel,
           sidebarSections,
           mediaInputNodes,
+          isMultipleImageUploadNode,
           memberEmail,
           memberFiles,
           memberForm,
@@ -3068,6 +3840,9 @@
           primaryMediaInput,
           primaryMediaPreview,
           hasMediaResultComparison,
+          isSeedField,
+          isAspectRatioField,
+          lockedSeedFields,
           resultImageUrl,
           isResultImage,
           isDragover,
@@ -3085,6 +3860,15 @@
           getUploadAccept,
           getUploadMetaHint,
           getMediaPreview,
+          hasMediaUploadValue,
+          getUploadedImages,
+          canAddMoreImages,
+          removeUploadedImage,
+          getNumberFieldMin,
+          getNumberFieldMax,
+          getNumberFieldStep,
+          getMultiImageGridStyle,
+          clampNumberFieldValue,
           getSubscriptionPeriodLabel,
           getSubscriptionPrice,
           handleMemberLogout,
@@ -3096,6 +3880,9 @@
           getDisplayText,
           registerMember,
           resetTool,
+          generateSeedValue,
+          getSeedInitialValue,
+          rollSeedField,
           saveMemberSettings,
           selectSubscriptionPlan,
           executeWorkflow,

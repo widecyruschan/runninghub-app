@@ -179,6 +179,20 @@ function migrateDatabase(database) {
       FOREIGN KEY (user_id) REFERENCES app_users(id)
     );
 
+    CREATE TABLE IF NOT EXISTS admin_menus (
+      id TEXT PRIMARY KEY,
+      parent_id TEXT NOT NULL DEFAULT '',
+      menu_key TEXT NOT NULL UNIQUE,
+      label TEXT NOT NULL,
+      mark TEXT NOT NULL DEFAULT '',
+      path TEXT NOT NULL DEFAULT '',
+      target_type TEXT NOT NULL DEFAULT 'route',
+      sort_order INTEGER NOT NULL DEFAULT 100,
+      status TEXT NOT NULL DEFAULT 'active',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_tools_status_sort
       ON tools(status, sort_order);
 
@@ -199,6 +213,9 @@ function migrateDatabase(database) {
 
     CREATE INDEX IF NOT EXISTS idx_app_user_sessions_user_expires
       ON app_user_sessions(user_id, expires_at);
+
+    CREATE INDEX IF NOT EXISTS idx_admin_menus_parent_sort
+      ON admin_menus(parent_id, sort_order);
   `);
 
   ensureColumn(database, 'tools', 'category_id', "TEXT NOT NULL DEFAULT 'image'");
@@ -292,7 +309,8 @@ class JsonFileDatabase {
         execution_tasks: Array.isArray(state.execution_tasks) ? state.execution_tasks : [],
         app_users: Array.isArray(state.app_users) ? state.app_users : [],
         credit_ledger: Array.isArray(state.credit_ledger) ? state.credit_ledger : [],
-        app_user_sessions: Array.isArray(state.app_user_sessions) ? state.app_user_sessions : []
+        app_user_sessions: Array.isArray(state.app_user_sessions) ? state.app_user_sessions : [],
+        admin_menus: Array.isArray(state.admin_menus) ? state.admin_menus : []
       };
     } catch (error) {
       console.warn('JSON 資料庫讀取失敗，將使用空白資料庫。', error.message);
@@ -328,6 +346,18 @@ class JsonStatement {
       }
 
       return [...this.database.state.tool_categories].sort(compareCategoryRecords);
+    }
+
+    if (this.normalizedSql.includes('FROM admin_menus')) {
+      if (this.normalizedSql.includes('WHERE id = ?')) {
+        return this.database.state.admin_menus.filter((menu) => menu.id === params[0]);
+      }
+
+      if (this.normalizedSql.includes('WHERE menu_key = ?')) {
+        return this.database.state.admin_menus.filter((menu) => menu.menu_key === params[0]);
+      }
+
+      return [...this.database.state.admin_menus].sort(compareMenuRecords);
     }
 
     if (this.normalizedSql.includes('FROM tools')) {
@@ -404,6 +434,19 @@ class JsonStatement {
 
     if (this.normalizedSql.startsWith('UPDATE tool_categories')) {
       this.updateRecord('tool_categories', payload.id, toCategoryRecord(payload));
+      return { changes: 1 };
+    }
+
+    if (this.normalizedSql.startsWith('INSERT INTO admin_menus')) {
+      this.ensureUniqueMenu(payload);
+      this.database.state.admin_menus.push(toMenuRecord(payload));
+      this.database.persist();
+      return { changes: 1 };
+    }
+
+    if (this.normalizedSql.startsWith('UPDATE admin_menus')) {
+      this.ensureUniqueMenu(payload);
+      this.updateRecord('admin_menus', payload.id, toMenuRecord(payload));
       return { changes: 1 };
     }
 
@@ -669,6 +712,13 @@ class JsonStatement {
     if (exists) throwSqliteUniqueError();
   }
 
+  ensureUniqueMenu(payload) {
+    const exists = this.database.state.admin_menus.some((menu) => (
+      menu.id !== payload.id && menu.menu_key === payload.menuKey
+    ));
+    if (exists) throwSqliteUniqueError();
+  }
+
   ensureUniqueTool(payload) {
     const exists = this.database.state.tools.some((tool) => (
       tool.id !== payload.id && tool.tool_key === payload.toolKey
@@ -691,13 +741,27 @@ function createEmptyState() {
     execution_tasks: [],
     app_users: [],
     credit_ledger: [],
-    app_user_sessions: []
+    app_user_sessions: [],
+    admin_menus: []
   };
 }
 
 function getJsonTableColumns(tableName) {
   const columns = {
     tool_categories: ['id', 'category_key', 'name', 'sort_order', 'status', 'created_at', 'updated_at'],
+    admin_menus: [
+      'id',
+      'parent_id',
+      'menu_key',
+      'label',
+      'mark',
+      'path',
+      'target_type',
+      'sort_order',
+      'status',
+      'created_at',
+      'updated_at'
+    ],
     tools: [
       'id',
       'tool_key',
@@ -786,6 +850,22 @@ function toCategoryRecord(payload) {
     id: payload.id,
     category_key: payload.categoryKey,
     name: payload.name,
+    sort_order: payload.sortOrder,
+    status: payload.status || 'active',
+    created_at: payload.createdAt,
+    updated_at: payload.updatedAt
+  };
+}
+
+function toMenuRecord(payload) {
+  return {
+    id: payload.id,
+    parent_id: payload.parentId || '',
+    menu_key: payload.menuKey,
+    label: payload.label,
+    mark: payload.mark || '',
+    path: payload.path,
+    target_type: payload.targetType,
     sort_order: payload.sortOrder,
     status: payload.status || 'active',
     created_at: payload.createdAt,
@@ -910,6 +990,12 @@ function withSessionUserFields(session, users) {
 
 function compareCategoryRecords(left, right) {
   return (left.sort_order - right.sort_order) || String(left.created_at).localeCompare(String(right.created_at));
+}
+
+function compareMenuRecords(left, right) {
+  return String(left.parent_id || '').localeCompare(String(right.parent_id || ''))
+    || (left.sort_order - right.sort_order)
+    || String(left.created_at).localeCompare(String(right.created_at));
 }
 
 function compareToolRecords(left, right) {

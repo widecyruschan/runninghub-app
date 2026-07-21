@@ -31,6 +31,26 @@ function createKieClient(options = {}) {
           fileName
         }
       });
+    },
+    async createTask({ model, input, callBackUrl = '' }) {
+      return requestJson({
+        apiKey,
+        url: `${apiBaseUrl}/api/v1/jobs/createTask`,
+        method: 'POST',
+        payload: {
+          model,
+          input,
+          ...(callBackUrl ? { callBackUrl } : {})
+        }
+      });
+    },
+    async getTaskRecord(taskId) {
+      const query = new URLSearchParams({ taskId: String(taskId || '') });
+      return requestJson({
+        apiKey,
+        url: `${apiBaseUrl}/api/v1/jobs/recordInfo?${query.toString()}`,
+        method: 'GET'
+      });
     }
   };
 }
