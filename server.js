@@ -304,6 +304,21 @@ async function handleKieApi(request, response) {
     return;
   }
 
+  if (url.pathname === '/api/kie/egress-ip' && request.method === 'GET') {
+    const memberSession = requireActiveMemberSession(request);
+    const egressIp = await getCurrentEgressIp();
+
+    sendJson(response, 200, {
+      success: true,
+      message: 'KIE 出站 IP 查詢成功',
+      data: {
+        userId: memberSession.user.id,
+        egressIp
+      }
+    });
+    return;
+  }
+
   if (url.pathname === '/api/kie/upload' && request.method === 'POST') {
     requireActiveMemberSession(request);
     const requestBody = await readJsonBody(request);
@@ -322,6 +337,16 @@ async function handleKieApi(request, response) {
     message: '介面不存在',
     error: { code: 'API_NOT_FOUND' }
   });
+}
+
+async function getCurrentEgressIp() {
+  try {
+    const ipResponse = await fetch('https://api.ipify.org?format=json');
+    const ipPayload = await ipResponse.json();
+    return String(ipPayload.ip || '').trim();
+  } catch (error) {
+    throwHttpError('出站 IP 查詢失敗', 'EGRESS_IP_QUERY_FAILED', 502);
+  }
 }
 
 async function handleAdminApi(request, response) {

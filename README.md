@@ -262,3 +262,9 @@ docker compose logs -f runninghub-app
 - 使用的技术栈：Node.js、Vue 3 CDN、SQLite、JSON fallback。
 - 新增或修改了哪些文件：新增 `src/menuRepository.js`，修改 `src/database.js`、`server.js`、`frontend/admin.html`、`package.json` 和 `README.md`。
 - 后续建议：后续如果要把某个 API 功能做成完整页面，可直接复用自定义 Menu 的路径，并在后台路由区域增加对应功能面板。
+- 会话的主要目的：排查 Kie API 白名单仍提示服务器 IP 不匹配的问题。
+- 完成的主要任务：确认 `api.imgkit.io` 已解析到单一 A 记录 `82.29.163.78`，并新增 `/api/kie/egress-ip` 诊断接口，用于部署后查询生产 Node 后端真实出站公网 IP。
+- 关键决策和解决方案：说明 Kie 白名单校验的是后端请求 Kie 时的出站 IP，不是前台域名或 DNS A 记录本身；如果服务器入站 IP与出站 NAT IP 不一致，需将诊断接口返回的 IP 加入 Kie 白名单。
+- 使用的技术栈：Node.js、Kie API、DNS 查询。
+- 新增或修改了哪些文件：修改 `server.js` 和 `README.md`。
+- 后续建议：部署到 `82.29.163.78` 对应服务器后，用已登录会员访问 `/api/kie/egress-ip`，再把返回值加入 Kie 白名单。
