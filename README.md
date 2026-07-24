@@ -97,6 +97,12 @@ docker compose logs -f runninghub-app
 - 使用的技術棧：Node.js 原生 HTTP、PayPal Orders v2 API、PayPal Webhook verify signature、SQLite、JSON fallback、Vue 3 CDN、Axios。
 - 新增或修改了哪些文件：新增 `src/paypalClient.js`、`src/paymentRepository.js`、`src/paymentPlans.js`；修改 `server.js`、`src/database.js`、`frontend/index.html`、`.env.example`、`package.json` 和 `README.md`。
 - 後續建議：在 PayPal Sandbox 后台将 Webhook URL 设置为 `https://api.imgkit.io/api/payments/paypal/webhook`，保存后把 PayPal Webhook ID 填入部署环境变量 `PAYPAL_WEBHOOK_ID`，再重建生产 Docker 服务。
+- 會話的主要目的：修复浏览器直接打开 PayPal Webhook URL 时显示 404，避免误判 Webhook 未部署。
+- 完成的主要任務：为 `GET /api/payments/paypal/webhook` 增加 readiness JSON 响应；PayPal 事件处理仍保持 `POST /api/payments/paypal/webhook`。
+- 關鍵決策和解決方案：只增加只读健康响应，不改变 webhook 验签、capture、金额校验和积分入账逻辑；支付 API 未命中时返回英文错误，保持前台可见内容为英文。
+- 使用的技術棧：Node.js 原生 HTTP、PayPal Webhook。
+- 新增或修改了哪些文件：修改 `server.js` 和 `README.md`。
+- 後續建議：部署后用浏览器打开 Webhook URL 应看到 ready JSON；PayPal 后台仍需配置同一个 URL，并使用 POST 事件通知。
 
 ### 2026-07-10
 

@@ -941,9 +941,21 @@ async function handlePaymentApi(request, response) {
     return;
   }
 
+  if (url.pathname === '/api/payments/paypal/webhook' && request.method === 'GET') {
+    sendJson(response, 200, {
+      success: true,
+      message: 'PayPal webhook endpoint is ready. PayPal events must be sent with POST.',
+      data: {
+        method: 'POST',
+        provider: 'paypal'
+      }
+    });
+    return;
+  }
+
   sendJson(response, 404, {
     success: false,
-    message: '介面不存在',
+    message: 'Payment API endpoint not found',
     error: { code: 'API_NOT_FOUND' }
   });
 }
