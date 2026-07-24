@@ -10,6 +10,9 @@ const { createTaskRepository } = require('./src/taskRepository');
 const { createUserRepository } = require('./src/userRepository');
 const { createMemberSessionRepository } = require('./src/memberSessionRepository');
 const { createKieClient } = require('./src/kieClient');
+const { createPaypalClient } = require('./src/paypalClient');
+const { createPaymentRepository } = require('./src/paymentRepository');
+const { getPaymentPlan } = require('./src/paymentPlans');
 
 const PUBLIC_DIR = path.join(__dirname, 'frontend');
 const UPLOAD_DIR = path.join(__dirname, 'data', 'uploads');
@@ -48,6 +51,7 @@ const adminSessionSecret = process.env.ADMIN_SESSION_SECRET || crypto.randomByte
 const googleClientId = process.env.GOOGLE_CLIENT_ID || '';
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET || '';
 const googleOauthRedirectUri = process.env.GOOGLE_OAUTH_REDIRECT_URI || '';
+const publicAppBaseUrl = normalizePublicBaseUrl(process.env.PUBLIC_APP_BASE_URL || '');
 const listenTarget = createListenTarget(process.env.PORT, process.env.HOST);
 const database = createDatabase();
 const toolRepository = createToolRepository(database);
@@ -57,6 +61,8 @@ const taskRepository = createTaskRepository(database);
 const userRepository = createUserRepository(database);
 const memberSessionRepository = createMemberSessionRepository(database);
 const kieClient = createKieClient();
+const paypalClient = createPaypalClient();
+const paymentRepository = createPaymentRepository(database);
 
 toolRepository.seedDefaultTools();
 menuRepository.seedDefaultMenus();
@@ -150,6 +156,11 @@ const server = http.createServer(async (request, response) => {
       return;
     }
 
+    if (requestPathname.startsWith('/api/payments/')) {
+      await handlePaymentApi(request, response);
+      return;
+    }
+
     if (requestPathname.startsWith('/api/tools') || requestPathname.startsWith('/api/categories')) {
       await handlePublicApi(request, response);
       return;
@@ -188,6 +199,7 @@ server.listen(...listenTarget.args, () => {
   console.log(`RunningHub demo server: ${listenTarget.url}`);
   console.log(`Local access URL: ${listenTarget.localUrl}`);
   console.log(`RUNNINGHUB_API_KEY: ${runningHubApiKey ? '已配置' : '未配置'}`);
+  console.log(`PAYPAL: ${paypalClient.isConfigured ? '已配置' : '未配置'}`);
   console.log(`ADMIN_USERNAME: ${adminUsername}`);
 });
 
@@ -334,7 +346,7 @@ async function handleKieApi(request, response) {
 
   sendJson(response, 404, {
     success: false,
-    message: '介面不存在',
+    message: 'Payment API endpoint not found',
     error: { code: 'API_NOT_FOUND' }
   });
 }
@@ -888,6 +900,54 @@ async function handleMeApi(request, response) {
   });
 }
 
+async function handlePaymentApi(request, response) {
+  const url = new URL(request.url, `http://${request.headers.host}`);
+
+  if (url.pathname === '/api/payments/paypal/orders' && request.method === 'POST') {
+    const memberSession = requireActiveMemberSession(request);
+    const requestBody = await readJsonBody(request);
+    const result = await createPaypalPaymentOrder(request, memberSession.user, requestBody);
+
+    sendJson(response, 201, {
+      success: true,
+      message: 'PayPal order created',
+      data: result
+    });
+    return;
+  }
+
+  const captureMatch = url.pathname.match(/^\/api\/payments\/paypal\/orders\/([^/]+)\/capture$/);
+  if (captureMatch && request.method === 'POST') {
+    const memberSession = requireActiveMemberSession(request);
+    const providerOrderId = decodeURIComponent(captureMatch[1]);
+    const result = await capturePaypalPaymentOrder(providerOrderId, memberSession.user);
+
+    sendJson(response, 200, {
+      success: true,
+      message: 'PayPal payment captured',
+      data: result
+    });
+    return;
+  }
+
+  if (url.pathname === '/api/payments/paypal/webhook' && request.method === 'POST') {
+    const result = await handlePaypalWebhook(request);
+
+    sendJson(response, 200, {
+      success: true,
+      message: 'PayPal webhook received',
+      data: result
+    });
+    return;
+  }
+
+  sendJson(response, 404, {
+    success: false,
+    message: '介面不存在',
+    error: { code: 'API_NOT_FOUND' }
+  });
+}
+
 async function executeConfiguredTool(idOrSlug, requestBody, request) {
   const tool = toolRepository.getActiveToolByIdOrSlug(idOrSlug);
   if (!tool) {
@@ -1410,6 +1470,288 @@ function calculateChargedCredits(consumeCoins) {
   return Math.floor(numericConsumeCoins * 1.2);
 }
 
+async function createPaypalPaymentOrder(request, user, payload) {
+  if (!paypalClient.isConfigured) {
+    throwHttpError('PayPal payment is not configured', 'PAYPAL_NOT_CONFIGURED', 500);
+  }
+
+  const plan = getPaymentPlan(payload?.planKey, payload?.billingCycle);
+  if (!plan) {
+    throwHttpError('Payment plan is not available', 'PAYMENT_PLAN_INVALID', 422);
+  }
+
+  const localOrder = paymentRepository.createOrder({
+    userId: user.id,
+    provider: 'paypal',
+    planKey: plan.key,
+    billingCycle: plan.billingCycle,
+    amountValue: plan.amount,
+    currencyCode: plan.currency,
+    creditAmount: plan.credits,
+    membershipGroup: plan.membershipGroup,
+    rawResponse: {}
+  });
+  const origin = getPaymentReturnOrigin(request);
+  const paypalOrder = await paypalClient.createOrder({
+    amount: plan.amount,
+    currency: plan.currency,
+    description: `${plan.name} - ${plan.credits} credits`,
+    customId: localOrder.id,
+    returnUrl: `${origin}/member/settings?paypal=return`,
+    cancelUrl: `${origin}/member/settings?paypal=cancel`
+  });
+
+  if (!paypalOrder?.id) {
+    throwHttpError('PayPal order was not returned', 'PAYPAL_ORDER_ID_MISSING', 502);
+  }
+
+  paymentRepository.saveProviderOrder(localOrder.id, paypalOrder.id, paypalOrder);
+
+  return {
+    paymentOrderId: localOrder.id,
+    orderId: paypalOrder.id,
+    approveUrl: getPaypalApproveUrl(paypalOrder),
+    planKey: plan.key,
+    billingCycle: plan.billingCycle,
+    amount: plan.amount,
+    currency: plan.currency
+  };
+}
+
+async function capturePaypalPaymentOrder(providerOrderId, user) {
+  const existingOrder = paymentRepository.getOrderByProviderOrderId(providerOrderId);
+  if (!existingOrder) {
+    throwHttpError('Payment order was not found', 'PAYMENT_ORDER_NOT_FOUND', 404);
+  }
+
+  if (existingOrder.userId !== user.id) {
+    throwHttpError('Payment order does not belong to this account', 'PAYMENT_ORDER_FORBIDDEN', 403);
+  }
+
+  if (existingOrder.creditedAt) {
+    return {
+      order: existingOrder,
+      user: userRepository.getUserById(user.id)
+    };
+  }
+
+  const captureResponse = existingOrder.status === 'CAPTURED'
+    ? existingOrder.rawResponse
+    : await capturePaypalProviderOrder(providerOrderId);
+  const paymentStatus = extractPaypalPaymentStatus(captureResponse);
+  const capturedOrder = paymentRepository.saveCapturedOrder(existingOrder.id, paymentStatus, captureResponse);
+
+  if (paymentStatus !== 'COMPLETED') {
+    throwHttpError('PayPal payment was not completed', 'PAYPAL_PAYMENT_NOT_COMPLETED', 409);
+  }
+
+  assertPaypalPaymentMatches(capturedOrder, captureResponse);
+  return fulfillPaidOrder(capturedOrder);
+}
+
+async function handlePaypalWebhook(request) {
+  const event = await readJsonBody(request, 1024 * 1024);
+
+  if (!paypalClient.hasWebhookVerification) {
+    return {
+      eventType: String(event?.event_type || ''),
+      handled: false,
+      verificationConfigured: false
+    };
+  }
+
+  const verification = await paypalClient.verifyWebhookSignature(request.headers, event);
+  if (verification?.verification_status !== 'SUCCESS') {
+    throwHttpError('PayPal webhook signature is invalid', 'PAYPAL_WEBHOOK_SIGNATURE_INVALID', 401);
+  }
+
+  const eventType = String(event?.event_type || '');
+  const providerOrderId = extractPaypalWebhookOrderId(event);
+  const paymentOrder = providerOrderId
+    ? paymentRepository.getOrderByProviderOrderId(providerOrderId)
+    : null;
+
+  if (!paymentOrder) {
+    return {
+      eventType,
+      handled: false
+    };
+  }
+
+  if (eventType === 'CHECKOUT.ORDER.APPROVED') {
+    const captureResponse = await capturePaypalProviderOrder(providerOrderId);
+    const paymentStatus = extractPaypalPaymentStatus(captureResponse);
+    const capturedOrder = paymentRepository.saveCapturedOrder(paymentOrder.id, paymentStatus, captureResponse);
+
+    if (paymentStatus !== 'COMPLETED') {
+      return {
+        eventType,
+        handled: false,
+        orderId: paymentOrder.providerOrderId
+      };
+    }
+
+    assertPaypalPaymentMatches(capturedOrder, captureResponse);
+    const fulfilled = capturedOrder.creditedAt
+      ? { order: capturedOrder, user: userRepository.getUserById(capturedOrder.userId) }
+      : fulfillPaidOrder(capturedOrder);
+
+    return {
+      eventType,
+      handled: true,
+      orderId: fulfilled.order.providerOrderId
+    };
+  }
+
+  if (eventType === 'PAYMENT.CAPTURE.COMPLETED') {
+    assertPaypalPaymentMatches(paymentOrder, event);
+    const capturedOrder = paymentOrder.status === 'CAPTURED'
+      ? paymentOrder
+      : paymentRepository.saveCapturedOrder(paymentOrder.id, 'COMPLETED', event);
+    const fulfilled = capturedOrder.creditedAt
+      ? { order: capturedOrder, user: userRepository.getUserById(capturedOrder.userId) }
+      : fulfillPaidOrder(capturedOrder);
+
+    return {
+      eventType,
+      handled: true,
+      orderId: fulfilled.order.providerOrderId
+    };
+  }
+
+  if (eventType === 'PAYMENT.CAPTURE.DENIED') {
+    paymentRepository.saveCapturedOrder(paymentOrder.id, 'DENIED', event);
+    return {
+      eventType,
+      handled: true,
+      orderId: paymentOrder.providerOrderId
+    };
+  }
+
+  return {
+    eventType,
+    handled: false,
+    orderId: paymentOrder.providerOrderId
+  };
+}
+
+function fulfillPaidOrder(paymentOrder) {
+  if (paymentOrder.creditedAt) {
+    return {
+      order: paymentOrder,
+      user: userRepository.getUserById(paymentOrder.userId)
+    };
+  }
+
+  const fallbackPlan = getPaymentPlan(paymentOrder.planKey, paymentOrder.billingCycle);
+  const creditAmount = paymentOrder.creditAmount || fallbackPlan?.credits || 0;
+  if (creditAmount <= 0) {
+    throwHttpError('Payment plan is not available', 'PAYMENT_PLAN_INVALID', 422);
+  }
+
+  const user = userRepository.getUserById(paymentOrder.userId);
+  if (!user) {
+    throwHttpError('Payment user was not found', 'PAYMENT_USER_NOT_FOUND', 404);
+  }
+
+  if (paymentOrder.membershipGroup) {
+    userRepository.saveUser({
+      ...user,
+      role: 'member',
+      membershipGroup: paymentOrder.membershipGroup
+    });
+  }
+
+  const creditedUser = userRepository.grantCreditsOnce(
+    user.id,
+    creditAmount,
+    `PayPal purchase: ${fallbackPlan?.name || paymentOrder.planKey}`,
+    paymentOrder.id
+  );
+  const updatedOrder = paymentRepository.markOrderCredited(
+    paymentOrder.id,
+    creditAmount,
+    paymentOrder.membershipGroup
+  );
+
+  return {
+    order: updatedOrder,
+    user: creditedUser
+  };
+}
+
+async function capturePaypalProviderOrder(providerOrderId) {
+  try {
+    return await paypalClient.captureOrder(providerOrderId);
+  } catch (error) {
+    if (error.code !== 'ORDER_ALREADY_CAPTURED') throw error;
+    return paypalClient.getOrder(providerOrderId);
+  }
+}
+
+function getPaypalApproveUrl(paypalOrder) {
+  const approveLink = Array.isArray(paypalOrder?.links)
+    ? paypalOrder.links.find((link) => link.rel === 'approve' || link.rel === 'payer-action')
+    : null;
+  return approveLink?.href || '';
+}
+
+function extractPaypalPaymentStatus(payload) {
+  const captureStatus = payload?.purchase_units?.[0]?.payments?.captures?.[0]?.status;
+  return String(captureStatus || payload?.status || '').toUpperCase();
+}
+
+function assertPaypalPaymentMatches(paymentOrder, payload) {
+  const paidAmount = extractPaypalPaidAmount(payload);
+  if (!paidAmount) {
+    throwHttpError('PayPal payment amount was not returned', 'PAYPAL_PAYMENT_AMOUNT_MISSING', 409);
+  }
+
+  const expectedCurrency = String(paymentOrder.currencyCode || '').toUpperCase();
+  const paidCurrency = String(paidAmount.currencyCode || '').toUpperCase();
+  if (
+    expectedCurrency !== paidCurrency
+    || toCurrencyMinorUnit(paymentOrder.amountValue) !== toCurrencyMinorUnit(paidAmount.value)
+  ) {
+    throwHttpError('PayPal payment amount does not match the order', 'PAYPAL_PAYMENT_AMOUNT_MISMATCH', 409);
+  }
+
+  const customId = extractPaypalCustomId(payload);
+  if (!customId || customId !== paymentOrder.id) {
+    throwHttpError('PayPal payment reference does not match the order', 'PAYPAL_PAYMENT_REFERENCE_MISMATCH', 409);
+  }
+}
+
+function extractPaypalPaidAmount(payload) {
+  const capture = payload?.purchase_units?.[0]?.payments?.captures?.[0];
+  const amount = capture?.amount || payload?.resource?.amount;
+  if (!amount) return null;
+
+  return {
+    value: amount.value,
+    currencyCode: amount.currency_code
+  };
+}
+
+function toCurrencyMinorUnit(value) {
+  const numberValue = Number(value);
+  if (!Number.isFinite(numberValue)) return NaN;
+  return Math.round(numberValue * 100);
+}
+
+function extractPaypalCustomId(payload) {
+  return payload?.purchase_units?.[0]?.custom_id
+    || payload?.resource?.custom_id
+    || '';
+}
+
+function extractPaypalWebhookOrderId(event) {
+  return event?.resource?.supplementary_data?.related_ids?.order_id
+    || event?.resource?.custom_id
+    || event?.resource?.id
+    || '';
+}
+
 function formatFrontendLedgerReason(reason) {
   const text = String(reason || '');
   if (text.startsWith('使用工具：')) {
@@ -1420,6 +1762,7 @@ function formatFrontendLedgerReason(reason) {
     return text.replace('每日登入贈送積分', 'Daily login bonus credits');
   }
 
+  if (text.startsWith('PayPal purchase:')) return text;
   if (text === '註冊贈送積分') return 'Registration bonus credits';
   if (text === '後台調整') return 'Admin adjustment';
   return text || 'Credit update';
@@ -2077,9 +2420,35 @@ function getHongKongDateKey(date = new Date()) {
 function getGoogleRedirectUri(request) {
   if (googleOauthRedirectUri) return googleOauthRedirectUri;
 
-  const protocol = request.headers['x-forwarded-proto'] || (shouldUseSecureCookie(request) ? 'https' : 'http');
-  const hostHeader = request.headers.host || `127.0.0.1:${port}`;
-  return `${protocol}://${hostHeader}/api/auth/google/callback`;
+  return `${getRequestOrigin(request)}/api/auth/google/callback`;
+}
+
+function getPaymentReturnOrigin(request) {
+  if (publicAppBaseUrl) return publicAppBaseUrl;
+  if (process.env.NODE_ENV === 'production') {
+    throwHttpError('PayPal public return URL is not configured', 'PAYPAL_PUBLIC_URL_MISSING', 500);
+  }
+  return getRequestOrigin(request);
+}
+
+function normalizePublicBaseUrl(value) {
+  const normalizedValue = String(value || '').trim().replace(/\/$/, '');
+  if (!normalizedValue) return '';
+
+  try {
+    const url = new URL(normalizedValue);
+    if (!['http:', 'https:'].includes(url.protocol)) return '';
+    return url.origin;
+  } catch (error) {
+    return '';
+  }
+}
+
+function getRequestOrigin(request) {
+  const forwardedProto = String(request.headers['x-forwarded-proto'] || '').split(',')[0].trim();
+  const protocol = forwardedProto || (shouldUseSecureCookie(request) ? 'https' : 'http');
+  const hostHeader = request.headers['x-forwarded-host'] || request.headers.host || '127.0.0.1:3000';
+  return `${protocol}://${String(hostHeader).split(',')[0].trim()}`;
 }
 
 function redirectWithExpiredOAuthState(request, response, location) {

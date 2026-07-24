@@ -109,6 +109,13 @@ function createUserRepository(database) {
       WHERE user_id = ?
       ORDER BY created_at DESC
     `),
+    findPositiveLedgerByRelatedTask: database.prepare(`
+      SELECT *
+      FROM credit_ledger
+      WHERE user_id = ?
+        AND related_task_id = ?
+        AND amount > 0
+    `),
     updateLedgerRemainingAmount: database.prepare(`
       UPDATE credit_ledger
       SET remaining_amount = @remainingAmount
@@ -122,6 +129,9 @@ function createUserRepository(database) {
       WHERE id = @id
     `)
   };
+  const runGrantCreditsOnce = typeof database.transaction === 'function'
+    ? database.transaction(grantCreditsOnceInternal)
+    : grantCreditsOnceInternal;
 
   function listUsers() {
     return statements.list.all().map(mapUserRecord);
@@ -212,6 +222,21 @@ function createUserRepository(database) {
     return savedUser;
   }
 
+  function grantCreditsOnce(userId, amount, reason, relatedTaskId, options = {}) {
+    const normalizedRelatedTaskId = String(relatedTaskId || '').trim();
+    if (!normalizedRelatedTaskId) {
+      throwValidationError('積分發放必須關聯訂單或任務', 'USER_CREDIT_RELATED_ID_REQUIRED', 422);
+    }
+
+    return runGrantCreditsOnce(userId, amount, reason, normalizedRelatedTaskId, options);
+  }
+
+  function grantCreditsOnceInternal(userId, amount, reason, relatedTaskId, options) {
+    const existingRecord = statements.findPositiveLedgerByRelatedTask.get(userId, relatedTaskId);
+    if (existingRecord) return getUserById(userId);
+    return adjustCredits(userId, amount, reason, relatedTaskId, options);
+  }
+
   function grantRegisterBonus(userId) {
     return grantCreditsIfReasonMissing(userId, REGISTER_BONUS_CREDITS, '註冊贈送積分');
   }
@@ -267,6 +292,7 @@ function createUserRepository(database) {
 
   return {
     adjustCredits,
+    grantCreditsOnce,
     grantDailyLoginBonus,
     grantRegisterBonus,
     getUserByEmail,

@@ -2138,8 +2138,13 @@
                 <div class="subscription-feature-list">
                   <div v-for="feature in plan.features" :key="feature" class="subscription-feature">✓ {{ feature }}</div>
                 </div>
-                <button class="primary-button" type="button" @click="selectSubscriptionPlan(plan)">
-                  {{ memberProfile.plan === plan.key ? 'Current Plan' : 'Choose Subscription' }}
+                <button
+                  class="primary-button"
+                  type="button"
+                  :disabled="isPayPalProcessing"
+                  @click="selectSubscriptionPlan(plan)"
+                >
+                  {{ getSubscriptionActionLabel(plan) }}
                 </button>
               </article>
             </div>
@@ -2644,6 +2649,7 @@
         const isCompareDragging = ref(false);
         const isDragover = ref(false);
         const isExecuting = ref(false);
+        const isPayPalProcessing = ref(false);
         const executionMessage = ref('Processing image');
         const statusMessage = ref('');
         const statusType = ref('');
@@ -2769,7 +2775,8 @@
             name: 'Pay As You Go',
             monthlyPrice: 0,
             annualPrice: 0,
-            description: 'Best for occasional use. One-time credit purchases will connect later.',
+            oneTimePrice: 9.99,
+            description: 'Best for occasional use with a one-time PayPal credit purchase.',
             features: ['No monthly commitment', 'Credit pack purchases', 'Good for temporary projects']
           }
         ];
@@ -3210,7 +3217,7 @@
 
         const getSubscriptionPrice = (plan) => {
           if (plan.key === 'free') return 'Free';
-          if (plan.key === 'pay_as_you_go') return 'Pay as you go';
+          if (plan.key === 'pay_as_you_go') return `US$${plan.oneTimePrice}`;
           const price = selectedBillingCycle.value === 'annual' ? plan.annualPrice : plan.monthlyPrice;
           return `US$${price}`;
         };
@@ -3221,19 +3228,93 @@
           return selectedBillingCycle.value === 'annual' ? 'per month, billed annually' : 'per month';
         };
 
-        const selectSubscriptionPlan = (plan) => {
+        const getSubscriptionActionLabel = (plan) => {
+          if (isPayPalProcessing.value) return 'Processing...';
+          if (memberProfile.value.plan === plan.key && plan.key !== 'pay_as_you_go') return 'Current Plan';
+          if (plan.key === 'pay_as_you_go') return 'Buy Credits';
+          return 'Pay with PayPal';
+        };
+
+        const selectSubscriptionPlan = async (plan) => {
           if (!memberLoggedIn.value) {
             openMemberPage('/register');
             ElementPlus.ElMessage.warning('Please register or log in before choosing a subscription');
             return;
           }
 
-          if (plan.key === memberProfile.value.plan) {
+          if (plan.key === 'free') {
             ElementPlus.ElMessage.info('This is your current plan');
             return;
           }
 
-          ElementPlus.ElMessage.info('Subscription payment will be connected in the next phase');
+          if (plan.key === memberProfile.value.plan && plan.key !== 'pay_as_you_go') {
+            ElementPlus.ElMessage.info('This is your current plan');
+            return;
+          }
+
+          isPayPalProcessing.value = true;
+
+          try {
+            const response = await axios.post('/api/payments/paypal/orders', {
+              planKey: plan.key,
+              billingCycle: selectedBillingCycle.value
+            }, {
+              headers: createJsonHeaders()
+            });
+            const approveUrl = response.data?.data?.approveUrl;
+
+            if (!approveUrl) {
+              throw new Error('PayPal approval link was not returned');
+            }
+
+            window.location.href = approveUrl;
+          } catch (error) {
+            ElementPlus.ElMessage.error(getApiErrorMessage(error));
+            isPayPalProcessing.value = false;
+          }
+        };
+
+        const processPayPalReturn = async () => {
+          const query = new URLSearchParams(window.location.search);
+          const paypalStatus = query.get('paypal');
+          const orderId = query.get('token');
+
+          if (paypalStatus === 'cancel') {
+            ElementPlus.ElMessage.info('PayPal payment was cancelled');
+            clearPayPalQuery();
+            return;
+          }
+
+          if (paypalStatus !== 'return' || !orderId) return;
+
+          isPayPalProcessing.value = true;
+
+          try {
+            const response = await axios.post('/api/payments/paypal/orders/' + encodeURIComponent(orderId) + '/capture');
+            const user = response.data?.data?.user;
+            if (user) {
+              memberProfile.value = {
+                displayName: user.displayName || user.email,
+                email: user.email,
+                plan: user.membershipGroup || 'free',
+                credits: user.creditBalance || 0
+              };
+              memberLoggedIn.value = true;
+              persistMemberProfile();
+            }
+            ElementPlus.ElMessage.success('PayPal payment completed. Credits have been added.');
+            await loadMemberRecords();
+          } catch (error) {
+            ElementPlus.ElMessage.error(getApiErrorMessage(error));
+          } finally {
+            isPayPalProcessing.value = false;
+            clearPayPalQuery();
+          }
+        };
+
+        const clearPayPalQuery = () => {
+          const cleanUrl = window.location.pathname || '/member/settings';
+          window.history.replaceState({}, '', cleanUrl);
         };
 
         const handleMemberLogout = async () => {
@@ -3754,7 +3835,9 @@
         };
 
         onMounted(() => {
-          loadMemberSession();
+          loadMemberSession().finally(() => {
+            processPayPalReturn();
+          });
           const oauthStatus = new URLSearchParams(window.location.search).get('oauth');
           if (oauthStatus === 'failed' || oauthStatus === 'invalid_state') {
             ElementPlus.ElMessage.error('Google login failed. Please try again later.');
@@ -3811,6 +3894,7 @@
           filteredTools,
           formValues,
           isLoadingMarketplace,
+          isPayPalProcessing,
           selectedCategory,
           selectedBillingCycle,
           currentToolSlug,
@@ -3871,6 +3955,7 @@
           clampNumberFieldValue,
           getSubscriptionPeriodLabel,
           getSubscriptionPrice,
+          getSubscriptionActionLabel,
           handleMemberLogout,
           loginWithGoogle,
           openMemberPage,

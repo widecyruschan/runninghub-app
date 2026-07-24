@@ -179,6 +179,28 @@ function migrateDatabase(database) {
       FOREIGN KEY (user_id) REFERENCES app_users(id)
     );
 
+    CREATE TABLE IF NOT EXISTS payment_orders (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      provider TEXT NOT NULL DEFAULT 'paypal',
+      provider_order_id TEXT NOT NULL DEFAULT '',
+      plan_key TEXT NOT NULL,
+      billing_cycle TEXT NOT NULL DEFAULT '',
+      amount_value TEXT NOT NULL,
+      currency_code TEXT NOT NULL DEFAULT 'USD',
+      credit_amount INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'CREATED',
+      payment_status TEXT NOT NULL DEFAULT '',
+      credits_granted INTEGER NOT NULL DEFAULT 0,
+      membership_group TEXT NOT NULL DEFAULT '',
+      raw_response_json TEXT NOT NULL DEFAULT '{}',
+      captured_at TEXT,
+      credited_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES app_users(id)
+    );
+
     CREATE TABLE IF NOT EXISTS admin_menus (
       id TEXT PRIMARY KEY,
       parent_id TEXT NOT NULL DEFAULT '',
@@ -211,8 +233,18 @@ function migrateDatabase(database) {
     CREATE INDEX IF NOT EXISTS idx_credit_ledger_user_created
       ON credit_ledger(user_id, created_at);
 
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_credit_ledger_user_related_positive
+      ON credit_ledger(user_id, related_task_id)
+      WHERE amount > 0 AND related_task_id != '';
+
     CREATE INDEX IF NOT EXISTS idx_app_user_sessions_user_expires
       ON app_user_sessions(user_id, expires_at);
+
+    CREATE INDEX IF NOT EXISTS idx_payment_orders_provider_order
+      ON payment_orders(provider, provider_order_id);
+
+    CREATE INDEX IF NOT EXISTS idx_payment_orders_user_created
+      ON payment_orders(user_id, created_at);
 
     CREATE INDEX IF NOT EXISTS idx_admin_menus_parent_sort
       ON admin_menus(parent_id, sort_order);
@@ -233,6 +265,10 @@ function migrateDatabase(database) {
   ensureColumn(database, 'credit_ledger', 'remaining_amount', 'INTEGER NOT NULL DEFAULT 0');
   ensureColumn(database, 'credit_ledger', 'expires_at', 'TEXT');
   ensureColumn(database, 'app_users', 'last_login_credit_date', "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(database, 'payment_orders', 'credits_granted', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn(database, 'payment_orders', 'credit_amount', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn(database, 'payment_orders', 'membership_group', "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(database, 'payment_orders', 'credited_at', 'TEXT');
 
   database.exec(`
     CREATE INDEX IF NOT EXISTS idx_execution_tasks_user_created
@@ -240,6 +276,16 @@ function migrateDatabase(database) {
 
     CREATE INDEX IF NOT EXISTS idx_credit_ledger_user_expiry
       ON credit_ledger(user_id, expires_at, created_at);
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_credit_ledger_user_related_positive
+      ON credit_ledger(user_id, related_task_id)
+      WHERE amount > 0 AND related_task_id != '';
+
+    CREATE INDEX IF NOT EXISTS idx_payment_orders_provider_order
+      ON payment_orders(provider, provider_order_id);
+
+    CREATE INDEX IF NOT EXISTS idx_payment_orders_user_created
+      ON payment_orders(user_id, created_at);
   `);
 
   database.prepare(`
@@ -290,6 +336,10 @@ class JsonFileDatabase {
 
   exec() {}
 
+  transaction(callback) {
+    return (...args) => callback(...args);
+  }
+
   prepare(sql) {
     return new JsonStatement(sql, this);
   }
@@ -310,6 +360,7 @@ class JsonFileDatabase {
         app_users: Array.isArray(state.app_users) ? state.app_users : [],
         credit_ledger: Array.isArray(state.credit_ledger) ? state.credit_ledger : [],
         app_user_sessions: Array.isArray(state.app_user_sessions) ? state.app_user_sessions : [],
+        payment_orders: Array.isArray(state.payment_orders) ? state.payment_orders : [],
         admin_menus: Array.isArray(state.admin_menus) ? state.admin_menus : []
       };
     } catch (error) {
@@ -378,6 +429,10 @@ class JsonStatement {
 
     if (this.normalizedSql.includes('FROM app_user_sessions')) {
       return this.queryUserSessions(params);
+    }
+
+    if (this.normalizedSql.includes('FROM payment_orders')) {
+      return this.queryPaymentOrders(params);
     }
 
     return [];
@@ -577,6 +632,17 @@ class JsonStatement {
     }
 
     if (this.normalizedSql.startsWith('INSERT INTO credit_ledger')) {
+      const hasDuplicatePositiveRelatedRecord = Number(payload.amount) > 0
+        && payload.relatedTaskId
+        && this.database.state.credit_ledger.some((record) => (
+          record.user_id === payload.userId
+          && record.related_task_id === payload.relatedTaskId
+          && Number(record.amount) > 0
+        ));
+      if (hasDuplicatePositiveRelatedRecord) {
+        throwSqliteUniqueError();
+      }
+
       this.database.state.credit_ledger.push(toCreditLedgerRecord(payload));
       this.database.persist();
       return { changes: 1 };
@@ -607,6 +673,49 @@ class JsonStatement {
       this.database.state.app_user_sessions.push(toUserSessionRecord(payload));
       this.database.persist();
       return { changes: 1 };
+    }
+
+    if (this.normalizedSql.startsWith('INSERT INTO payment_orders')) {
+      this.database.state.payment_orders.push(toPaymentOrderRecord(payload));
+      this.database.persist();
+      return { changes: 1 };
+    }
+
+    if (this.normalizedSql.startsWith('UPDATE payment_orders SET provider_order_id')) {
+      const order = this.findRecord('payment_orders', payload.id);
+      if (order) {
+        order.provider_order_id = payload.providerOrderId;
+        order.status = payload.status;
+        order.raw_response_json = payload.rawResponseJson;
+        order.updated_at = payload.updatedAt;
+        this.database.persist();
+      }
+      return { changes: order ? 1 : 0 };
+    }
+
+    if (this.normalizedSql.startsWith('UPDATE payment_orders SET status')) {
+      const order = this.findRecord('payment_orders', payload.id);
+      if (order) {
+        order.status = payload.status;
+        order.payment_status = payload.paymentStatus;
+        order.raw_response_json = payload.rawResponseJson;
+        order.captured_at = payload.capturedAt;
+        order.updated_at = payload.updatedAt;
+        this.database.persist();
+      }
+      return { changes: order ? 1 : 0 };
+    }
+
+    if (this.normalizedSql.startsWith('UPDATE payment_orders SET credits_granted')) {
+      const order = this.findRecord('payment_orders', payload.id);
+      if (order) {
+        order.credits_granted = payload.creditsGranted;
+        order.membership_group = payload.membershipGroup || '';
+        order.credited_at = payload.creditedAt;
+        order.updated_at = payload.updatedAt;
+        this.database.persist();
+      }
+      return { changes: order ? 1 : 0 };
     }
 
     if (this.normalizedSql.startsWith('DELETE FROM app_user_sessions WHERE id')) {
@@ -677,6 +786,14 @@ class JsonStatement {
       records = records.filter((record) => record.user_id === params[0]);
     }
 
+    if (this.normalizedSql.includes('AND related_task_id = ?')) {
+      records = records.filter((record) => record.related_task_id === params[1]);
+    }
+
+    if (this.normalizedSql.includes('AND amount > 0')) {
+      records = records.filter((record) => Number(record.amount) > 0);
+    }
+
     return records.sort(compareCreatedAtDesc);
   }
 
@@ -688,6 +805,20 @@ class JsonStatement {
     }
 
     return sessions.sort(compareCreatedAtDesc);
+  }
+
+  queryPaymentOrders(params) {
+    let orders = [...this.database.state.payment_orders];
+
+    if (this.normalizedSql.includes('WHERE id = ?')) {
+      orders = orders.filter((order) => order.id === params[0]);
+    } else if (this.normalizedSql.includes('WHERE provider_order_id = ?')) {
+      orders = orders.filter((order) => order.provider_order_id === params[0]);
+    } else if (this.normalizedSql.includes('WHERE user_id = ?')) {
+      orders = orders.filter((order) => order.user_id === params[0]);
+    }
+
+    return orders.sort(compareCreatedAtDesc);
   }
 
   findRecord(collectionName, id) {
@@ -742,6 +873,7 @@ function createEmptyState() {
     app_users: [],
     credit_ledger: [],
     app_user_sessions: [],
+    payment_orders: [],
     admin_menus: []
   };
 }
@@ -837,6 +969,26 @@ function getJsonTableColumns(tableName) {
       'provider',
       'provider_subject',
       'expires_at',
+      'created_at',
+      'updated_at'
+    ],
+    payment_orders: [
+      'id',
+      'user_id',
+      'provider',
+      'provider_order_id',
+      'plan_key',
+      'billing_cycle',
+      'amount_value',
+      'currency_code',
+      'credit_amount',
+      'status',
+      'payment_status',
+      'credits_granted',
+      'membership_group',
+      'raw_response_json',
+      'captured_at',
+      'credited_at',
       'created_at',
       'updated_at'
     ]
@@ -961,6 +1113,29 @@ function toUserSessionRecord(payload) {
     provider: payload.provider,
     provider_subject: payload.providerSubject || '',
     expires_at: payload.expiresAt,
+    created_at: payload.createdAt,
+    updated_at: payload.updatedAt
+  };
+}
+
+function toPaymentOrderRecord(payload) {
+  return {
+    id: payload.id,
+    user_id: payload.userId,
+    provider: payload.provider || 'paypal',
+    provider_order_id: payload.providerOrderId || '',
+    plan_key: payload.planKey,
+    billing_cycle: payload.billingCycle || '',
+    amount_value: String(payload.amountValue),
+    currency_code: payload.currencyCode || 'USD',
+    credit_amount: payload.creditAmount || 0,
+    status: payload.status || 'CREATED',
+    payment_status: payload.paymentStatus || '',
+    credits_granted: payload.creditsGranted || 0,
+    membership_group: payload.membershipGroup || '',
+    raw_response_json: payload.rawResponseJson || '{}',
+    captured_at: payload.capturedAt || null,
+    credited_at: payload.creditedAt || null,
     created_at: payload.createdAt,
     updated_at: payload.updatedAt
   };

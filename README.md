@@ -89,6 +89,15 @@ docker compose logs -f runninghub-app
 
 ## 开发记录
 
+### 2026-07-24
+
+- 會話的主要目的：接入 PayPal Sandbox 收款 API，并生成正确的 PayPal Webhook URL。
+- 完成的主要任務：新增 PayPal Orders v2 创建订单、Capture 付款和 Webhook 接收接口；前台会员套餐按钮改为跳转 PayPal Checkout，付款返回后自动 capture 并刷新会员积分与交易记录；新增 `payment_orders` 表与 JSON fallback 支持。
+- 關鍵決策和解決方案：PayPal Client ID、Secret、Webhook ID 仅通过环境变量配置，仓库只提交 `.env.example` 占位；付款发放积分以订单关联流水做幂等判断，避免重复入账；Capture 后校验金额、币种和订单引用；生产回跳地址使用 `PUBLIC_APP_BASE_URL`，不信任任意 Host Header；Webhook 在未配置 `PAYPAL_WEBHOOK_ID` 时只接收不改账，防止未验签请求修改积分。
+- 使用的技術棧：Node.js 原生 HTTP、PayPal Orders v2 API、PayPal Webhook verify signature、SQLite、JSON fallback、Vue 3 CDN、Axios。
+- 新增或修改了哪些文件：新增 `src/paypalClient.js`、`src/paymentRepository.js`、`src/paymentPlans.js`；修改 `server.js`、`src/database.js`、`frontend/index.html`、`.env.example`、`package.json` 和 `README.md`。
+- 後續建議：在 PayPal Sandbox 后台将 Webhook URL 设置为 `https://api.imgkit.io/api/payments/paypal/webhook`，保存后把 PayPal Webhook ID 填入部署环境变量 `PAYPAL_WEBHOOK_ID`，再重建生产 Docker 服务。
+
 ### 2026-07-10
 
 - 从单页演示逐步升级为 AI 工具平台方向。
