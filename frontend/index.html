@@ -3341,6 +3341,18 @@
           window.history.replaceState({}, '', cleanUrl);
         };
 
+        const getOAuthErrorMessage = (status) => {
+          const messages = {
+            failed: 'Google login failed. Please try again later.',
+            invalid_state: 'Google login session expired. Please try again.',
+            token_exchange_failed: 'Google login could not be verified. Please check the OAuth redirect URI.',
+            profile_failed: 'Google profile could not be loaded. Please try again.',
+            profile_email_missing: 'Google account email could not be verified.'
+          };
+
+          return messages[status] || '';
+        };
+
         const handleMemberLogout = async () => {
           if (!memberLoggedIn.value) {
             openMemberPage('/register');
@@ -3863,8 +3875,9 @@
             processPayPalReturn();
           });
           const oauthStatus = new URLSearchParams(window.location.search).get('oauth');
-          if (oauthStatus === 'failed' || oauthStatus === 'invalid_state') {
-            ElementPlus.ElMessage.error('Google login failed. Please try again later.');
+          const oauthErrorMessage = getOAuthErrorMessage(oauthStatus);
+          if (oauthErrorMessage) {
+            ElementPlus.ElMessage.error(oauthErrorMessage);
             clearOAuthQuery();
           }
 

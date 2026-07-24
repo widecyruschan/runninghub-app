@@ -52,7 +52,8 @@ const googleClientId = process.env.GOOGLE_CLIENT_ID || '';
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET || '';
 const googleOauthRedirectUri = process.env.GOOGLE_OAUTH_REDIRECT_URI || '';
 const publicAppBaseUrl = normalizePublicBaseUrl(process.env.PUBLIC_APP_BASE_URL || '');
-const allowedApiOrigins = createAllowedApiOrigins(process.env.API_CORS_ALLOWED_ORIGINS || '', publicAppBaseUrl);
+const publicApiBaseUrl = normalizePublicBaseUrl(process.env.PUBLIC_API_BASE_URL || 'https://api.imgkit.io');
+const allowedApiOrigins = createAllowedApiOrigins(process.env.API_CORS_ALLOWED_ORIGINS || '', publicAppBaseUrl, publicApiBaseUrl);
 const listenTarget = createListenTarget(process.env.PORT, process.env.HOST);
 const database = createDatabase();
 const toolRepository = createToolRepository(database);
@@ -2342,8 +2343,17 @@ async function handleGoogleOAuthCallback(request, response, url) {
     response.end();
   } catch (error) {
     console.error('Google 登入失敗:', error);
-    redirectWithExpiredOAuthState(request, response, `${getFrontendReturnOrigin(request)}/login?oauth=failed`);
+    const oauthError = getGoogleOAuthErrorParam(error);
+    redirectWithExpiredOAuthState(request, response, `${getFrontendReturnOrigin(request)}/login?oauth=${oauthError}`);
   }
+}
+
+function getGoogleOAuthErrorParam(error) {
+  const code = String(error?.code || '').toLowerCase();
+  if (code === 'google_token_exchange_failed') return 'token_exchange_failed';
+  if (code === 'google_profile_failed') return 'profile_failed';
+  if (code === 'member_email_invalid') return 'profile_email_missing';
+  return 'failed';
 }
 
 async function exchangeGoogleCodeForToken(request, code) {
@@ -2464,11 +2474,23 @@ function getHongKongDateKey(date = new Date()) {
 }
 
 function getGoogleRedirectUri(request) {
-  if (googleOauthRedirectUri && !isLocalRedirectUriForRemoteRequest(googleOauthRedirectUri, request)) {
+  if (shouldUseConfiguredGoogleRedirectUri(request)) {
     return googleOauthRedirectUri;
   }
 
+  if (publicApiBaseUrl && !isLocalHost(getRequestHost(request))) {
+    return `${publicApiBaseUrl}/api/auth/google/callback`;
+  }
+
   return `${getRequestOrigin(request)}/api/auth/google/callback`;
+}
+
+function shouldUseConfiguredGoogleRedirectUri(request) {
+  if (!googleOauthRedirectUri || isLocalRedirectUriForRemoteRequest(googleOauthRedirectUri, request)) {
+    return false;
+  }
+
+  return String(process.env.GOOGLE_OAUTH_REDIRECT_URI_LOCKED || '').toLowerCase() === 'true';
 }
 
 function isLocalRedirectUriForRemoteRequest(redirectUri, request) {
@@ -2508,7 +2530,7 @@ function normalizePublicBaseUrl(value) {
   }
 }
 
-function createAllowedApiOrigins(value, appBaseUrl) {
+function createAllowedApiOrigins(value, appBaseUrl, apiBaseUrl) {
   const origins = new Set([
     'https://imgkit.io',
     'https://www.imgkit.io',
@@ -2518,6 +2540,7 @@ function createAllowedApiOrigins(value, appBaseUrl) {
   ]);
 
   if (appBaseUrl) origins.add(appBaseUrl);
+  if (apiBaseUrl) origins.add(apiBaseUrl);
 
   String(value || '').split(',').forEach((originValue) => {
     const origin = normalizePublicBaseUrl(originValue);

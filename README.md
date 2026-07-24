@@ -295,3 +295,9 @@ docker compose logs -f runninghub-app
 - 使用的技术栈：Node.js 原生 HTTP、Google OAuth、Cookie Session、Vue 3 CDN、Axios。
 - 新增或修改了哪些文件：修改 `server.js`、`frontend/index.html`、`.env.example` 和 `README.md`。
 - 后续建议：生产环境建议设置 `SESSION_COOKIE_DOMAIN=.imgkit.io`，并在 Google Cloud OAuth 客户端中确认已授权 `https://api.imgkit.io/api/auth/google/callback`。
+- 会话的主要目的：继续修复 Google 登录 `redirect_uri_mismatch` 和回到前台后只显示通用失败提示的问题。
+- 完成的主要任务：新增 `PUBLIC_API_BASE_URL`，生产 Google OAuth 回调默认固定为 `https://api.imgkit.io/api/auth/google/callback`；除非明确设置 `GOOGLE_OAUTH_REDIRECT_URI_LOCKED=true`，否则不会让旧的 `GOOGLE_OAUTH_REDIRECT_URI` 覆盖生产回调；前台 Google 登录错误提示根据后端返回的 `oauth` 错误码显示更具体的英文说明。
+- 关键决策和解决方案：API 域名负责 Google OAuth 回调和 token 换取，前台域名只作为最终登录成功/失败返回页面；这样回调地址与 Kie 固定后端域名策略一致，也避免 `PUBLIC_APP_BASE_URL` 把 Google 回调牵到前台 CDN 域名。
+- 使用的技术栈：Node.js 原生 HTTP、Google OAuth、Vue 3 CDN。
+- 新增或修改了哪些文件：修改 `server.js`、`frontend/index.html`、`.env.example` 和 `README.md`。
+- 后续建议：Google Cloud OAuth 客户端必须授权 `https://api.imgkit.io/api/auth/google/callback`；部署后用 `curl -i https://api.imgkit.io/api/auth/google` 确认 Location 中的 `redirect_uri` 是该地址。
