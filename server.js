@@ -52,6 +52,7 @@ const googleClientId = process.env.GOOGLE_CLIENT_ID || '';
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET || '';
 const googleOauthRedirectUri = process.env.GOOGLE_OAUTH_REDIRECT_URI || '';
 const publicAppBaseUrl = normalizePublicBaseUrl(process.env.PUBLIC_APP_BASE_URL || '');
+const allowedApiOrigins = createAllowedApiOrigins(process.env.API_CORS_ALLOWED_ORIGINS || '', publicAppBaseUrl);
 const listenTarget = createListenTarget(process.env.PORT, process.env.HOST);
 const database = createDatabase();
 const toolRepository = createToolRepository(database);
@@ -122,6 +123,13 @@ const ADMIN_ROLE_PERMISSIONS = {
 const server = http.createServer(async (request, response) => {
   try {
     const requestPathname = getRequestPathname(request);
+    applyApiCorsHeaders(request, response, requestPathname);
+
+    if (request.method === 'OPTIONS' && requestPathname.startsWith('/api/')) {
+      response.writeHead(204);
+      response.end();
+      return;
+    }
 
     if (requestPathname === '/api/health') {
       sendJson(response, 200, {
@@ -2283,7 +2291,7 @@ async function handleGoogleOAuthCallback(request, response, url) {
   const savedState = getCookieValue(request, 'runninghub_google_oauth_state');
 
   if (!code || !state || !savedState || state !== savedState) {
-    redirectWithExpiredOAuthState(request, response, '/login?oauth=invalid_state');
+    redirectWithExpiredOAuthState(request, response, `${getFrontendReturnOrigin(request)}/login?oauth=invalid_state`);
     return;
   }
 
@@ -2299,7 +2307,7 @@ async function handleGoogleOAuthCallback(request, response, url) {
     });
 
     response.writeHead(302, {
-      Location: '/member/files',
+      Location: `${getFrontendReturnOrigin(request)}/member/files`,
       'Set-Cookie': [
         createMemberSessionCookie(request, memberSession.id),
         createExpiredCookie(request, 'runninghub_google_oauth_state')
@@ -2308,7 +2316,7 @@ async function handleGoogleOAuthCallback(request, response, url) {
     response.end();
   } catch (error) {
     console.error('Google 登入失敗:', error);
-    redirectWithExpiredOAuthState(request, response, '/login?oauth=failed');
+    redirectWithExpiredOAuthState(request, response, `${getFrontendReturnOrigin(request)}/login?oauth=failed`);
   }
 }
 
@@ -2443,6 +2451,10 @@ function getPaymentReturnOrigin(request) {
   return getRequestOrigin(request);
 }
 
+function getFrontendReturnOrigin(request) {
+  return publicAppBaseUrl || getRequestOrigin(request);
+}
+
 function normalizePublicBaseUrl(value) {
   const normalizedValue = String(value || '').trim().replace(/\/$/, '');
   if (!normalizedValue) return '';
@@ -2454,6 +2466,43 @@ function normalizePublicBaseUrl(value) {
   } catch (error) {
     return '';
   }
+}
+
+function createAllowedApiOrigins(value, appBaseUrl) {
+  const origins = new Set([
+    'https://imgkit.io',
+    'https://www.imgkit.io',
+    'https://api.imgkit.io',
+    'http://127.0.0.1:3000',
+    'http://localhost:3000'
+  ]);
+
+  if (appBaseUrl) origins.add(appBaseUrl);
+
+  String(value || '').split(',').forEach((originValue) => {
+    const origin = normalizePublicBaseUrl(originValue);
+    if (origin) origins.add(origin);
+  });
+
+  return origins;
+}
+
+function applyApiCorsHeaders(request, response, pathname) {
+  if (!pathname.startsWith('/api/')) return;
+
+  const origin = String(request.headers.origin || '').trim();
+  if (allowedApiOrigins.has(origin)) {
+    response.setHeader('Access-Control-Allow-Origin', origin);
+    response.setHeader('Access-Control-Allow-Credentials', 'true');
+    response.setHeader('Vary', 'Origin');
+  }
+
+  response.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+  response.setHeader(
+    'Access-Control-Allow-Headers',
+    'Content-Type, PayPal-Transmission-Id, PayPal-Transmission-Time, PayPal-Cert-Url, PayPal-Auth-Algo, PayPal-Transmission-Sig, PayPal-Webhook-Id'
+  );
+  response.setHeader('Access-Control-Max-Age', '86400');
 }
 
 function getRequestOrigin(request) {

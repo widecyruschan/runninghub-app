@@ -283,3 +283,9 @@ docker compose logs -f runninghub-app
 - 使用的技术栈：Node.js、Kie API、DNS 查询。
 - 新增或修改了哪些文件：修改 `server.js` 和 `README.md`。
 - 后续建议：部署到 `82.29.163.78` 对应服务器后，用已登录会员访问 `/api/kie/egress-ip`，再把返回值加入 Kie 白名单。
+- 会话的主要目的：将前台与后端 API 域名分离，避免前台 `imgkit.io` 动态/CDN 路由导致 Kie API 白名单无法绑定固定 IP。
+- 完成的主要任务：通过 Hostinger DNS 将 `api.imgkit.io` 从 CDN ALIAS 调整为固定 A 记录 `82.29.163.78`；前台 Axios 请求在生产前台域名下统一走 `https://api.imgkit.io`；后端 `/api/*` 增加允许 `imgkit.io`、`www.imgkit.io`、`api.imgkit.io` 的跨域凭证支持；Google 登录回跳改回前台域名。
+- 关键决策和解决方案：生产前台页面继续使用 `imgkit.io`，后端 API 固定使用 `api.imgkit.io`；浏览器页面应使用 HTTPS API，避免 HTTPS 前台调用 HTTP API 被 mixed content 拦截；`PUBLIC_APP_BASE_URL` 保持表示前台页面地址，API 跨域来源通过 `API_CORS_ALLOWED_ORIGINS` 配置。
+- 使用的技术栈：Hostinger DNS MCP、Node.js 原生 HTTP、Vue 3 CDN、Axios、CORS。
+- 新增或修改了哪些文件：修改 `frontend/index.html`、`server.js`、`.env.example` 和 `README.md`。
+- 后续建议：生产环境变量将 `PUBLIC_APP_BASE_URL` 设置为 `https://imgkit.io`，`API_CORS_ALLOWED_ORIGINS` 设置为 `https://imgkit.io,https://www.imgkit.io,https://api.imgkit.io`，然后重建部署容器。

@@ -2584,11 +2584,29 @@
   <script>
     const { createApp, ref, computed, onMounted } = Vue;
 
+    const PRODUCTION_API_BASE_URL = 'https://api.imgkit.io';
+    const API_BASE_URL = getApiBaseUrl();
     const TOOLS_API_BASE_URL = '/api/tools';
     const TASKS_API_BASE_URL = '/api/tasks';
     const MAX_FILE_SIZE = 10 * 1024 * 1024;
     const POLLING_INTERVAL = 3000;
     const MAX_POLLING_COUNT = 120;
+
+    if (API_BASE_URL) {
+      axios.defaults.baseURL = API_BASE_URL;
+    }
+    axios.defaults.withCredentials = true;
+
+    function getApiBaseUrl() {
+      const localHosts = new Set(['127.0.0.1', 'localhost', 'api.imgkit.io']);
+      if (localHosts.has(window.location.hostname)) return '';
+      return PRODUCTION_API_BASE_URL;
+    }
+
+    function apiUrl(path) {
+      return `${API_BASE_URL}${path}`;
+    }
+
     const DISPLAY_TEXT_MAP = {
       '\u5716\u50cf': 'Image',
       '\u56fe\u50cf': 'Image',
@@ -3207,7 +3225,7 @@
         };
 
         const loginWithGoogle = () => {
-          window.location.href = '/api/auth/google';
+          window.location.href = apiUrl('/api/auth/google');
         };
 
         const saveMemberSettings = () => {
