@@ -106,10 +106,12 @@ const frontendRoutePrefixes = [
   '/tools'
 ];
 const adminSessions = new Map();
+const pendingOAuthStates = new Map();
 const ADMIN_SESSION_COOKIE = 'runninghub_admin_session';
 const ADMIN_SESSION_MAX_AGE_SECONDS = 60 * 60 * 8;
 const MEMBER_SESSION_COOKIE = 'runninghub_member_session';
 const MEMBER_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+const OAUTH_STATE_MAX_AGE_SECONDS = 60 * 10;
 const GOOGLE_OAUTH_SCOPE = 'openid email profile';
 const REGISTER_BONUS_CREDITS = 100;
 const DAILY_LOGIN_BONUS_CREDITS = 50;
@@ -779,7 +781,7 @@ async function handleAuthApi(request, response) {
 
   if (url.pathname === '/api/auth/google' && request.method === 'GET') {
     ensureGoogleOAuthConfigured();
-    const state = crypto.randomBytes(16).toString('hex');
+    const state = createPendingOAuthState();
     const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
     authUrl.searchParams.set('client_id', googleClientId);
     authUrl.searchParams.set('redirect_uri', getGoogleRedirectUri(request));
@@ -812,8 +814,9 @@ async function handleAuthApi(request, response) {
   }
 
   if (url.pathname === '/api/auth/logout' && request.method === 'POST') {
-    const sessionId = getCookieValue(request, MEMBER_SESSION_COOKIE);
-    if (sessionId) memberSessionRepository.deleteSession(sessionId);
+    getCookieValues(request, MEMBER_SESSION_COOKIE).forEach((sessionId) => {
+      memberSessionRepository.deleteSession(sessionId);
+    });
 
     sendJson(response, 200, {
       success: true,
@@ -2283,14 +2286,37 @@ function ensureGoogleOAuthConfigured() {
   }
 }
 
+function createPendingOAuthState() {
+  pruneExpiredOAuthStates();
+  const state = crypto.randomBytes(16).toString('hex');
+  pendingOAuthStates.set(state, Date.now() + OAUTH_STATE_MAX_AGE_SECONDS * 1000);
+  return state;
+}
+
+function consumePendingOAuthState(state) {
+  pruneExpiredOAuthStates();
+  const expiresAt = pendingOAuthStates.get(state);
+  if (!expiresAt) return false;
+
+  pendingOAuthStates.delete(state);
+  return expiresAt > Date.now();
+}
+
+function pruneExpiredOAuthStates(now = Date.now()) {
+  for (const [state, expiresAt] of pendingOAuthStates.entries()) {
+    if (expiresAt <= now) pendingOAuthStates.delete(state);
+  }
+}
+
 async function handleGoogleOAuthCallback(request, response, url) {
   ensureGoogleOAuthConfigured();
 
   const code = url.searchParams.get('code');
   const state = url.searchParams.get('state');
   const savedState = getCookieValue(request, 'runninghub_google_oauth_state');
+  const isValidState = Boolean(state) && (savedState === state || consumePendingOAuthState(state));
 
-  if (!code || !state || !savedState || state !== savedState) {
+  if (!code || !isValidState) {
     redirectWithExpiredOAuthState(request, response, `${getFrontendReturnOrigin(request)}/login?oauth=invalid_state`);
     return;
   }
@@ -2438,9 +2464,23 @@ function getHongKongDateKey(date = new Date()) {
 }
 
 function getGoogleRedirectUri(request) {
-  if (googleOauthRedirectUri) return googleOauthRedirectUri;
+  if (googleOauthRedirectUri && !isLocalRedirectUriForRemoteRequest(googleOauthRedirectUri, request)) {
+    return googleOauthRedirectUri;
+  }
 
   return `${getRequestOrigin(request)}/api/auth/google/callback`;
+}
+
+function isLocalRedirectUriForRemoteRequest(redirectUri, request) {
+  const requestHost = getRequestHost(request);
+  if (isLocalHost(requestHost)) return false;
+
+  try {
+    const redirectHost = new URL(redirectUri).hostname;
+    return isLocalHost(redirectHost);
+  } catch (error) {
+    return true;
+  }
 }
 
 function getPaymentReturnOrigin(request) {
@@ -2508,8 +2548,17 @@ function applyApiCorsHeaders(request, response, pathname) {
 function getRequestOrigin(request) {
   const forwardedProto = String(request.headers['x-forwarded-proto'] || '').split(',')[0].trim();
   const protocol = forwardedProto || (shouldUseSecureCookie(request) ? 'https' : 'http');
+  return `${protocol}://${getRequestHost(request)}`;
+}
+
+function getRequestHost(request) {
   const hostHeader = request.headers['x-forwarded-host'] || request.headers.host || '127.0.0.1:3000';
-  return `${protocol}://${String(hostHeader).split(',')[0].trim()}`;
+  return String(hostHeader).split(',')[0].trim();
+}
+
+function isLocalHost(hostValue) {
+  const host = String(hostValue || '').split(':')[0].toLowerCase();
+  return host === '127.0.0.1' || host === 'localhost' || host === '::1';
 }
 
 function redirectWithExpiredOAuthState(request, response, location) {
@@ -2556,24 +2605,32 @@ function hasPermission(session, permission) {
 }
 
 function getAdminSession(request) {
-  const sessionId = getCookieValue(request, ADMIN_SESSION_COOKIE);
-  if (!sessionId) return null;
+  const sessionIds = getCookieValues(request, ADMIN_SESSION_COOKIE);
 
-  const session = adminSessions.get(sessionId);
-  if (!session) return null;
+  for (const sessionId of sessionIds) {
+    const session = adminSessions.get(sessionId);
+    if (!session) continue;
 
-  if (session.expiresAt <= Date.now()) {
-    adminSessions.delete(sessionId);
-    return null;
+    if (session.expiresAt <= Date.now()) {
+      adminSessions.delete(sessionId);
+      continue;
+    }
+
+    return session;
   }
 
-  return session;
+  return null;
 }
 
 function getMemberSession(request) {
-  const sessionId = getCookieValue(request, MEMBER_SESSION_COOKIE);
-  if (!sessionId) return null;
-  return memberSessionRepository.getSessionById(sessionId);
+  const sessionIds = getCookieValues(request, MEMBER_SESSION_COOKIE);
+
+  for (const sessionId of sessionIds) {
+    const memberSession = memberSessionRepository.getSessionById(sessionId);
+    if (memberSession) return memberSession;
+  }
+
+  return null;
 }
 
 function requireActiveMemberSession(request) {
@@ -2594,18 +2651,25 @@ function pruneExpiredAdminSessions(now = Date.now()) {
 }
 
 function getCookieValue(request, cookieName) {
+  return getCookieValues(request, cookieName)[0] || '';
+}
+
+function getCookieValues(request, cookieName) {
   const cookieHeader = request.headers.cookie || '';
   const cookies = cookieHeader.split(';').map((cookie) => cookie.trim()).filter(Boolean);
   const cookiePrefix = `${cookieName}=`;
-  const foundCookie = cookies.find((cookie) => cookie.startsWith(cookiePrefix));
 
-  return foundCookie ? decodeURIComponent(foundCookie.slice(cookiePrefix.length)) : '';
+  return cookies
+    .filter((cookie) => cookie.startsWith(cookiePrefix))
+    .map((cookie) => decodeURIComponent(cookie.slice(cookiePrefix.length)))
+    .filter(Boolean);
 }
 
 function createSessionCookie(request, sessionId) {
   return [
     `${ADMIN_SESSION_COOKIE}=${encodeURIComponent(sessionId)}`,
     'Path=/',
+    getCookieDomainAttribute(request),
     'HttpOnly',
     'SameSite=Lax',
     `Max-Age=${ADMIN_SESSION_MAX_AGE_SECONDS}`,
@@ -2617,6 +2681,7 @@ function createMemberSessionCookie(request, sessionId) {
   return [
     `${MEMBER_SESSION_COOKIE}=${encodeURIComponent(sessionId)}`,
     'Path=/',
+    getCookieDomainAttribute(request),
     'HttpOnly',
     'SameSite=Lax',
     `Max-Age=${MEMBER_SESSION_MAX_AGE_SECONDS}`,
@@ -2628,9 +2693,10 @@ function createOAuthStateCookie(request, state) {
   return [
     `runninghub_google_oauth_state=${encodeURIComponent(state)}`,
     'Path=/',
+    getCookieDomainAttribute(request),
     'HttpOnly',
     'SameSite=Lax',
-    'Max-Age=600',
+    `Max-Age=${OAUTH_STATE_MAX_AGE_SECONDS}`,
     shouldUseSecureCookie(request) ? 'Secure' : ''
   ].filter(Boolean).join('; ');
 }
@@ -2643,6 +2709,7 @@ function createExpiredCookie(request, cookieName) {
   return [
     `${cookieName}=`,
     'Path=/',
+    getCookieDomainAttribute(request),
     'HttpOnly',
     'SameSite=Lax',
     'Max-Age=0',
@@ -2652,6 +2719,23 @@ function createExpiredCookie(request, cookieName) {
 
 function shouldUseSecureCookie(request) {
   return request.headers['x-forwarded-proto'] === 'https' || process.env.NODE_ENV === 'production';
+}
+
+function getCookieDomainAttribute(request) {
+  const configuredDomain = String(process.env.SESSION_COOKIE_DOMAIN || '').trim();
+  if (configuredDomain) return `Domain=${configuredDomain}`;
+
+  const host = String(request.headers['x-forwarded-host'] || request.headers.host || '')
+    .split(',')[0]
+    .trim()
+    .split(':')[0]
+    .toLowerCase();
+
+  if (host === 'imgkit.io' || host.endsWith('.imgkit.io')) {
+    return 'Domain=.imgkit.io';
+  }
+
+  return '';
 }
 
 function sendUnauthorized(response) {

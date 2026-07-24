@@ -289,3 +289,9 @@ docker compose logs -f runninghub-app
 - 使用的技术栈：Hostinger DNS MCP、Node.js 原生 HTTP、Vue 3 CDN、Axios、CORS。
 - 新增或修改了哪些文件：修改 `frontend/index.html`、`server.js`、`.env.example` 和 `README.md`。
 - 后续建议：生产环境变量将 `PUBLIC_APP_BASE_URL` 设置为 `https://imgkit.io`，`API_CORS_ALLOWED_ORIGINS` 设置为 `https://imgkit.io,https://www.imgkit.io,https://api.imgkit.io`，然后重建部署容器。
+- 会话的主要目的：修复前后端分域后 Google 登录失败，并确保登录状态至少 3 天内不需要重复登录。
+- 完成的主要任务：OAuth state 增加后端 10 分钟临时存储兜底，不再只依赖单一子域临时 Cookie；会员、后台和 OAuth 临时 Cookie 支持 `.imgkit.io` 跨子域 Domain；会员 Session Cookie 保持 30 天有效；后端读取同名 Cookie 时会跳过旧的无效 Cookie，避免旧登录状态挡住新登录状态。
+- 关键决策和解决方案：如果生产请求仍配置了 localhost/127.0.0.1 的旧 Google 回调地址，后端会自动忽略并改用当前 API 域名生成回调；前台显示 Google 登录失败提示后会清理 `oauth` 查询参数，避免刷新页面反复弹出旧错误。
+- 使用的技术栈：Node.js 原生 HTTP、Google OAuth、Cookie Session、Vue 3 CDN、Axios。
+- 新增或修改了哪些文件：修改 `server.js`、`frontend/index.html`、`.env.example` 和 `README.md`。
+- 后续建议：生产环境建议设置 `SESSION_COOKIE_DOMAIN=.imgkit.io`，并在 Google Cloud OAuth 客户端中确认已授权 `https://api.imgkit.io/api/auth/google/callback`。

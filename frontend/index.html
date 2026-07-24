@@ -3335,6 +3335,12 @@
           window.history.replaceState({}, '', cleanUrl);
         };
 
+        const clearOAuthQuery = () => {
+          if (!window.location.search.includes('oauth=')) return;
+          const cleanUrl = window.location.pathname || '/login';
+          window.history.replaceState({}, '', cleanUrl);
+        };
+
         const handleMemberLogout = async () => {
           if (!memberLoggedIn.value) {
             openMemberPage('/register');
@@ -3859,6 +3865,7 @@
           const oauthStatus = new URLSearchParams(window.location.search).get('oauth');
           if (oauthStatus === 'failed' || oauthStatus === 'invalid_state') {
             ElementPlus.ElMessage.error('Google login failed. Please try again later.');
+            clearOAuthQuery();
           }
 
           window.addEventListener('popstate', () => {
