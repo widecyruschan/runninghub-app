@@ -2894,7 +2894,9 @@
         const compareSliderStyle = computed(() => ({
           '--compare-position': `${comparePosition.value}%`
         }));
-        const dynamicInputFields = computed(() => (toolConfig.value?.inputNodes || []).filter((node) => node.dataType !== 'image' && node.dataType !== 'video'));
+        const dynamicInputFields = computed(() => (
+          toolConfig.value?.inputNodes || []
+        ).filter((node) => node.dataType !== 'image' && node.dataType !== 'video' && node.dataType !== 'audio'));
         const toolTitle = computed(() => {
           if (isMarketplace.value) return 'AI Tool Platform';
           return getDisplayText(toolConfig.value?.name) || 'Remove Background';
@@ -3819,7 +3821,7 @@
             executionMessage.value = 'Task created. Waiting for result';
             await waitForTaskSuccess(task.taskId);
 
-            executionMessage.value = 'Fetching output image';
+            executionMessage.value = 'Fetching output';
             const imageUrls = await queryTaskOutputs(task.taskId);
 
             if (!imageUrls.length) {

@@ -56,11 +56,27 @@ function createKieClient(options = {}) {
         }
       });
     },
+    async createVeoTask(payload) {
+      return requestJson({
+        apiKey,
+        url: `${apiBaseUrl}/api/v1/veo/generate`,
+        method: 'POST',
+        payload
+      });
+    },
     async getTaskRecord(taskId) {
       const query = new URLSearchParams({ taskId: String(taskId || '') });
       return requestJson({
         apiKey,
         url: `${apiBaseUrl}/api/v1/jobs/recordInfo?${query.toString()}`,
+        method: 'GET'
+      });
+    },
+    async getVeoRecord(taskId) {
+      const query = new URLSearchParams({ taskId: String(taskId || '') });
+      return requestJson({
+        apiKey,
+        url: `${apiBaseUrl}/api/v1/veo/record-info?${query.toString()}`,
         method: 'GET'
       });
     }

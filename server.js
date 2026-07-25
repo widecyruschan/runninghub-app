@@ -24,6 +24,9 @@ const KIE_UPLOAD_PATH = 'runninghub-app/uploads';
 const KIE_WORKFLOW_PREFIX = 'kie:';
 const KIE_NANO_BANANA_MODELS = new Set(['google/nano-banana', 'nano-banana-2-lite', 'nano-banana-pro']);
 const KIE_DEFAULT_NANO_BANANA_MODEL = 'nano-banana-pro';
+const KIE_VEO_WORKFLOW = 'veo-3-1';
+const KIE_VEO_MODELS = new Set(['veo3', 'veo3_fast', 'veo3_lite']);
+const KIE_VEO_GENERATION_TYPES = new Set(['TEXT_2_VIDEO', 'FIRST_AND_LAST_FRAMES_2_VIDEO', 'REFERENCE_2_VIDEO']);
 const RICH_EDITOR_UPLOAD_MIME_TYPES = new Set([
   'image/jpeg',
   'image/png',
@@ -1156,12 +1159,38 @@ async function executeToolWithConfig(tool, requestBody, options = {}) {
 }
 
 async function createKieToolTask(tool, task, inputValues) {
+  if (isKieVeoTool(tool)) {
+    return createKieVeoToolTask(tool, task, inputValues);
+  }
+
   const model = getKieTaskModel(tool, inputValues);
   const kieInput = buildKieTaskInput(tool, inputValues);
   const kieResponse = await kieClient.createTask({
     model,
     input: kieInput
   });
+  const kieTaskId = extractKieTaskId(kieResponse);
+
+  if (!kieTaskId) {
+    throwHttpError('任務建立失敗，未返回 KIE 任務 ID', 'KIE_TASK_ID_MISSING', 502);
+  }
+
+  const savedTask = taskRepository.attachRunningHubTask(task.id, kieTaskId, 'QUEUED');
+
+  return {
+    taskId: savedTask.id,
+    runningHubTaskId: savedTask.runningHubTaskId,
+    status: savedTask.status,
+    tool: {
+      id: tool.id,
+      slug: tool.slug,
+      name: tool.name
+    }
+  };
+}
+
+async function createKieVeoToolTask(tool, task, inputValues) {
+  const kieResponse = await kieClient.createVeoTask(buildKieVeoTaskPayload(inputValues));
   const kieTaskId = extractKieTaskId(kieResponse);
 
   if (!kieTaskId) {
@@ -1220,6 +1249,36 @@ function normalizeKieImageInput(value) {
   if (!value) return [];
   if (Array.isArray(value)) return value.filter(Boolean);
   return [value].filter(Boolean);
+}
+
+function buildKieVeoTaskPayload(inputValues) {
+  const model = String(inputValues.model || 'veo3_fast').trim();
+  const generationType = String(inputValues.generationType || 'TEXT_2_VIDEO').trim();
+  const imageUrls = normalizeKieImageInput(inputValues.imageUrls || inputValues.image_urls || inputValues.image_input);
+  const payload = {
+    prompt: String(inputValues.prompt || ''),
+    model: KIE_VEO_MODELS.has(model) ? model : 'veo3_fast',
+    generationType: KIE_VEO_GENERATION_TYPES.has(generationType) ? generationType : 'TEXT_2_VIDEO',
+    aspect_ratio: String(inputValues.aspect_ratio || '16:9'),
+    resolution: String(inputValues.resolution || '720p'),
+    duration: normalizeKieVeoDuration(inputValues.duration),
+    enableTranslation: true
+  };
+
+  if (payload.generationType !== 'TEXT_2_VIDEO' && imageUrls.length) {
+    payload.imageUrls = imageUrls;
+  }
+
+  if (payload.generationType === 'REFERENCE_2_VIDEO') {
+    payload.duration = 8;
+  }
+
+  return payload;
+}
+
+function normalizeKieVeoDuration(value) {
+  const duration = Number.parseInt(value, 10);
+  return [4, 6, 8].includes(duration) ? duration : 8;
 }
 
 async function buildNodeInfoList(tool, rawInputValues, normalizedInputValues) {
@@ -1526,13 +1585,13 @@ async function syncKieTaskStatus(task, tool) {
     return task;
   }
 
-  const kieResponse = await kieClient.getTaskRecord(task.runningHubTaskId);
-  const kieStatus = extractKieStatus(kieResponse);
+  const kieResponse = await getKieToolRecord(tool, task.runningHubTaskId);
+  const kieStatus = extractKieToolStatus(tool, kieResponse);
 
   if (kieStatus === 'FAILED') {
     const failedTask = taskRepository.markTaskStatus(task.id, 'FAILED', {
-      code: extractKieFailureCode(kieResponse),
-      message: extractKieFailureMessage(kieResponse) || 'KIE 任務執行失敗'
+      code: extractKieToolFailureCode(tool, kieResponse),
+      message: extractKieToolFailureMessage(tool, kieResponse) || 'KIE 任務執行失敗'
     });
     syncToolTestResult(failedTask);
     return failedTask;
@@ -1562,14 +1621,39 @@ async function getKieTaskOutputs(task, tool) {
     throwHttpError('任務尚未完成，暫無輸出結果', 'TASK_NOT_FINISHED', 409);
   }
 
-  const kieResponse = await kieClient.getTaskRecord(task.runningHubTaskId);
-  const outputs = extractKieResults(kieResponse);
+  const kieResponse = await getKieToolRecord(tool, task.runningHubTaskId);
+  const outputs = extractKieToolResults(tool, kieResponse);
   const outputUrls = extractOutputUrls(outputs, tool?.outputConfig);
   const usage = normalizeRunningHubUsage({});
   const completedTask = taskRepository.completeTask(task.id, outputs, outputUrls, usage, 0);
   syncToolTestResult(completedTask);
 
   return completedTask;
+}
+
+function getKieToolRecord(tool, taskId) {
+  if (isKieVeoTool(tool)) return kieClient.getVeoRecord(taskId);
+  return kieClient.getTaskRecord(taskId);
+}
+
+function extractKieToolStatus(tool, responseData) {
+  if (isKieVeoTool(tool)) return extractKieVeoStatus(responseData);
+  return extractKieStatus(responseData);
+}
+
+function extractKieToolFailureCode(tool, responseData) {
+  if (isKieVeoTool(tool)) return extractKieVeoFailureCode(responseData);
+  return extractKieFailureCode(responseData);
+}
+
+function extractKieToolFailureMessage(tool, responseData) {
+  if (isKieVeoTool(tool)) return extractKieVeoFailureMessage(responseData);
+  return extractKieFailureMessage(responseData);
+}
+
+function extractKieToolResults(tool, responseData) {
+  if (isKieVeoTool(tool)) return extractKieVeoResults(responseData);
+  return extractKieResults(responseData);
 }
 
 function chargeTaskCredits(task, usage) {
@@ -1986,6 +2070,10 @@ function isKieTool(tool) {
   return String(tool?.workflowId || '').trim().startsWith(KIE_WORKFLOW_PREFIX);
 }
 
+function isKieVeoTool(tool) {
+  return getKieModelName(tool) === KIE_VEO_WORKFLOW;
+}
+
 function getKieModelName(tool) {
   const workflowId = String(tool?.workflowId || '').trim();
   if (!workflowId.startsWith(KIE_WORKFLOW_PREFIX)) return '';
@@ -2118,12 +2206,27 @@ function extractKieStatus(responseData) {
   return 'RUNNING';
 }
 
+function extractKieVeoStatus(responseData) {
+  const successFlag = Number(responseData?.data?.successFlag ?? responseData?.successFlag);
+  if (successFlag === 1) return 'SUCCESS';
+  if (successFlag === 2 || successFlag === 3) return 'FAILED';
+  return 'RUNNING';
+}
+
 function extractKieFailureCode(responseData) {
   return responseData?.data?.failCode || responseData?.failCode || 'KIE_TASK_FAILED';
 }
 
 function extractKieFailureMessage(responseData) {
   return responseData?.data?.failMsg || responseData?.failMsg || responseData?.msg || '';
+}
+
+function extractKieVeoFailureCode(responseData) {
+  return responseData?.data?.errorCode || responseData?.errorCode || 'KIE_VEO_TASK_FAILED';
+}
+
+function extractKieVeoFailureMessage(responseData) {
+  return responseData?.data?.errorMessage || responseData?.errorMessage || responseData?.msg || '';
 }
 
 function extractRunningHubUsage(responseData) {
@@ -2180,6 +2283,20 @@ function extractKieResults(responseData) {
   }
 
   return [];
+}
+
+function extractKieVeoResults(responseData) {
+  const responsePayload = responseData?.data?.response || responseData?.response || {};
+  const resultUrls = [
+    ...normalizeKieImageInput(responsePayload.resultUrls),
+    ...normalizeKieImageInput(responsePayload.fullResultUrls)
+  ];
+  const uniqueUrls = Array.from(new Set(resultUrls.filter(Boolean)));
+
+  return uniqueUrls.map((url) => ({
+    url,
+    outputType: 'video'
+  }));
 }
 
 function parseKieResultJson(value) {

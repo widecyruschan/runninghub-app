@@ -121,6 +121,12 @@ docker compose logs -f runninghub-app
 - 使用的技術棧：Node.js 原生 HTTP、KIE API、Vue 3 CDN、SQLite / JSON fallback。
 - 新增或修改了哪些文件：修改 `server.js`、`src/toolRepository.js` 和 `README.md`。
 - 後續建議：部署後進入圖片工具內的 Google Nano Banana 頁面，確認 `Model` 下拉包含三個選項，再分別用不帶參考圖的小 prompt 做低成本測試。
+- 會話的主要目的：參考 KIE Veo 3.1 官方文檔新增 Veo 3.1 視頻生成工具頁。
+- 完成的主要任務：新增 `Google Veo 3.1` 工具配置，提供 Model、Generation Type、Prompt、Video Ratio、Resolution、Duration 和可選 Reference Images；後端新增 Veo 專用 `POST /api/v1/veo/generate` 建任務與 `GET /api/v1/veo/record-info` 輪詢解析；前台結果區沿用 video preview 顯示生成影片。
+- 關鍵決策和解決方案：Veo 3.1 使用 KIE 獨立 Veo API，不走 Nano Banana 的 `jobs/createTask`；Text to Video 會忽略已上傳參考圖，Image to Video / Reference to Video 才把圖片 URL 傳入 `imageUrls`；Reference to Video 按文檔固定 8 秒。
+- 使用的技術棧：Node.js 原生 HTTP、KIE Veo 3.1 API、Vue 3 CDN、SQLite / JSON fallback。
+- 新增或修改了哪些文件：修改 `src/kieClient.js`、`server.js`、`src/toolRepository.js`、`frontend/index.html` 和 `README.md`。
+- 後續建議：部署後進入 `/tools/google-veo-3-1`，先用 `Veo 3.1 Fast`、`Text to Video`、`720p`、`4s` 做小 prompt 測試，再測 Image to Video 和 Reference to Video。
 
 ### 2026-07-10
 

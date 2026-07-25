@@ -399,6 +399,126 @@ function createToolRepository(database) {
       }
     });
     upgradeNanoBananaTool();
+
+    seedToolIfMissing({
+      toolKey: 'google-veo-3-1',
+      name: 'Google Veo 3.1',
+      slug: 'google-veo-3-1',
+      categoryId: 'video',
+      shortDescription: 'Generate cinematic videos with Veo 3.1 using text prompts, image frames, or reference images.',
+      topDetailHtml: '<p>Choose a Veo 3.1 model and generation type, enter a prompt, then generate a cinematic AI video.</p>',
+      detailHtml: '<h2>Best for</h2><p>Text-to-video clips, image-to-video motion, reference-driven video concepts, social ads, cinematic shots, and product scenes.</p>',
+      previewImageUrl: 'https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=900&q=80',
+      creditCost: 1,
+      workflowId: 'kie:veo-3-1',
+      instanceType: 'default',
+      status: 'active',
+      sortOrder: 30,
+      inputNodes: [
+        {
+          nodeId: 'kie-input',
+          fieldName: 'generationType',
+          key: 'generationType',
+          dataType: 'select',
+          label: 'Generation Type',
+          defaultValue: 'TEXT_2_VIDEO',
+          required: true,
+          options: [
+            { label: 'Text to Video', value: 'TEXT_2_VIDEO' },
+            { label: 'Image to Video', value: 'FIRST_AND_LAST_FRAMES_2_VIDEO' },
+            { label: 'Reference to Video', value: 'REFERENCE_2_VIDEO' }
+          ]
+        },
+        {
+          nodeId: 'kie-input',
+          fieldName: 'model',
+          key: 'model',
+          dataType: 'select',
+          label: 'Model',
+          defaultValue: 'veo3_fast',
+          required: true,
+          options: [
+            { label: 'Veo 3.1 Lite', value: 'veo3_lite' },
+            { label: 'Veo 3.1 Fast', value: 'veo3_fast' },
+            { label: 'Veo 3.1 Quality', value: 'veo3' }
+          ]
+        },
+        {
+          nodeId: 'kie-input',
+          fieldName: 'imageUrls',
+          key: 'imageUrls',
+          dataType: 'image',
+          uploadMode: 'multiple',
+          label: 'Reference Images',
+          placeholder: 'Upload JPG, PNG, or WebP images for image or reference video',
+          required: false,
+          maxFiles: 3,
+          uploadColumns: 3,
+          maxFileSizeMb: 10,
+          compressQuality: 90,
+          acceptedFileTypes: ['image'],
+          options: []
+        },
+        {
+          nodeId: 'kie-input',
+          fieldName: 'prompt',
+          key: 'prompt',
+          dataType: 'textarea',
+          label: 'Prompt',
+          placeholder: 'Describe the scene, motion, camera movement, style, lighting, and audio mood',
+          defaultValue: 'A cinematic product video with smooth camera movement, realistic lighting, natural motion, and polished commercial styling.',
+          required: true,
+          options: []
+        },
+        {
+          nodeId: 'kie-input',
+          fieldName: 'aspect_ratio',
+          key: 'aspect_ratio',
+          dataType: 'select',
+          label: 'Video Ratio',
+          defaultValue: '16:9',
+          required: false,
+          options: [
+            { label: 'Auto', value: 'Auto' },
+            { label: '16:9', value: '16:9' },
+            { label: '9:16', value: '9:16' }
+          ]
+        },
+        {
+          nodeId: 'kie-input',
+          fieldName: 'resolution',
+          key: 'resolution',
+          dataType: 'select',
+          label: 'Resolution',
+          defaultValue: '720p',
+          required: false,
+          options: [
+            { label: '720p', value: '720p' },
+            { label: '1080p', value: '1080p' },
+            { label: '4K', value: '4k' }
+          ]
+        },
+        {
+          nodeId: 'kie-input',
+          fieldName: 'duration',
+          key: 'duration',
+          dataType: 'select',
+          label: 'Duration',
+          defaultValue: '8',
+          required: false,
+          options: [
+            { label: '4s', value: '4' },
+            { label: '6s', value: '6' },
+            { label: '8s', value: '8' }
+          ]
+        }
+      ],
+      outputConfig: {
+        outputType: 'video',
+        previewMode: 'video',
+        fallbackPaths: ['url', 'fileUrl', 'file_url', 'download_url', 'resultUrls', 'fullResultUrls']
+      }
+    });
   }
 
   function seedToolIfMissing(tool) {
