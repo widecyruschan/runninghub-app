@@ -2240,14 +2240,13 @@
             <img
               v-if="tool.previewImageUrl"
               class="market-tool-image"
-              :src="tool.previewImageUrl"
+              :src="getAssetUrl(tool.previewImageUrl)"
               :alt="`${getDisplayText(tool.name)} preview image`"
             >
             <div v-else class="market-tool-placeholder">No preview image</div>
             <div class="market-tool-body">
               <div class="market-tool-meta">
                 <span>{{ getDisplayText(tool.categoryName) || 'AI Tool' }}</span>
-                <span>{{ tool.estimatedSeconds ? `About ${tool.estimatedSeconds}s` : 'Use Now' }}</span>
               </div>
               <h2 class="market-tool-title">{{ getDisplayText(tool.name) }}</h2>
               <p class="market-tool-description">{{ getDisplayText(tool.shortDescription || tool.description) || 'No description has been added for this tool yet.' }}</p>
@@ -2623,6 +2622,14 @@
       return `${API_BASE_URL}${path}`;
     }
 
+    function getAssetUrl(rawUrl) {
+      const url = String(rawUrl || '').trim();
+      if (!url) return '';
+      if (/^(https?:)?\/\//i.test(url) || url.startsWith('data:') || url.startsWith('blob:')) return url;
+      if (url.startsWith('/')) return apiUrl(url);
+      return url;
+    }
+
     const DISPLAY_TEXT_MAP = {
       '\u5716\u50cf': 'Image',
       '\u56fe\u50cf': 'Image',
@@ -2930,10 +2937,6 @@
         const toolDetailHtml = computed(() => {
           if (isMarketplace.value) return '';
           return getDisplayHtml(toolConfig.value?.detailHtml);
-        });
-        const estimatedTimeLabel = computed(() => {
-          const seconds = toolConfig.value?.estimatedSeconds;
-          return seconds ? `About ${seconds}s` : 'AI Tool';
         });
         const isResultImage = computed(() => !resultImageUrl.value || !/\.(mp4|webm|mov)(\?|#|$)/i.test(resultImageUrl.value));
 
@@ -3984,9 +3987,9 @@
           categories: activeCategories,
           currentMemberPath,
           dynamicInputFields,
-          estimatedTimeLabel,
           filteredTools,
           formValues,
+          getAssetUrl,
           isLoadingMarketplace,
           isPayPalProcessing,
           selectedCategory,

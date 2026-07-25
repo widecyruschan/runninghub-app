@@ -91,6 +91,12 @@ docker compose logs -f runninghub-app
 
 ### 2026-07-26
 
+- 會話的主要目的：修復後台配置的工具預覽圖片在前台工具市場不顯示，並刪除前台預計時間顯示。
+- 完成的主要任務：前台工具卡片的預覽圖改為透過資產 URL helper 解析，支援後台上傳返回的 `/uploads/...` 相對路徑在 `imgkit.io` 前台中正確指向 `api.imgkit.io`；公開工具 API 不再輸出固定 `estimatedSeconds`；工具市場卡片移除 `About 30s` 類預計時間；已知 404 的 Remove Background 預設封面會在啟動 seed 流程中自動替換。
+- 關鍵決策和解決方案：只替換空封面或舊壞 URL，不覆蓋後台新配置的圖片；前台可見 fallback 文案保持英文；不新增前台計費或時間說明。
+- 使用的技術棧：Node.js 原生 HTTP、Vue 3 CDN、SQLite / JSON fallback。
+- 新增或修改了哪些文件：修改 `frontend/index.html`、`src/toolRepository.js`、`src/database.js` 和 `README.md`。
+- 後續建議：部署後在前台工具市場檢查後台上傳的 preview 圖是否從 `https://api.imgkit.io/uploads/...` 載入，並確認工具卡片不再顯示預計時間。
 - 會話的主要目的：修復 KIE / Kit API 工具任務完成後沒有扣減用戶積分的問題。
 - 完成的主要任務：KIE 任務取回輸出時改為抽取 API 回傳的消耗欄位，支援 `consumeCoins`、`creditsConsumed`、`credits_consumed`、`creditConsumed`、`consumedCredits` 和 `costCredits`；若 API 沒有返回消耗，則按後台工具 `creditCost` 扣減；已完成但未扣費的舊任務再次取結果時會補扣並更新任務記錄。
 - 關鍵決策和解決方案：RunningHub 等返回實際消耗的工具仍按實際消耗 * 1.2 向下取整扣減；KIE Veo 文檔範例未展示消耗欄位，因此會使用後台配置值作兜底；前台不顯示任何扣費公式或 provider 消耗細節。

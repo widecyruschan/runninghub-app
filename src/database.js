@@ -308,7 +308,7 @@ function migrateDatabase(database) {
     SET preview_image_url = ?
     WHERE tool_key = 'remove-background'
       AND preview_image_url = ''
-  `).run('https://images.unsplash.com/photo-1520975682031-a87d82c5b6d8?auto=format&fit=crop&w=900&q=80');
+  `).run('https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80');
 
   database.prepare(`
     UPDATE tools
