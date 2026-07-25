@@ -109,6 +109,12 @@ docker compose logs -f runninghub-app
 - 使用的技術棧：Node.js 原生 HTTP、KIE API、Vue 3 CDN、Element Plus。
 - 新增或修改了哪些文件：修改 `src/kieClient.js`、`server.js`、`frontend/index.html`、`.env.example` 和 `README.md`。
 - 後續建議：部署後登入會員並打開 `https://api.imgkit.io/api/kie/diagnostics`，確認 `egressIp` 是否仍為 `82.29.163.78`，以及 `apiKeyFingerprint` 是否對應 KIE 後台已配置白名單的同一把 API Key。
+- 會話的主要目的：對照 KIE Nano Banana Pro 官方文檔，修正 API Key 已設白名單但仍被 IP 拒絕的問題。
+- 完成的主要任務：確認 Nano Banana Pro 的 endpoint、Bearer Token、`model`、`prompt`、`image_input`、`aspect_ratio`、`resolution` 和 `output_format` 與官方文檔一致；將 KIE API HTTP client 改為 IPv4-only 請求；診斷接口新增 `ipv6EgressIpCheck`，方便部署後確認是否存在 IPv6 出站差異。
+- 關鍵決策和解決方案：KIE 域名同時有 A 與 AAAA 記錄，而後台白名單只配置 IPv4 時可能被 IPv6 出站路徑拒絕；本次只限制 KIE provider 走 IPv4，不影響 RunningHub、PayPal 或其他 HTTP 請求。
+- 使用的技術棧：Node.js 內建 `https`、`dns`、KIE API、Nano Banana Pro 官方文檔。
+- 新增或修改了哪些文件：修改 `src/kieClient.js`、`server.js` 和 `README.md`。
+- 後續建議：部署後重新打開 `https://api.imgkit.io/api/kie/diagnostics`，如 `creditCheck.success` 變為 `true`，即可再測 Google Nano Banana Pro；如仍為白名單錯誤，需把 `ipv6EgressIpCheck` 結果一併提供給 KIE 支援。
 
 ### 2026-07-10
 

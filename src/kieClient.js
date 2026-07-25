@@ -1,4 +1,6 @@
 const crypto = require('crypto');
+const dns = require('dns');
+const https = require('https');
 
 function createKieClient(options = {}) {
   const apiKey = String(options.apiKey || process.env.KIE_API_KEY || '').trim();
@@ -68,32 +70,73 @@ function createKieClient(options = {}) {
 async function requestJson({ apiKey, url, method, payload }) {
   ensureKieConfigured(apiKey);
 
-  let response;
+  const requestPayload = payload ? JSON.stringify(payload) : '';
+  let responseData;
   try {
-    response = await fetch(url, {
+    responseData = await requestJsonOverHttps(url, {
       method,
       headers: {
         Authorization: `Bearer ${apiKey}`,
-        ...(payload ? { 'Content-Type': 'application/json' } : {})
+        ...(requestPayload ? { 'Content-Type': 'application/json' } : {})
       },
-      body: payload ? JSON.stringify(payload) : undefined
+      body: requestPayload
     });
   } catch (error) {
+    if (error.code && error.statusCode) throw error;
     throwKieError('KIE 服務暫時無法連線', 'KIE_NETWORK_ERROR', 502);
   }
 
-  const responseText = await response.text();
-  const responseData = parseJsonText(responseText);
-
-  if (!response.ok || isKieBusinessError(responseData)) {
+  if (!responseData.ok || isKieBusinessError(responseData.body)) {
     throwKieError(
-      responseData?.message || responseData?.msg || 'KIE 服務調用失敗',
-      responseData?.error?.code || responseData?.code || 'KIE_REQUEST_FAILED',
+      responseData.body?.message || responseData.body?.msg || 'KIE 服務調用失敗',
+      responseData.body?.error?.code || responseData.body?.code || 'KIE_REQUEST_FAILED',
       502
     );
   }
 
-  return responseData;
+  return responseData.body;
+}
+
+function requestJsonOverHttps(targetUrl, options) {
+  return new Promise((resolve, reject) => {
+    const parsedUrl = new URL(targetUrl);
+    const body = options.body || '';
+    const request = https.request({
+      protocol: parsedUrl.protocol,
+      hostname: parsedUrl.hostname,
+      port: parsedUrl.port || 443,
+      path: `${parsedUrl.pathname}${parsedUrl.search}`,
+      method: options.method,
+      family: 4,
+      lookup: (hostname, lookupOptions, callback) => {
+        dns.lookup(hostname, { ...lookupOptions, family: 4 }, callback);
+      },
+      headers: {
+        ...options.headers,
+        ...(body ? { 'Content-Length': Buffer.byteLength(body) } : {})
+      },
+      timeout: 30000
+    }, (response) => {
+      const chunks = [];
+
+      response.on('data', (chunk) => chunks.push(chunk));
+      response.on('end', () => {
+        const responseText = Buffer.concat(chunks).toString('utf8');
+        resolve({
+          ok: response.statusCode >= 200 && response.statusCode < 300,
+          statusCode: response.statusCode,
+          body: parseJsonText(responseText)
+        });
+      });
+    });
+
+    request.on('timeout', () => {
+      request.destroy(new Error('KIE request timeout'));
+    });
+    request.on('error', reject);
+    if (body) request.write(body);
+    request.end();
+  });
 }
 
 function ensureKieConfigured(apiKey) {

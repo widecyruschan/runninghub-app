@@ -344,8 +344,9 @@ async function handleKieApi(request, response) {
 
   if (url.pathname === '/api/kie/diagnostics' && request.method === 'GET') {
     const memberSession = requireActiveMemberSession(request);
-    const [egressIpResult, creditCheck] = await Promise.all([
+    const [egressIpResult, ipv6EgressIpResult, creditCheck] = await Promise.all([
       getKieEgressIpDiagnostic(),
+      getKieIpv6EgressIpDiagnostic(),
       getKieCreditDiagnostic()
     ]);
 
@@ -357,6 +358,7 @@ async function handleKieApi(request, response) {
         ...kieClient.getDiagnosticsConfig(),
         egressIp: egressIpResult.egressIp,
         egressIpCheck: egressIpResult,
+        ipv6EgressIpCheck: ipv6EgressIpResult,
         creditCheck
       }
     });
@@ -385,7 +387,7 @@ async function handleKieApi(request, response) {
 
 async function getKieEgressIpDiagnostic() {
   try {
-    const egressIp = await getCurrentEgressIp();
+    const egressIp = await getCurrentEgressIp('https://api.ipify.org?format=json');
     return {
       success: true,
       egressIp
@@ -396,6 +398,23 @@ async function getKieEgressIpDiagnostic() {
       egressIp: '',
       code: error.code || 'EGRESS_IP_QUERY_FAILED',
       message: error.message || '出站 IP 查詢失敗'
+    };
+  }
+}
+
+async function getKieIpv6EgressIpDiagnostic() {
+  try {
+    const egressIp = await getCurrentEgressIp('https://api6.ipify.org?format=json');
+    return {
+      success: true,
+      egressIp
+    };
+  } catch (error) {
+    return {
+      success: false,
+      egressIp: '',
+      code: error.code || 'IPV6_EGRESS_IP_QUERY_FAILED',
+      message: error.message || 'IPv6 出站 IP 查詢失敗'
     };
   }
 }
@@ -416,9 +435,9 @@ async function getKieCreditDiagnostic() {
   }
 }
 
-async function getCurrentEgressIp() {
+async function getCurrentEgressIp(ipServiceUrl = 'https://api.ipify.org?format=json') {
   try {
-    const ipResponse = await fetch('https://api.ipify.org?format=json');
+    const ipResponse = await fetch(ipServiceUrl);
     const ipPayload = await ipResponse.json();
     return String(ipPayload.ip || '').trim();
   } catch (error) {
