@@ -89,6 +89,15 @@ docker compose logs -f runninghub-app
 
 ## 开发记录
 
+### 2026-07-25
+
+- 會話的主要目的：推送前台 Aspect Ratio 選項樣式更新到 GitHub。
+- 完成的主要任務：確認本地未提交更新，整理比例選項 CSS 縮排，保留更小尺寸的比例選項與只在已知比例中顯示 icon 的前台樣式。
+- 關鍵決策和解決方案：不改動工具邏輯和 API，只提交現有前台樣式更新，避免影響剛新增的 KIE Veo 3.1 工具流程。
+- 使用的技術棧：Vue 3 CDN、CSS、Node.js 原生 HTTP。
+- 新增或修改了哪些文件：修改 `frontend/index.html` 和 `README.md`。
+- 後續建議：部署後檢查 Aspect Ratio 選項在桌面與手機版是否維持緊湊且不重疊。
+
 ### 2026-07-24
 
 - 會話的主要目的：接入 PayPal Sandbox 收款 API，并生成正确的 PayPal Webhook URL。
