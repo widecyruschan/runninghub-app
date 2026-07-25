@@ -1,3 +1,5 @@
+const crypto = require('crypto');
+
 function createKieClient(options = {}) {
   const apiKey = String(options.apiKey || process.env.KIE_API_KEY || '').trim();
   const apiBaseUrl = normalizeBaseUrl(options.apiBaseUrl || process.env.KIE_API_BASE_URL || 'https://api.kie.ai');
@@ -5,6 +7,14 @@ function createKieClient(options = {}) {
 
   return {
     isConfigured: Boolean(apiKey),
+    getDiagnosticsConfig() {
+      return {
+        configured: Boolean(apiKey),
+        apiBaseUrl,
+        fileApiBaseUrl,
+        apiKeyFingerprint: createApiKeyFingerprint(apiKey)
+      };
+    },
     async getCreditBalance() {
       return requestJson({
         apiKey,
@@ -94,6 +104,11 @@ function ensureKieConfigured(apiKey) {
 
 function normalizeBaseUrl(value) {
   return String(value || '').trim().replace(/\/$/, '');
+}
+
+function createApiKeyFingerprint(apiKey) {
+  if (!apiKey) return '';
+  return crypto.createHash('sha256').update(apiKey).digest('hex').slice(0, 12);
 }
 
 function isKieBusinessError(responseData) {

@@ -103,6 +103,12 @@ docker compose logs -f runninghub-app
 - 使用的技術棧：Node.js 原生 HTTP、PayPal Webhook。
 - 新增或修改了哪些文件：修改 `server.js` 和 `README.md`。
 - 後續建議：部署后用浏览器打开 Webhook URL 应看到 ready JSON；PayPal 后台仍需配置同一个 URL，并使用 POST 事件通知。
+- 會話的主要目的：排查 Google Nano Banana Pro 使用 KIE API 時仍被 IP 白名單拒絕的原因。
+- 完成的主要任務：新增登入後可查詢的 `GET /api/kie/diagnostics` 診斷接口，返回後端出站 IP、KIE API Base URL、File API Base URL、KIE API Key 安全指紋與 credit check 結果；前台工具執行失敗 toast 改為顯示後端返回的具體英文錯誤訊息。
+- 關鍵決策和解決方案：不輸出完整 KIE API Key，只用 SHA-256 前 12 位作安全指紋，方便比對線上服務實際使用的 Key 是否與 KIE 後台已設白名單的 Key 一致；不重試生成任務，避免在白名單未確認前再次消耗額度。
+- 使用的技術棧：Node.js 原生 HTTP、KIE API、Vue 3 CDN、Element Plus。
+- 新增或修改了哪些文件：修改 `src/kieClient.js`、`server.js`、`frontend/index.html`、`.env.example` 和 `README.md`。
+- 後續建議：部署後登入會員並打開 `https://api.imgkit.io/api/kie/diagnostics`，確認 `egressIp` 是否仍為 `82.29.163.78`，以及 `apiKeyFingerprint` 是否對應 KIE 後台已配置白名單的同一把 API Key。
 
 ### 2026-07-10
 

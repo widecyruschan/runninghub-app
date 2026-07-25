@@ -3833,7 +3833,7 @@
           } catch (error) {
             console.error('Tool execution failed:', error);
             setStatus(getApiErrorMessage(error), 'error');
-            ElementPlus.ElMessage.error('Tool execution failed');
+            ElementPlus.ElMessage.error(getApiErrorMessage(error));
           } finally {
             isExecuting.value = false;
           }

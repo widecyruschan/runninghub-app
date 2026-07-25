@@ -342,6 +342,27 @@ async function handleKieApi(request, response) {
     return;
   }
 
+  if (url.pathname === '/api/kie/diagnostics' && request.method === 'GET') {
+    const memberSession = requireActiveMemberSession(request);
+    const [egressIpResult, creditCheck] = await Promise.all([
+      getKieEgressIpDiagnostic(),
+      getKieCreditDiagnostic()
+    ]);
+
+    sendJson(response, 200, {
+      success: true,
+      message: 'KIE 診斷查詢成功',
+      data: {
+        userId: memberSession.user.id,
+        ...kieClient.getDiagnosticsConfig(),
+        egressIp: egressIpResult.egressIp,
+        egressIpCheck: egressIpResult,
+        creditCheck
+      }
+    });
+    return;
+  }
+
   if (url.pathname === '/api/kie/upload' && request.method === 'POST') {
     requireActiveMemberSession(request);
     const requestBody = await readJsonBody(request);
@@ -360,6 +381,39 @@ async function handleKieApi(request, response) {
     message: 'Payment API endpoint not found',
     error: { code: 'API_NOT_FOUND' }
   });
+}
+
+async function getKieEgressIpDiagnostic() {
+  try {
+    const egressIp = await getCurrentEgressIp();
+    return {
+      success: true,
+      egressIp
+    };
+  } catch (error) {
+    return {
+      success: false,
+      egressIp: '',
+      code: error.code || 'EGRESS_IP_QUERY_FAILED',
+      message: error.message || '出站 IP 查詢失敗'
+    };
+  }
+}
+
+async function getKieCreditDiagnostic() {
+  try {
+    const creditBalance = await kieClient.getCreditBalance();
+    return {
+      success: true,
+      creditBalance
+    };
+  } catch (error) {
+    return {
+      success: false,
+      code: error.code || 'KIE_CREDIT_CHECK_FAILED',
+      message: error.message || 'KIE credit check failed'
+    };
+  }
 }
 
 async function getCurrentEgressIp() {
