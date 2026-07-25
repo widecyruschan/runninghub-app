@@ -22,7 +22,8 @@ const MAX_JSON_BODY_SIZE = 18 * 1024 * 1024;
 const MAX_RICH_EDITOR_UPLOAD_SIZE = 30 * 1024 * 1024;
 const KIE_UPLOAD_PATH = 'runninghub-app/uploads';
 const KIE_WORKFLOW_PREFIX = 'kie:';
-const KIE_NANO_BANANA_MODEL = 'nano-banana-pro';
+const KIE_NANO_BANANA_MODELS = new Set(['google/nano-banana', 'nano-banana-2-lite', 'nano-banana-pro']);
+const KIE_DEFAULT_NANO_BANANA_MODEL = 'nano-banana-pro';
 const RICH_EDITOR_UPLOAD_MIME_TYPES = new Set([
   'image/jpeg',
   'image/png',
@@ -1155,7 +1156,7 @@ async function executeToolWithConfig(tool, requestBody, options = {}) {
 }
 
 async function createKieToolTask(tool, task, inputValues) {
-  const model = getKieModelName(tool);
+  const model = getKieTaskModel(tool, inputValues);
   const kieInput = buildKieTaskInput(tool, inputValues);
   const kieResponse = await kieClient.createTask({
     model,
@@ -1182,15 +1183,35 @@ async function createKieToolTask(tool, task, inputValues) {
 }
 
 function buildKieTaskInput(tool, inputValues) {
-  if (getKieModelName(tool) !== KIE_NANO_BANANA_MODEL) {
+  const model = getKieTaskModel(tool, inputValues);
+
+  if (!KIE_NANO_BANANA_MODELS.has(model)) {
     throwHttpError('不支援的 KIE 模型', 'KIE_MODEL_UNSUPPORTED', 422);
   }
 
-  return {
+  const baseInput = {
     prompt: String(inputValues.prompt || ''),
-    image_input: normalizeKieImageInput(inputValues.image_input),
-    aspect_ratio: String(inputValues.aspect_ratio || '1:1'),
-    resolution: String(inputValues.resolution || '1K'),
+    aspect_ratio: String(inputValues.aspect_ratio || '1:1')
+  };
+
+  if (model === 'nano-banana-pro') {
+    return {
+      ...baseInput,
+      image_input: normalizeKieImageInput(inputValues.image_input || inputValues.image_urls),
+      resolution: String(inputValues.resolution || '1K'),
+      output_format: String(inputValues.output_format || 'png')
+    };
+  }
+
+  if (model === 'nano-banana-2-lite') {
+    return {
+      ...baseInput,
+      image_urls: normalizeKieImageInput(inputValues.image_input || inputValues.image_urls)
+    };
+  }
+
+  return {
+    ...baseInput,
     output_format: String(inputValues.output_format || 'png')
   };
 }
@@ -1211,7 +1232,7 @@ async function buildNodeInfoList(tool, rawInputValues, normalizedInputValues) {
   const nodeInfoList = [];
 
   for (const node of inputNodes) {
-    const value = await normalizeInputValue(node, rawInputValues);
+    const value = await normalizeInputValue(tool, node, rawInputValues);
     normalizedInputValues[node.key] = value;
 
     nodeInfoList.push({
@@ -1260,7 +1281,7 @@ function sanitizeInputValues(tool, rawInputValues) {
   return sanitizedInputValues;
 }
 
-async function normalizeInputValue(node, inputValues) {
+async function normalizeInputValue(tool, node, inputValues) {
   const rawValue = inputValues[node.key];
   const fallbackValue = node.defaultValue ?? '';
   const value = rawValue === undefined || rawValue === null || rawValue === '' ? fallbackValue : rawValue;
@@ -1283,7 +1304,7 @@ async function normalizeInputValue(node, inputValues) {
         }
 
         if (item.startsWith('data:')) {
-          uploadedUrls.push(await uploadMediaDataUrl(item, node.dataType));
+          uploadedUrls.push(await uploadToolDataUrl(tool, item, node.dataType));
           continue;
         }
 
@@ -1303,7 +1324,7 @@ async function normalizeInputValue(node, inputValues) {
     }
 
     if (value.startsWith('data:')) {
-      return uploadMediaDataUrl(value, node.dataType);
+      return uploadToolDataUrl(tool, value, node.dataType);
     }
 
     if (!isHttpUrl(value)) {
@@ -1343,6 +1364,18 @@ async function normalizeInputValue(node, inputValues) {
   }
 
   return String(value || '');
+}
+
+async function uploadToolDataUrl(tool, dataUrl, dataType) {
+  if (isKieTool(tool)) {
+    const uploadedFile = await uploadKieDataUrl({ dataUrl });
+    if (!uploadedFile.url) {
+      throwHttpError('檔案上傳到 KIE 後未返回 URL', 'KIE_UPLOAD_URL_MISSING', 502);
+    }
+    return uploadedFile.url;
+  }
+
+  return uploadMediaDataUrl(dataUrl, dataType);
 }
 
 function isMultipleImageUploadNode(node) {
@@ -1957,6 +1990,14 @@ function getKieModelName(tool) {
   const workflowId = String(tool?.workflowId || '').trim();
   if (!workflowId.startsWith(KIE_WORKFLOW_PREFIX)) return '';
   return workflowId.slice(KIE_WORKFLOW_PREFIX.length).trim();
+}
+
+function getKieTaskModel(tool, inputValues = {}) {
+  const selectedModel = String(inputValues.model || '').trim();
+  if (selectedModel) return selectedModel;
+
+  const configuredModel = getKieModelName(tool);
+  return configuredModel === 'nano-banana' ? KIE_DEFAULT_NANO_BANANA_MODEL : configuredModel;
 }
 
 async function callRunningHubJson(targetUrl, payload) {

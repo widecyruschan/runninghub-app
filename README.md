@@ -115,6 +115,12 @@ docker compose logs -f runninghub-app
 - 使用的技術棧：Node.js 內建 `https`、`dns`、KIE API、Nano Banana Pro 官方文檔。
 - 新增或修改了哪些文件：修改 `src/kieClient.js`、`server.js` 和 `README.md`。
 - 後續建議：部署後重新打開 `https://api.imgkit.io/api/kie/diagnostics`，如 `creditCheck.success` 變為 `true`，即可再測 Google Nano Banana Pro；如仍為白名單錯誤，需把 `ipv6EgressIpCheck` 結果一併提供給 KIE 支援。
+- 會話的主要目的：把 KIE 的 Nano Banana、Nano Banana 2 Lite 和 Nano Banana Pro 合併到同一個工具頁，透過下拉選單選擇模型。
+- 完成的主要任務：為 Google Nano Banana 工具新增 `Model` 下拉欄位；後端按所選模型提交 `google/nano-banana`、`nano-banana-2-lite` 或 `nano-banana-pro`；依不同模型自動映射 `image_input` / `image_urls`、`resolution` 和 `output_format`；既有資料庫工具會在啟動時自動補入模型欄位。
+- 關鍵決策和解決方案：保留原本 `/tools/google-nano-banana-pro` 路徑，避免破壞已配置入口；三個模型共用同一套前台表單，後端負責轉換成 KIE 官方文檔要求的不同 input 結構；KIE 工具的 Data URL 參考圖改為上傳到 KIE 文件接口，不再走 RunningHub 上傳。
+- 使用的技術棧：Node.js 原生 HTTP、KIE API、Vue 3 CDN、SQLite / JSON fallback。
+- 新增或修改了哪些文件：修改 `server.js`、`src/toolRepository.js` 和 `README.md`。
+- 後續建議：部署後進入圖片工具內的 Google Nano Banana 頁面，確認 `Model` 下拉包含三個選項，再分別用不帶參考圖的小 prompt 做低成本測試。
 
 ### 2026-07-10
 

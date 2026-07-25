@@ -301,19 +301,20 @@ function createToolRepository(database) {
 
     seedToolIfMissing({
       toolKey: 'google-nano-banana-pro',
-      name: 'Google Nano Banana Pro',
+      name: 'Google Nano Banana',
       slug: 'google-nano-banana-pro',
       categoryId: 'image',
-      shortDescription: 'Use Nano Banana Pro to transform reference images into polished banners, posters, and product visuals.',
-      topDetailHtml: '<p>Upload up to 8 reference images, describe the banner or visual you want, then generate a new image with Google Nano Banana Pro.</p>',
-      detailHtml: '<h2>Best for</h2><p>Marketing banners, product posters, social visuals, creative composites, and image-to-image reference generation.</p>',
+      shortDescription: 'Choose Nano Banana, Nano Banana 2 Lite, or Nano Banana Pro to create banners, posters, and product visuals.',
+      topDetailHtml: '<p>Choose a Nano Banana model, upload optional reference images, describe the banner or visual you want, then generate a new image.</p>',
+      detailHtml: '<h2>Best for</h2><p>Marketing banners, product posters, social visuals, creative composites, and fast model comparison in one tool page.</p>',
       previewImageUrl: 'https://images.unsplash.com/photo-1611224923853-80b023f02d71?auto=format&fit=crop&w=900&q=80',
       creditCost: 1,
-      workflowId: 'kie:nano-banana-pro',
+      workflowId: 'kie:nano-banana',
       instanceType: 'default',
       status: 'active',
       sortOrder: 20,
       inputNodes: [
+        createNanoBananaModelNode(),
         {
           nodeId: 'kie-input',
           fieldName: 'image_input',
@@ -397,11 +398,44 @@ function createToolRepository(database) {
         fallbackPaths: ['url', 'fileUrl', 'file_url', 'download_url', 'resultUrls']
       }
     });
+    upgradeNanoBananaTool();
   }
 
   function seedToolIfMissing(tool) {
     if (statements.findByToolKey.get(tool.toolKey)) return;
     saveTool(tool);
+  }
+
+  function upgradeNanoBananaTool() {
+    const existingRecord = statements.findByToolKey.get('google-nano-banana-pro');
+    if (!existingRecord) return;
+
+    const existingTool = mapToolRecord(existingRecord);
+    const inputNodes = Array.isArray(existingTool.inputNodes) ? existingTool.inputNodes : [];
+    const hasModelNode = inputNodes.some((node) => node.key === 'model' || node.fieldName === 'model');
+    const nextTool = {
+      ...existingTool,
+      name: existingTool.name === 'Google Nano Banana Pro' ? 'Google Nano Banana' : existingTool.name,
+      shortDescription: getUpgradedNanoBananaText(
+        existingTool.shortDescription,
+        'Use Nano Banana Pro to transform reference images into polished banners, posters, and product visuals.',
+        'Choose Nano Banana, Nano Banana 2 Lite, or Nano Banana Pro to create banners, posters, and product visuals.'
+      ),
+      topDetailHtml: getUpgradedNanoBananaText(
+        existingTool.topDetailHtml,
+        '<p>Upload up to 8 reference images, describe the banner or visual you want, then generate a new image with Google Nano Banana Pro.</p>',
+        '<p>Choose a Nano Banana model, upload optional reference images, describe the banner or visual you want, then generate a new image.</p>'
+      ),
+      detailHtml: getUpgradedNanoBananaText(
+        existingTool.detailHtml,
+        '<h2>Best for</h2><p>Marketing banners, product posters, social visuals, creative composites, and image-to-image reference generation.</p>',
+        '<h2>Best for</h2><p>Marketing banners, product posters, social visuals, creative composites, and fast model comparison in one tool page.</p>'
+      ),
+      workflowId: 'kie:nano-banana',
+      inputNodes: hasModelNode ? inputNodes : [createNanoBananaModelNode(), ...inputNodes]
+    };
+
+    saveTool(nextTool);
   }
 
   return {
@@ -467,6 +501,29 @@ function normalizeToolPayload(rawTool) {
     sortOrder: toInteger(tool.sortOrder, 100),
     inputNodes: normalizedInputNodes,
     outputConfig: normalizeOutputConfig(tool.outputConfig)
+  };
+}
+
+function getUpgradedNanoBananaText(currentValue, oldDefaultValue, newDefaultValue) {
+  const normalizedCurrentValue = String(currentValue || '').trim();
+  if (!normalizedCurrentValue || normalizedCurrentValue === oldDefaultValue) return newDefaultValue;
+  return normalizedCurrentValue;
+}
+
+function createNanoBananaModelNode() {
+  return {
+    nodeId: 'kie-input',
+    fieldName: 'model',
+    key: 'model',
+    dataType: 'select',
+    label: 'Model',
+    defaultValue: 'nano-banana-pro',
+    required: true,
+    options: [
+      { label: 'Nano Banana', value: 'google/nano-banana' },
+      { label: 'Nano Banana 2 Lite', value: 'nano-banana-2-lite' },
+      { label: 'Nano Banana Pro', value: 'nano-banana-pro' }
+    ]
   };
 }
 
