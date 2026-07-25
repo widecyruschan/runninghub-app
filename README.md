@@ -89,6 +89,15 @@ docker compose logs -f runninghub-app
 
 ## 开发记录
 
+### 2026-07-26
+
+- 會話的主要目的：修復 KIE / Kit API 工具任務完成後沒有扣減用戶積分的問題。
+- 完成的主要任務：KIE 任務取回輸出時改為抽取 API 回傳的消耗欄位，支援 `consumeCoins`、`creditsConsumed`、`credits_consumed`、`creditConsumed`、`consumedCredits` 和 `costCredits`；若 API 沒有返回消耗，則按後台工具 `creditCost` 扣減；已完成但未扣費的舊任務再次取結果時會補扣並更新任務記錄。
+- 關鍵決策和解決方案：RunningHub 等返回實際消耗的工具仍按實際消耗 * 1.2 向下取整扣減；KIE Veo 文檔範例未展示消耗欄位，因此會使用後台配置值作兜底；前台不顯示任何扣費公式或 provider 消耗細節。
+- 使用的技術棧：Node.js 原生 HTTP、KIE API、RunningHub usage、SQLite / JSON fallback。
+- 新增或修改了哪些文件：修改 `server.js` 和 `README.md`。
+- 後續建議：部署後分別測試 Google Nano Banana 與 Google Veo 3.1，確認任務完成後 Member Center 的 Transactions history 出現扣減流水，後台任務記錄有 charged credits。
+
 ### 2026-07-25
 
 - 會話的主要目的：推送前台 Aspect Ratio 選項樣式更新到 GitHub。

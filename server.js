@@ -1549,8 +1549,8 @@ async function getTaskOutputs(taskId) {
 
   if (task.outputUrls.length || task.outputValues.length) {
     if (task.status === 'SUCCESS' && task.userId && task.chargedCredits <= 0) {
-      const usage = extractTaskOutputUsage(task.outputValues);
-      const chargedCredits = chargeTaskCredits(task, usage);
+      const usage = extractCompletedTaskUsage(task);
+      const chargedCredits = chargeTaskCredits(task, usage, tool);
       if (chargedCredits > 0 || usage.consumeCoins > 0) {
         return taskRepository.completeTask(task.id, task.outputValues, task.outputUrls, usage, chargedCredits);
       }
@@ -1569,7 +1569,7 @@ async function getTaskOutputs(taskId) {
   });
   const outputs = extractRunningHubResults(outputsResponse);
   const usage = extractRunningHubUsage(outputsResponse);
-  const chargedCredits = chargeTaskCredits(task, usage);
+  const chargedCredits = chargeTaskCredits(task, usage, tool);
   const outputUrls = extractOutputUrls(outputs, tool?.outputConfig);
 
   const completedTask = taskRepository.completeTask(task.id, outputs, outputUrls, usage, chargedCredits);
@@ -1614,6 +1614,14 @@ async function getKieTaskOutputs(task, tool) {
   }
 
   if (task.outputUrls.length || task.outputValues.length) {
+    if (task.status === 'SUCCESS' && task.userId && task.chargedCredits <= 0) {
+      const usage = extractCompletedTaskUsage(task);
+      const chargedCredits = chargeTaskCredits(task, usage, tool);
+      if (chargedCredits > 0 || usage.consumeCoins > 0) {
+        return taskRepository.completeTask(task.id, task.outputValues, task.outputUrls, usage, chargedCredits);
+      }
+    }
+
     return task;
   }
 
@@ -1624,8 +1632,9 @@ async function getKieTaskOutputs(task, tool) {
   const kieResponse = await getKieToolRecord(tool, task.runningHubTaskId);
   const outputs = extractKieToolResults(tool, kieResponse);
   const outputUrls = extractOutputUrls(outputs, tool?.outputConfig);
-  const usage = normalizeRunningHubUsage({});
-  const completedTask = taskRepository.completeTask(task.id, outputs, outputUrls, usage, 0);
+  const usage = extractKieToolUsage(tool, kieResponse);
+  const chargedCredits = chargeTaskCredits(task, usage, tool);
+  const completedTask = taskRepository.completeTask(task.id, outputs, outputUrls, usage, chargedCredits);
   syncToolTestResult(completedTask);
 
   return completedTask;
@@ -1656,7 +1665,12 @@ function extractKieToolResults(tool, responseData) {
   return extractKieResults(responseData);
 }
 
-function chargeTaskCredits(task, usage) {
+function extractKieToolUsage(tool, responseData) {
+  if (isKieVeoTool(tool)) return extractKieVeoUsage(responseData);
+  return extractKieUsage(responseData);
+}
+
+function chargeTaskCredits(task, usage, tool = null) {
   if (!task.userId || task.chargedCredits > 0) return task.chargedCredits || 0;
 
   const existingCharge = userRepository
@@ -1664,7 +1678,7 @@ function chargeTaskCredits(task, usage) {
     .find((record) => record.relatedTaskId === task.id && record.amount < 0);
   if (existingCharge) return Math.abs(existingCharge.amount);
 
-  const chargedCredits = calculateChargedCredits(usage.consumeCoins);
+  const chargedCredits = calculateTaskChargedCredits(usage, tool);
   if (chargedCredits <= 0) return 0;
 
   userRepository.spendCredits(
@@ -1677,11 +1691,24 @@ function chargeTaskCredits(task, usage) {
   return chargedCredits;
 }
 
+function calculateTaskChargedCredits(usage, tool = null) {
+  const usageCredits = calculateChargedCredits(usage?.consumeCoins);
+  if (usageCredits > 0) return usageCredits;
+
+  return normalizeToolCreditCost(tool);
+}
+
 function calculateChargedCredits(consumeCoins) {
   const numericConsumeCoins = Number(consumeCoins || 0);
   if (!Number.isFinite(numericConsumeCoins) || numericConsumeCoins <= 0) return 0;
 
   return Math.floor(numericConsumeCoins * 1.2);
+}
+
+function normalizeToolCreditCost(tool) {
+  const creditCost = Number.parseInt(tool?.creditCost ?? tool?.credit_cost ?? 0, 10);
+  if (!Number.isFinite(creditCost) || creditCost <= 0) return 0;
+  return creditCost;
 }
 
 async function createPaypalPaymentOrder(request, user, payload) {
@@ -2256,6 +2283,14 @@ function extractTaskOutputUsage(outputValues) {
   return normalizeRunningHubUsage(outputUsage || {});
 }
 
+function extractCompletedTaskUsage(task) {
+  if (task?.actualConsumeCoins > 0) {
+    return normalizeRunningHubUsage({ consumeCoins: task.actualConsumeCoins });
+  }
+
+  return extractTaskOutputUsage(task?.outputValues || []);
+}
+
 function extractRunningHubResults(responseData) {
   const responsePayload = unwrapRunningHubPayload(responseData);
   if (Array.isArray(responsePayload?.results)) return responsePayload.results;
@@ -2283,6 +2318,14 @@ function extractKieResults(responseData) {
   }
 
   return [];
+}
+
+function extractKieUsage(responseData) {
+  return normalizeRunningHubUsage(findProviderUsage(responseData));
+}
+
+function extractKieVeoUsage(responseData) {
+  return normalizeRunningHubUsage(findProviderUsage(responseData));
 }
 
 function extractKieVeoResults(responseData) {
@@ -2323,6 +2366,41 @@ function guessOutputTypeFromUrl(url) {
 
 function unwrapRunningHubPayload(responseData) {
   return responseData?.eventData || responseData?.data?.eventData || responseData?.data || responseData || {};
+}
+
+function findProviderUsage(responseData) {
+  const candidates = [
+    responseData?.data?.usage,
+    responseData?.usage,
+    responseData?.data?.response?.usage,
+    responseData?.response?.usage,
+    responseData?.data,
+    responseData
+  ];
+
+  for (const candidate of candidates) {
+    const usage = normalizeProviderUsageCandidate(candidate);
+    if (usage.consumeCoins > 0) return usage;
+  }
+
+  return {};
+}
+
+function normalizeProviderUsageCandidate(candidate) {
+  if (!candidate || typeof candidate !== 'object') return {};
+
+  const consumeCoins = candidate.consumeCoins
+    ?? candidate.creditsConsumed
+    ?? candidate.credits_consumed
+    ?? candidate.creditConsumed
+    ?? candidate.consumedCredits
+    ?? candidate.costCredits
+    ?? 0;
+
+  return {
+    ...candidate,
+    consumeCoins
+  };
 }
 
 function normalizeRunningHubUsage(usage) {
