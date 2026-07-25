@@ -13,7 +13,10 @@ const { createKieClient } = require('./src/kieClient');
 const { createPaypalClient } = require('./src/paypalClient');
 const { createPaymentRepository } = require('./src/paymentRepository');
 const { getPaymentPlan } = require('./src/paymentPlans');
-const { extractRunningHubTaskId } = require('./src/runningHubResponse');
+const {
+  extractRunningHubTaskId,
+  getRunningHubResponseError
+} = require('./src/runningHubResponse');
 
 const PUBLIC_DIR = path.join(__dirname, 'frontend');
 const UPLOAD_DIR = path.join(__dirname, 'data', 'uploads');
@@ -1135,7 +1138,7 @@ async function executeToolWithConfig(tool, requestBody, options = {}) {
     const runningHubTaskId = extractRunningHubTaskId(runningHubResponse);
 
     if (!runningHubTaskId) {
-      throwHttpError('任務建立失敗，未返回任務 ID', 'RUNNINGHUB_TASK_ID_MISSING', 502);
+      throwHttpError('Task creation failed because RunningHub did not return a task ID', 'RUNNINGHUB_TASK_ID_MISSING', 502);
     }
 
     const savedTask = taskRepository.attachRunningHubTask(task.id, runningHubTaskId, 'QUEUED');
@@ -2136,7 +2139,16 @@ async function callRunningHubJson(targetUrl, payload) {
     );
   }
 
+  assertRunningHubSuccess(responseData);
+
   return responseData;
+}
+
+function assertRunningHubSuccess(responseData) {
+  const runningHubError = getRunningHubResponseError(responseData);
+  if (!runningHubError) return;
+
+  throwHttpError(runningHubError.message, runningHubError.code, 502);
 }
 
 async function uploadMediaDataUrl(dataUrl, expectedType) {

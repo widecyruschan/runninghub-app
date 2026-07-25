@@ -19,6 +19,26 @@ function extractRunningHubTaskId(responseData) {
   return '';
 }
 
+function getRunningHubResponseError(responseData) {
+  if (!responseData || typeof responseData !== 'object' || Array.isArray(responseData)) return null;
+
+  if (responseData.code !== undefined && responseData.code !== null && Number(responseData.code) !== 0) {
+    return {
+      code: normalizeErrorCode(responseData.code),
+      message: getRunningHubErrorMessage(responseData)
+    };
+  }
+
+  if (responseData.success === false) {
+    return {
+      code: normalizeErrorCode(responseData.error?.code ?? responseData.code ?? 'RUNNINGHUB_REQUEST_FAILED'),
+      message: getRunningHubErrorMessage(responseData)
+    };
+  }
+
+  return null;
+}
+
 function findDirectTaskId(value) {
   if (typeof value === 'string' || typeof value === 'number') {
     return normalizeTaskId(value);
@@ -42,6 +62,23 @@ function normalizeTaskId(value) {
   return taskId;
 }
 
+function getRunningHubErrorMessage(responseData) {
+  return String(
+    responseData?.msg
+    || responseData?.message
+    || responseData?.errorMessage
+    || responseData?.error?.message
+    || responseData?.error?.details
+    || 'RunningHub request failed'
+  ).trim();
+}
+
+function normalizeErrorCode(value) {
+  const errorCode = String(value ?? '').trim();
+  return errorCode || 'RUNNINGHUB_REQUEST_FAILED';
+}
+
 module.exports = {
-  extractRunningHubTaskId
+  extractRunningHubTaskId,
+  getRunningHubResponseError
 };

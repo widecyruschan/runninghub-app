@@ -1,6 +1,9 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { extractRunningHubTaskId } = require('../src/runningHubResponse');
+const {
+  extractRunningHubTaskId,
+  getRunningHubResponseError
+} = require('../src/runningHubResponse');
 
 test('extracts RunningHub task id from common response shapes', () => {
   assert.equal(extractRunningHubTaskId({ taskId: 'task-direct' }), 'task-direct');
@@ -14,4 +17,28 @@ test('extracts RunningHub task id from common response shapes', () => {
 test('returns empty string when response has no task id', () => {
   assert.equal(extractRunningHubTaskId({ success: true, data: {} }), '');
   assert.equal(extractRunningHubTaskId(null), '');
+});
+
+test('extracts RunningHub JSON error responses', () => {
+  assert.deepEqual(getRunningHubResponseError({
+    code: 804,
+    msg: 'workflow not found'
+  }), {
+    code: '804',
+    message: 'workflow not found'
+  });
+
+  assert.deepEqual(getRunningHubResponseError({
+    success: false,
+    message: 'nodeInfoList is invalid',
+    error: { code: 'NODE_INFO_INVALID' }
+  }), {
+    code: 'NODE_INFO_INVALID',
+    message: 'nodeInfoList is invalid'
+  });
+});
+
+test('ignores successful RunningHub responses', () => {
+  assert.equal(getRunningHubResponseError({ code: 0, data: { taskId: 'task-ok' } }), null);
+  assert.equal(getRunningHubResponseError({ success: true, taskId: 'task-ok' }), null);
 });
