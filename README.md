@@ -97,6 +97,12 @@ docker compose logs -f runninghub-app
 - 使用的技術棧：Node.js 原生 HTTP、KIE API、RunningHub usage、SQLite / JSON fallback。
 - 新增或修改了哪些文件：修改 `server.js` 和 `README.md`。
 - 後續建議：部署後分別測試 Google Nano Banana 與 Google Veo 3.1，確認任務完成後 Member Center 的 Transactions history 出現扣減流水，後台任務記錄有 charged credits。
+- 會話的主要目的：修復會員登入像重新註冊、註冊當天重複派發登入獎勵，以及 RunningHub 工具建立任務時抽不到 taskId 的問題。
+- 完成的主要任務：新增 `app_users.password_hash` 資料庫欄位，email 註冊改為保存密碼雜湊，email 登入改為驗證既有帳號；前台登入狀態以後端 session cookie 為準；新註冊只派發 100 註冊獎勵並標記當日登入獎勵已處理；RunningHub 建任務回應改為兼容 `taskId`、`task_id`、字串型 `data` 和嵌套 `eventData` 等格式。
+- 關鍵決策和解決方案：註冊與登入分離，避免 `/api/auth/login` 自動建立新用戶；密碼雜湊不輸出到會員或後台 API；用最小獨立 helper 管理 RunningHub taskId 解析，並加入回歸測試。
+- 使用的技術棧：Node.js 原生 HTTP、PBKDF2 SHA-256、SQLite / JSON fallback、Vue 3 CDN、Node test runner。
+- 新增或修改了哪些文件：新增 `src/runningHubResponse.js`、`test/runningHubResponse.test.js`、`test/userCredits.test.js`；修改 `server.js`、`src/database.js`、`src/userRepository.js`、`frontend/index.html`、`package.json` 和 `README.md`。
+- 後續建議：部署後用真實瀏覽器測試註冊、登出、登入、Google 登入，以及一個 RunningHub 工具任務；確認 Member Center 的 My Files / Transactions history 讀到同一個資料庫用戶記錄。
 
 ### 2026-07-25
 

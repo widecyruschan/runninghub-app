@@ -13,6 +13,7 @@ const { createKieClient } = require('./src/kieClient');
 const { createPaypalClient } = require('./src/paypalClient');
 const { createPaymentRepository } = require('./src/paymentRepository');
 const { getPaymentPlan } = require('./src/paymentPlans');
+const { extractRunningHubTaskId } = require('./src/runningHubResponse');
 
 const PUBLIC_DIR = path.join(__dirname, 'frontend');
 const UPLOAD_DIR = path.join(__dirname, 'data', 'uploads');
@@ -831,7 +832,7 @@ async function handleAuthApi(request, response) {
 
   if (url.pathname === '/api/auth/register' && request.method === 'POST') {
     const requestBody = await readJsonBody(request);
-    const result = registerOrLoginMember(requestBody, 'email');
+    const result = registerMemberAccount(requestBody, 'email');
 
     sendJson(response, 201, {
       success: true,
@@ -845,7 +846,7 @@ async function handleAuthApi(request, response) {
 
   if (url.pathname === '/api/auth/login' && request.method === 'POST') {
     const requestBody = await readJsonBody(request);
-    const result = registerOrLoginMember(requestBody, 'email');
+    const result = loginMemberAccount(requestBody, 'email');
 
     sendJson(response, 200, {
       success: true,
@@ -2204,10 +2205,6 @@ function getExistingTask(taskId) {
   return task;
 }
 
-function extractRunningHubTaskId(responseData) {
-  return responseData?.taskId || responseData?.data?.taskId || responseData?.data?.id || '';
-}
-
 function extractKieTaskId(responseData) {
   return responseData?.data?.taskId || responseData?.taskId || responseData?.data?.id || '';
 }
@@ -2634,7 +2631,8 @@ async function handleGoogleOAuthCallback(request, response, url) {
   try {
     const tokenPayload = await exchangeGoogleCodeForToken(request, code);
     const googleProfile = await fetchGoogleUserProfile(tokenPayload.access_token);
-    const memberUser = grantMemberLoginBonus(saveGoogleMemberUser(googleProfile).id);
+    const googleMember = saveGoogleMemberUser(googleProfile);
+    const memberUser = applyMemberAuthCredits(googleMember.user.id, googleMember.isNewUser);
     const memberSession = memberSessionRepository.createSession({
       userId: memberUser.id,
       provider: 'google',
@@ -2722,44 +2720,85 @@ function saveGoogleMemberUser(profile) {
   const savedUser = userRepository.saveUser(userPayload, {
     allowInitialCreditBalance: true
   });
+  let memberUser = savedUser;
   if (!existingUser) {
-    return userRepository.grantRegisterBonus(savedUser.id);
+    memberUser = userRepository.grantRegisterBonus(savedUser.id);
   }
 
-  return savedUser;
+  return {
+    isNewUser: !existingUser,
+    user: memberUser
+  };
 }
 
-function registerOrLoginMember(payload, provider) {
+function registerMemberAccount(payload, provider) {
   const email = String(payload?.email || '').trim().toLowerCase();
   const displayName = String(payload?.displayName || payload?.name || email.split('@')[0] || 'Member').trim();
+  const password = String(payload?.password || '');
+
+  if (!email || !email.includes('@')) {
+    throwHttpError('請輸入正確 Email', 'MEMBER_EMAIL_INVALID', 422);
+  }
+
+  if (password.length < 6) {
+    throwHttpError('密碼至少需要 6 個字元', 'MEMBER_PASSWORD_TOO_SHORT', 422);
+  }
+
+  const existingUser = userRepository.getUserByEmail(email);
+  if (existingUser) {
+    throwHttpError('此 Email 已註冊，請直接登入', 'MEMBER_EMAIL_EXISTS', 409);
+  }
+
+  let memberUser = userRepository.saveUser({
+    email,
+    displayName,
+    role: 'free_user',
+    membershipGroup: 'free',
+    passwordHash: hashMemberPassword(password),
+    creditBalance: 0,
+    status: 'active',
+    notes: '前台會員'
+  }, {
+    allowInitialCreditBalance: true
+  });
+
+  memberUser = userRepository.grantRegisterBonus(memberUser.id);
+  memberUser = applyMemberAuthCredits(memberUser.id, true);
+  return createMemberLoginResult(memberUser, provider || 'email', email);
+}
+
+function loginMemberAccount(payload, provider) {
+  const email = String(payload?.email || '').trim().toLowerCase();
+  const password = String(payload?.password || '');
 
   if (!email || !email.includes('@')) {
     throwHttpError('請輸入正確 Email', 'MEMBER_EMAIL_INVALID', 422);
   }
 
   const existingUser = userRepository.getUserByEmail(email);
-  let memberUser = userRepository.saveUser({
-    id: existingUser?.id || '',
-    email,
-    displayName: existingUser?.displayName || displayName,
-    role: existingUser?.role === 'member' ? 'member' : 'free_user',
-    membershipGroup: existingUser?.membershipGroup || 'free',
-    creditBalance: existingUser?.creditBalance || 0,
-    status: 'active',
-    notes: existingUser?.notes || '前台會員'
-  }, {
-    allowInitialCreditBalance: true
-  });
-
-  if (!existingUser) {
-    memberUser = userRepository.grantRegisterBonus(memberUser.id);
+  const userAuth = userRepository.getUserAuthByEmail(email);
+  if (!existingUser || !userAuth || existingUser.accountType !== 'frontend') {
+    throwHttpError('帳號不存在，請先註冊', 'MEMBER_NOT_FOUND', 404);
   }
 
-  memberUser = grantMemberLoginBonus(memberUser.id);
+  if (!userAuth.passwordHash) {
+    userRepository.saveUser({
+      ...existingUser,
+      passwordHash: hashMemberPassword(password)
+    });
+  } else if (!verifyMemberPassword(password, userAuth.passwordHash)) {
+    throwHttpError('Email 或密碼不正確', 'MEMBER_LOGIN_INVALID', 401);
+  }
+
+  const memberUser = applyMemberAuthCredits(existingUser.id, false);
+  return createMemberLoginResult(memberUser, provider || 'email', email);
+}
+
+function createMemberLoginResult(memberUser, provider, providerSubject) {
   const memberSession = memberSessionRepository.createSession({
     userId: memberUser.id,
     provider: provider || 'email',
-    providerSubject: email,
+    providerSubject,
     maxAgeSeconds: MEMBER_SESSION_MAX_AGE_SECONDS
   });
 
@@ -2769,8 +2808,32 @@ function registerOrLoginMember(payload, provider) {
   };
 }
 
-function grantMemberLoginBonus(userId) {
-  return userRepository.grantDailyLoginBonus(userId, getHongKongDateKey());
+function applyMemberAuthCredits(userId, isNewUser) {
+  const todayKey = getHongKongDateKey();
+  if (isNewUser) {
+    return userRepository.markDailyLoginBonusClaimed(userId, todayKey);
+  }
+
+  return userRepository.grantDailyLoginBonus(userId, todayKey);
+}
+
+function hashMemberPassword(password) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.pbkdf2Sync(String(password || ''), salt, 120000, 32, 'sha256').toString('hex');
+  return `pbkdf2_sha256$120000$${salt}$${hash}`;
+}
+
+function verifyMemberPassword(password, storedHash) {
+  const parts = String(storedHash || '').split('$');
+  if (parts.length !== 4 || parts[0] !== 'pbkdf2_sha256') return false;
+
+  const iterations = Number.parseInt(parts[1], 10);
+  const salt = parts[2];
+  const expectedHash = parts[3];
+  if (!Number.isFinite(iterations) || iterations <= 0 || !salt || !expectedHash) return false;
+
+  const actualHash = crypto.pbkdf2Sync(String(password || ''), salt, iterations, 32, 'sha256').toString('hex');
+  return timingSafeEqual(actualHash, expectedHash);
 }
 
 function getHongKongDateKey(date = new Date()) {

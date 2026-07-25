@@ -27,6 +27,15 @@ function createUserRepository(database) {
       FROM app_users
       WHERE email = ?
     `),
+    findAuthByEmail: database.prepare(`
+      SELECT
+        id,
+        email,
+        password_hash,
+        status
+      FROM app_users
+      WHERE email = ?
+    `),
     insert: database.prepare(`
       INSERT INTO app_users (
         id,
@@ -34,6 +43,7 @@ function createUserRepository(database) {
         display_name,
         role,
         membership_group,
+        password_hash,
         credit_balance,
         last_login_credit_date,
         status,
@@ -47,6 +57,7 @@ function createUserRepository(database) {
         @displayName,
         @role,
         @membershipGroup,
+        @passwordHash,
         @creditBalance,
         @lastLoginCreditDate,
         @status,
@@ -62,6 +73,10 @@ function createUserRepository(database) {
         display_name = @displayName,
         role = @role,
         membership_group = @membershipGroup,
+        password_hash = CASE
+          WHEN @passwordHash = '' THEN password_hash
+          ELSE @passwordHash
+        END,
         credit_balance = @creditBalance,
         last_login_credit_date = @lastLoginCreditDate,
         status = @status,
@@ -145,6 +160,18 @@ function createUserRepository(database) {
   function getUserByEmail(email) {
     const record = statements.findByEmail.get(String(email || '').trim().toLowerCase());
     return record ? mapUserRecord(record) : null;
+  }
+
+  function getUserAuthByEmail(email) {
+    const record = statements.findAuthByEmail.get(String(email || '').trim().toLowerCase());
+    if (!record) return null;
+
+    return {
+      id: record.id,
+      email: record.email,
+      passwordHash: record.password_hash || '',
+      status: record.status
+    };
   }
 
   function saveUser(rawUser, options = {}) {
@@ -261,6 +288,19 @@ function createUserRepository(database) {
     return getUserById(savedUser.id);
   }
 
+  function markDailyLoginBonusClaimed(userId, todayKey = getTodayKey()) {
+    const user = getUserById(userId);
+    if (!user || user.lastLoginCreditDate === todayKey) return user;
+
+    const now = new Date().toISOString();
+    statements.updateLastLoginCreditDate.run({
+      id: userId,
+      lastLoginCreditDate: todayKey,
+      updatedAt: now
+    });
+    return getUserById(userId);
+  }
+
   function spendCredits(userId, amount, reason, relatedTaskId = '') {
     const spendAmount = parseInteger(amount, '扣減積分不正確', 'USER_CREDIT_SPEND_AMOUNT_INVALID');
     if (spendAmount <= 0) {
@@ -296,9 +336,11 @@ function createUserRepository(database) {
     grantDailyLoginBonus,
     grantRegisterBonus,
     getUserByEmail,
+    getUserAuthByEmail,
     getUserById,
     listCreditLedgerByUser,
     listUsers,
+    markDailyLoginBonusClaimed,
     saveUser,
     spendCredits
   };
@@ -392,6 +434,7 @@ function normalizeUserPayload(rawUser) {
     displayName: String(user.displayName || user.display_name).trim(),
     role,
     membershipGroup,
+    passwordHash: String(user.passwordHash || user.password_hash || '').trim(),
     creditBalance,
     lastLoginCreditDate: String(user.lastLoginCreditDate || user.last_login_credit_date || '').trim(),
     status,

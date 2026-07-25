@@ -147,6 +147,7 @@ function migrateDatabase(database) {
       display_name TEXT NOT NULL,
       role TEXT NOT NULL DEFAULT 'free_user',
       membership_group TEXT NOT NULL DEFAULT 'free',
+      password_hash TEXT NOT NULL DEFAULT '',
       credit_balance INTEGER NOT NULL DEFAULT 0,
       last_login_credit_date TEXT NOT NULL DEFAULT '',
       status TEXT NOT NULL DEFAULT 'active',
@@ -264,6 +265,7 @@ function migrateDatabase(database) {
   ensureColumn(database, 'execution_tasks', 'charged_credits', 'INTEGER NOT NULL DEFAULT 0');
   ensureColumn(database, 'credit_ledger', 'remaining_amount', 'INTEGER NOT NULL DEFAULT 0');
   ensureColumn(database, 'credit_ledger', 'expires_at', 'TEXT');
+  ensureColumn(database, 'app_users', 'password_hash', "TEXT NOT NULL DEFAULT ''");
   ensureColumn(database, 'app_users', 'last_login_credit_date', "TEXT NOT NULL DEFAULT ''");
   ensureColumn(database, 'payment_orders', 'credits_granted', 'INTEGER NOT NULL DEFAULT 0');
   ensureColumn(database, 'payment_orders', 'credit_amount', 'INTEGER NOT NULL DEFAULT 0');
@@ -627,7 +629,12 @@ class JsonStatement {
 
     if (this.normalizedSql.startsWith('UPDATE app_users')) {
       this.ensureUniqueUser(payload);
-      this.updateRecord('app_users', payload.id, toUserRecord(payload));
+      const existingUser = this.findRecord('app_users', payload.id);
+      const nextUser = toUserRecord(payload);
+      if (existingUser && !nextUser.password_hash) {
+        nextUser.password_hash = existingUser.password_hash || '';
+      }
+      this.updateRecord('app_users', payload.id, nextUser);
       return { changes: 1 };
     }
 
@@ -945,6 +952,7 @@ function getJsonTableColumns(tableName) {
       'display_name',
       'role',
       'membership_group',
+      'password_hash',
       'credit_balance',
       'last_login_credit_date',
       'status',
@@ -1083,6 +1091,7 @@ function toUserRecord(payload) {
     display_name: payload.displayName,
     role: payload.role,
     membership_group: payload.membershipGroup,
+    password_hash: payload.passwordHash || '',
     credit_balance: payload.creditBalance,
     last_login_credit_date: payload.lastLoginCreditDate || '',
     status: payload.status,
