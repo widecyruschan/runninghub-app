@@ -2637,6 +2637,10 @@
       return url;
     }
 
+    function getFreshParams() {
+      return { _ts: Date.now() };
+    }
+
     const DISPLAY_TEXT_MAP = {
       '\u5716\u50cf': 'Image',
       '\u56fe\u50cf': 'Image',
@@ -3550,8 +3554,8 @@
 
           try {
             const [toolsResponse, categoriesResponse] = await Promise.all([
-              axios.get(TOOLS_API_BASE_URL),
-              axios.get('/api/categories')
+              axios.get(TOOLS_API_BASE_URL, { params: getFreshParams() }),
+              axios.get('/api/categories', { params: getFreshParams() })
             ]);
 
             if (!toolsResponse.data?.success) {
@@ -3606,7 +3610,9 @@
 
         const loadToolConfig = async () => {
           const slug = getCurrentToolSlug();
-          const response = await axios.get(TOOLS_API_BASE_URL + '/' + encodeURIComponent(slug));
+          const response = await axios.get(TOOLS_API_BASE_URL + '/' + encodeURIComponent(slug), {
+            params: getFreshParams()
+          });
           const payload = response.data;
 
           if (!payload.success) {

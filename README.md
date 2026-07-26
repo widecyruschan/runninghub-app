@@ -91,6 +91,12 @@ docker compose logs -f runninghub-app
 
 ### 2026-07-26
 
+- 會話的主要目的：修復後台修改工具預覽圖片後，前台工具市場仍顯示舊圖片資料的問題。
+- 完成的主要任務：公開工具列表、工具詳情和分類 API 回應新增 no-store/no-cache headers；前台載入 `/api/tools`、`/api/tools/:slug` 和 `/api/categories` 時加入時間戳查詢參數，避免瀏覽器、CDN 或反向代理返回舊 JSON。
+- 關鍵決策和解決方案：保留後台保存邏輯不變，因為後台列表已顯示新圖，問題集中在前台公開資料讀取；Remove Background 的預設封面升級只處理空值或舊壞 URL，不會覆蓋後台新配置。
+- 使用的技術棧：Node.js 原生 HTTP、Vue 3 CDN、Axios、SQLite / JSON fallback。
+- 新增或修改了哪些文件：修改 `server.js`、`frontend/index.html` 和 `README.md`。
+- 後續建議：部署後重新保存 Remove Background，前台刷新後應立即看到後台新圖；如仍舊圖，需檢查部署層 CDN 是否另有圖片 URL 快取。
 - 會話的主要目的：安裝 Google tag 以便前台網站接入 Google Analytics。
 - 完成的主要任務：在前台 `frontend/index.html` 的 `<head>` 加入 Google tag `G-4WHJP9D5NM`；後台 `frontend/admin.html` 未加入追蹤碼，避免管理操作混入前台流量分析。
 - 關鍵決策和解決方案：使用 Google 官方 `gtag.js` snippet，保持前台可見內容不變，不新增任何後端設定或敏感資訊。

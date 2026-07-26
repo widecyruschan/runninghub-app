@@ -779,7 +779,7 @@ async function handlePublicApi(request, response) {
       success: true,
       message: '操作成功',
       data: toolRepository.listActiveTools()
-    });
+    }, getNoStoreHeaders());
     return;
   }
 
@@ -815,7 +815,7 @@ async function handlePublicApi(request, response) {
       success: true,
       message: '操作成功',
       data: tool
-    });
+    }, getNoStoreHeaders());
     return;
   }
 
@@ -824,7 +824,7 @@ async function handlePublicApi(request, response) {
       success: true,
       message: '操作成功',
       data: categoryRepository.listCategories().filter((category) => category.status === 'active')
-    });
+    }, getNoStoreHeaders());
     return;
   }
 
@@ -3289,6 +3289,15 @@ async function sendStaticFile(response, filePath) {
     ...(extension === '.html' ? { 'Cache-Control': 'no-store' } : {})
   });
   fs.createReadStream(filePath).pipe(response);
+}
+
+function getNoStoreHeaders() {
+  return {
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+    Pragma: 'no-cache',
+    Expires: '0',
+    'Surrogate-Control': 'no-store'
+  };
 }
 
 function sendJson(response, statusCode, payload, extraHeaders = {}) {
