@@ -15,7 +15,8 @@ const { createPaymentRepository } = require('./src/paymentRepository');
 const { getPaymentPlan } = require('./src/paymentPlans');
 const {
   extractRunningHubTaskId,
-  getRunningHubResponseError
+  getRunningHubResponseError,
+  summarizeRunningHubResponseShape
 } = require('./src/runningHubResponse');
 
 const PUBLIC_DIR = path.join(__dirname, 'frontend');
@@ -287,7 +288,11 @@ async function handleRunningHubApi(request, response) {
   const workflowMatch = url.pathname.match(/^\/api\/runninghub\/workflow\/([^/]+)$/);
   if (request.method === 'POST' && workflowMatch) {
     const requestBody = await readJsonBody(request);
-    await proxyJson(response, `${runningHubApiBaseUrl}/run/workflow/${workflowMatch[1]}`, requestBody);
+    await proxyJson(response, `${runningHubTaskApiBaseUrl}/create`, {
+      ...requestBody,
+      apiKey: runningHubApiKey,
+      workflowId: workflowMatch[1]
+    });
     return;
   }
 
@@ -1129,7 +1134,9 @@ async function executeToolWithConfig(tool, requestBody, options = {}) {
       return await createKieToolTask(tool, task, normalizedInputValues);
     }
 
-    const runningHubResponse = await callRunningHubJson(`${runningHubApiBaseUrl}/run/workflow/${tool.workflowId}`, {
+    const runningHubResponse = await callRunningHubJson(`${runningHubTaskApiBaseUrl}/create`, {
+      apiKey: runningHubApiKey,
+      workflowId: tool.workflowId,
       addMetadata: true,
       nodeInfoList,
       instanceType: tool.instanceType || 'default',
@@ -1138,7 +1145,12 @@ async function executeToolWithConfig(tool, requestBody, options = {}) {
     const runningHubTaskId = extractRunningHubTaskId(runningHubResponse);
 
     if (!runningHubTaskId) {
-      throwHttpError('Task creation failed because RunningHub did not return a task ID', 'RUNNINGHUB_TASK_ID_MISSING', 502);
+      const responseShape = summarizeRunningHubResponseShape(runningHubResponse);
+      throwHttpError(
+        `Task creation failed because RunningHub did not return a task ID. ${responseShape}`,
+        'RUNNINGHUB_TASK_ID_MISSING',
+        502
+      );
     }
 
     const savedTask = taskRepository.attachRunningHubTask(task.id, runningHubTaskId, 'QUEUED');

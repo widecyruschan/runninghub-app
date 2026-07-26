@@ -92,10 +92,10 @@ docker compose logs -f runninghub-app
 ### 2026-07-26
 
 - 會話的主要目的：檢查 RunningHub API 建立任務失敗時前台只顯示「未返回任務 ID」的問題。
-- 完成的主要任務：對照 RunningHub API 詳情頁後，保留目前 `/openapi/v2/run/workflow/{workflowId}` 建立任務方式；新增 RunningHub JSON 回應錯誤解析，當 API 以 HTTP 200 返回非 0 `code` 或 `success: false` 時，後端會直接回傳 RunningHub 的真實錯誤訊息與錯誤碼，不再誤判為 taskId 缺失；同時把 taskId 缺失 fallback 改為英文前台訊息。
-- 關鍵決策和解決方案：不切換到另一套 generic workflow endpoint，避免破壞 API 詳情頁已發布工具的調用方式；錯誤解析抽到 `src/runningHubResponse.js` 並補單元測試，方便後續兼容更多 RunningHub 回應格式。
+- 完成的主要任務：對照 RunningHub 文檔中心後，RunningHub 工作流建立任務改為 `POST /task/openapi/create`，body 內帶 `apiKey`、`workflowId`、`nodeInfoList`、`instanceType` 和 `usePersonalQueue`；新增 RunningHub JSON 回應錯誤解析，當 API 以 HTTP 200 返回非 0 `code` 或 `success: false` 時，後端會直接回傳 RunningHub 的真實錯誤訊息與錯誤碼，不再誤判為 taskId 缺失；同時把 taskId 缺失 fallback 改為英文前台訊息並附回應字段摘要。
+- 關鍵決策和解決方案：RunningHub 上傳仍使用 `/openapi/v2/media/upload/binary`，任務建立、狀態和輸出統一使用 `/task/openapi/*`；錯誤解析和 taskId 兼容抽到 `src/runningHubResponse.js` 並補單元測試，方便後續兼容更多 RunningHub 回應格式。
 - 使用的技術棧：Node.js 原生 HTTP、RunningHub API、Vue 3 CDN、Node test runner。
-- 新增或修改了哪些文件：修改 `server.js`、`src/runningHubResponse.js`、`test/runningHubResponse.test.js` 和 `README.md`。
+- 新增或修改了哪些文件：修改 `server.js`、`src/runningHubResponse.js`、`test/runningHubResponse.test.js`、`docs/MVP-REQUIREMENTS.md` 和 `README.md`。
 - 後續建議：部署後再次提交同一個 RunningHub 工具；若仍失敗，前台應顯示 RunningHub 真實錯誤，例如 workflowId、nodeId、fieldName、檔案 URL 或權限相關原因。
 - 會話的主要目的：修復後台配置的工具預覽圖片在前台工具市場不顯示，並刪除前台預計時間顯示。
 - 完成的主要任務：前台工具卡片的預覽圖改為透過資產 URL helper 解析，支援後台上傳返回的 `/uploads/...` 相對路徑在 `imgkit.io` 前台中正確指向 `api.imgkit.io`；公開工具 API 不再輸出固定 `estimatedSeconds`；工具市場卡片移除 `About 30s` 類預計時間；已知 404 的 Remove Background 預設封面會在啟動 seed 流程中自動替換。

@@ -94,9 +94,10 @@ API Key: 通过后端环境变量 `RUNNINGHUB_API_KEY` 配置
 
 | 端点 | 方法 | 用途 |
 |------|------|------|
-| `/openapi/v2/run/workflow/{workflowID}` | POST | 执行工作流 |
-| `/openapi/v2/workflow/task/{taskId}` | GET | 查询任务状态 |
-| `/openapi/v2/workflow/task/{taskId}/result` | GET | 获取任务结果 |
+| `/openapi/v2/media/upload/binary` | POST | 上传文件并获取 RunningHub 可访问 URL |
+| `/task/openapi/create` | POST | 执行工作流 |
+| `/task/openapi/status` | POST | 查询任务状态 |
+| `/task/openapi/outputs` | POST | 获取任务结果 |
 
 ---
 

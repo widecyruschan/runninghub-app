@@ -1,22 +1,5 @@
 function extractRunningHubTaskId(responseData) {
-  const directTaskId = findDirectTaskId(responseData);
-  if (directTaskId) return directTaskId;
-
-  const containers = [
-    responseData?.data,
-    responseData?.eventData,
-    responseData?.data?.data,
-    responseData?.data?.eventData,
-    responseData?.result,
-    responseData?.data?.result
-  ];
-
-  for (const container of containers) {
-    const taskId = findDirectTaskId(container);
-    if (taskId) return taskId;
-  }
-
-  return '';
+  return findTaskIdDeep(responseData);
 }
 
 function getRunningHubResponseError(responseData) {
@@ -52,14 +35,108 @@ function findDirectTaskId(value) {
     ?? value.taskID
     ?? value.runningHubTaskId
     ?? value.runninghub_task_id
+    ?? value.runninghubTaskId
+    ?? value.taskNo
+    ?? value.task_no
+    ?? value.taskUuid
+    ?? value.task_uuid
+    ?? getFirstTaskId(value.taskIds)
+    ?? getFirstTaskId(value.task_ids)
+    ?? getFirstTaskId(value.taskIdList)
     ?? value.id
   );
+}
+
+function findTaskIdDeep(value, depth = 0, visited = new Set()) {
+  if (depth > 0 && (typeof value === 'string' || typeof value === 'number')) return '';
+
+  const directTaskId = findDirectTaskId(value);
+  if (directTaskId) return directTaskId;
+  if (!value || typeof value !== 'object' || depth >= 5 || visited.has(value)) return '';
+
+  visited.add(value);
+
+  const entries = Array.isArray(value)
+    ? value.map((item, index) => [String(index), item])
+    : Object.entries(value);
+
+  for (const [key, childValue] of entries) {
+    if (isTaskIdContainerKey(key)) {
+      const taskId = normalizeTaskId(childValue);
+      if (taskId) return taskId;
+    }
+
+    if (isTaskIdKey(key)) {
+      const taskId = Array.isArray(childValue)
+        ? getFirstTaskId(childValue)
+        : normalizeTaskId(childValue);
+      if (taskId) return taskId;
+    }
+  }
+
+  for (const [, childValue] of entries) {
+    const taskId = findTaskIdDeep(childValue, depth + 1, visited);
+    if (taskId) return taskId;
+  }
+
+  return '';
+}
+
+function summarizeRunningHubResponseShape(responseData) {
+  if (!responseData || typeof responseData !== 'object') return 'non-object response';
+
+  const rootKeys = Object.keys(responseData);
+  const sections = [`root keys: ${formatKeyList(rootKeys)}`];
+  ['data', 'result', 'eventData'].forEach((key) => {
+    const value = responseData[key];
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      sections.push(`${key} keys: ${formatKeyList(Object.keys(value))}`);
+    }
+  });
+
+  return sections.join('; ');
 }
 
 function normalizeTaskId(value) {
   const taskId = String(value ?? '').trim();
   if (!taskId || taskId === '[object Object]') return '';
   return taskId;
+}
+
+function isTaskIdKey(key) {
+  return [
+    'taskid',
+    'task_id',
+    'taskidlist',
+    'task_id_list',
+    'taskids',
+    'task_ids',
+    'runninghubtaskid',
+    'runninghub_task_id',
+    'taskno',
+    'task_no',
+    'taskuuid',
+    'task_uuid',
+    'id'
+  ].includes(String(key || '').replace(/[^a-zA-Z0-9_]/g, '').toLowerCase());
+}
+
+function isTaskIdContainerKey(key) {
+  return ['data', 'result', 'eventdata'].includes(String(key || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase());
+}
+
+function getFirstTaskId(value) {
+  if (!Array.isArray(value)) return '';
+  for (const item of value) {
+    const taskId = normalizeTaskId(item);
+    if (taskId) return taskId;
+  }
+  return '';
+}
+
+function formatKeyList(keys) {
+  if (!keys.length) return '(none)';
+  return keys.slice(0, 12).join(', ');
 }
 
 function getRunningHubErrorMessage(responseData) {
@@ -80,5 +157,6 @@ function normalizeErrorCode(value) {
 
 module.exports = {
   extractRunningHubTaskId,
-  getRunningHubResponseError
+  getRunningHubResponseError,
+  summarizeRunningHubResponseShape
 };
