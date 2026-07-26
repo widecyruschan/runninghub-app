@@ -91,6 +91,12 @@ docker compose logs -f runninghub-app
 
 ### 2026-07-26
 
+- 會話的主要目的：移除 Remove Background 預覽圖片被後端寫死覆蓋，導致後台新圖和前台公開資料不同步的問題。
+- 完成的主要任務：刪除 `src/database.js` 中針對 `remove-background` 空封面的硬編碼 migration；刪除 `src/toolRepository.js` 中自動把 Remove Background 舊圖替換成預設 Unsplash 圖的升級邏輯；新增工具 repository 回歸測試，確保重新 seed 預設工具不會覆蓋後台保存的自定義預覽圖。
+- 關鍵決策和解決方案：只保留首次建立預設工具時的初始 preview 圖；工具一旦存在，預覽圖片完全以後台保存值為準，不再由 migration 或 seed upgrade 改寫。
+- 使用的技術棧：Node.js 原生 HTTP、SQLite / JSON fallback、Node test runner。
+- 新增或修改了哪些文件：修改 `src/database.js`、`src/toolRepository.js`、`package.json` 和 `README.md`，新增 `test/toolRepository.test.js`。
+- 後續建議：部署後在後台重新保存 Remove Background 的預覽圖片，然後檢查 `https://api.imgkit.io/api/tools?_ts=...` 是否返回同一個新 URL。
 - 會話的主要目的：修復後台修改工具預覽圖片後，前台工具市場仍顯示舊圖片資料的問題。
 - 完成的主要任務：公開工具列表、工具詳情和分類 API 回應新增 no-store/no-cache headers；前台載入 `/api/tools`、`/api/tools/:slug` 和 `/api/categories` 時加入時間戳查詢參數，避免瀏覽器、CDN 或反向代理返回舊 JSON。
 - 關鍵決策和解決方案：保留後台保存邏輯不變，因為後台列表已顯示新圖，問題集中在前台公開資料讀取；Remove Background 的預設封面升級只處理空值或舊壞 URL，不會覆蓋後台新配置。

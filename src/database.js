@@ -305,13 +305,6 @@ function migrateDatabase(database) {
 
   database.prepare(`
     UPDATE tools
-    SET preview_image_url = ?
-    WHERE tool_key = 'remove-background'
-      AND preview_image_url = ''
-  `).run('https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80');
-
-  database.prepare(`
-    UPDATE tools
     SET category_id = 'image'
     WHERE category_id = ''
   `).run();
@@ -459,16 +452,6 @@ class JsonStatement {
         this.database.persist();
       }
 
-      return { changes: 1 };
-    }
-
-    if (this.normalizedSql.startsWith('UPDATE tools SET preview_image_url')) {
-      this.database.state.tools.forEach((tool) => {
-        if (tool.tool_key === 'remove-background' && !tool.preview_image_url) {
-          tool.preview_image_url = payload;
-        }
-      });
-      this.database.persist();
       return { changes: 1 };
     }
 

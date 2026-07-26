@@ -2,7 +2,6 @@ const crypto = require('crypto');
 
 const VALID_TOOL_STATUS = new Set(['draft', 'active', 'inactive']);
 const VALID_INPUT_DATA_TYPES = new Set(['image', 'video', 'audio', 'number', 'textarea', 'text', 'select', 'switch']);
-const BROKEN_REMOVE_BACKGROUND_PREVIEW_IMAGE_URL = 'https://images.unsplash.com/photo-1520975682031-a87d82c5b6d8?auto=format&fit=crop&w=900&q=80';
 const DEFAULT_REMOVE_BACKGROUND_PREVIEW_IMAGE_URL = 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80';
 
 function createToolRepository(database) {
@@ -300,8 +299,6 @@ function createToolRepository(database) {
         }
       });
     }
-    upgradeRemoveBackgroundPreviewImage();
-
     seedToolIfMissing({
       toolKey: 'google-nano-banana-pro',
       name: 'Google Nano Banana',
@@ -527,19 +524,6 @@ function createToolRepository(database) {
   function seedToolIfMissing(tool) {
     if (statements.findByToolKey.get(tool.toolKey)) return;
     saveTool(tool);
-  }
-
-  function upgradeRemoveBackgroundPreviewImage() {
-    const existingRecord = statements.findByToolKey.get('remove-background');
-    if (!existingRecord) return;
-
-    const previewImageUrl = String(existingRecord.preview_image_url || '').trim();
-    if (previewImageUrl && previewImageUrl !== BROKEN_REMOVE_BACKGROUND_PREVIEW_IMAGE_URL) return;
-
-    saveTool({
-      ...mapToolRecord(existingRecord),
-      previewImageUrl: DEFAULT_REMOVE_BACKGROUND_PREVIEW_IMAGE_URL
-    });
   }
 
   function upgradeNanoBananaTool() {
