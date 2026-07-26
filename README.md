@@ -91,6 +91,12 @@ docker compose logs -f runninghub-app
 
 ### 2026-07-26
 
+- 會話的主要目的：安裝 Google tag 以便前台網站接入 Google Analytics。
+- 完成的主要任務：在前台 `frontend/index.html` 的 `<head>` 加入 Google tag `G-4WHJP9D5NM`；後台 `frontend/admin.html` 未加入追蹤碼，避免管理操作混入前台流量分析。
+- 關鍵決策和解決方案：使用 Google 官方 `gtag.js` snippet，保持前台可見內容不變，不新增任何後端設定或敏感資訊。
+- 使用的技術棧：HTML、Google tag、Vue 3 CDN 前台。
+- 新增或修改了哪些文件：修改 `frontend/index.html` 和 `README.md`。
+- 後續建議：部署後用 Google Analytics DebugView 或瀏覽器 Network 檢查 `G-4WHJP9D5NM` 是否有 page_view 事件。
 - 會話的主要目的：檢查 RunningHub API 建立任務失敗時前台只顯示「未返回任務 ID」的問題。
 - 完成的主要任務：對照 RunningHub 文檔中心後，RunningHub 工作流建立任務改為 `POST /task/openapi/create`，body 內帶 `apiKey`、`workflowId`、`nodeInfoList`、`instanceType` 和 `usePersonalQueue`；新增 RunningHub JSON 回應錯誤解析，當 API 以 HTTP 200 返回非 0 `code` 或 `success: false` 時，後端會直接回傳 RunningHub 的真實錯誤訊息與錯誤碼，不再誤判為 taskId 缺失；同時把 taskId 缺失 fallback 改為英文前台訊息並附回應字段摘要。
 - 關鍵決策和解決方案：RunningHub 上傳仍使用 `/openapi/v2/media/upload/binary`，任務建立、狀態和輸出統一使用 `/task/openapi/*`；錯誤解析和 taskId 兼容抽到 `src/runningHubResponse.js` 並補單元測試，方便後續兼容更多 RunningHub 回應格式。

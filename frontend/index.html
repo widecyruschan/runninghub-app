@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AI Tools</title>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-4WHJP9D5NM"></script>
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/element-plus@2.4.4/dist/index.css">
@@ -2597,6 +2599,11 @@
   </div>
 
   <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-4WHJP9D5NM');
+
     const { createApp, ref, computed, onMounted } = Vue;
 
     const PRODUCTION_API_BASE_URL = 'https://api.imgkit.io';
