@@ -379,3 +379,19 @@ docker compose logs -f runninghub-app
 - 使用的技术栈：Node.js 原生 HTTP、Google OAuth、Vue 3 CDN。
 - 新增或修改了哪些文件：修改 `server.js`、`frontend/index.html`、`.env.example` 和 `README.md`。
 - 后续建议：Google Cloud OAuth 客户端必须授权 `https://api.imgkit.io/api/auth/google/callback`；部署后用 `curl -i https://api.imgkit.io/api/auth/google` 确认 Location 中的 `redirect_uri` 是该地址。
+
+### 2026-07-16
+
+- 会话的主要目的：根据用户提供的三个 ComfyUI 工作流 JSON（FlashVSR 视频超分、去水印/字幕/模糊 LTX2.3、视频高清修复 Wan2.2+SeedVR2）和参考截图，分析各工作流的输入节点，并确认后台已支持通过拖放方式调整不同工作流的 UI；同时按用户要求将 Ahrefs Analytics 脚本加入前台首页头部。
+- 完成的主要任务：
+  - 分析三个 ComfyUI API 格式工作流的可配置输入字段，排除模型/检查点加载节点，整理出每个工作流的核心用户输入节点（视频上传、种子、分辨率、放大倍率、帧率、CRF、提示词等）。
+  - 确认 `frontend/admin.html` 的工具编辑页已内建「搭建页面」拖放式 UI 编辑器：支持表单模式与搭建页面模式切换、左侧组件库、中央画布拖放排序、右侧属性面板、上传 ComfyUI 工作流 JSON 并在浏览器端自动分析输入节点、一键全部加入画布、自动参数套用、API 调用 JSON 预览。
+  - 在 `frontend/index.html` 的 `<head>` 中加入两段 Ahrefs Analytics 脚本（async script tag + JS 动态插入 fallback），仅影响前台页面，后台管理页保持不变。
+- 关键决策和解决方案：
+  - 后台拖放编辑器已在当前代码中完整实现，采用前端本地解析 ComfyUI 工作流 JSON 的方式识别输入节点，无需额外后端接口即可使用。
+  - 由于沙箱环境限制无法启动本地服务器做完整端到端验证，已通过 `npm test` 语法检查确认 `server.js` 与 `frontend/index.html` 无语法错误。
+- 使用的技术栈：Vue 3 CDN、HTML5 Drag and Drop API、ComfyUI API JSON。
+- 新增或修改了哪些文件：修改 `frontend/index.html`、`README.md`。
+- 后续建议：
+  - 启动服务后进入后台 `/admin/workflows` 新增或编辑工具，切换到「搭建页面」模式，上传 ComfyUI API 格式工作流 JSON，测试左侧组件拖入画布、属性编辑与自动参数功能。
+  - 若后续需要把分析逻辑复用到其他服务或改为后端接口，可再抽离为 `src/workflowAnalyzer.js` 并提供 `/api/admin/tools/analyze-workflow`。
