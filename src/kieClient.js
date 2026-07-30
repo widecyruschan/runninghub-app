@@ -79,6 +79,22 @@ function createKieClient(options = {}) {
         url: `${apiBaseUrl}/api/v1/veo/record-info?${query.toString()}`,
         method: 'GET'
       });
+    },
+    async createSunoTask(payload) {
+      return requestJson({
+        apiKey,
+        url: `${apiBaseUrl}/api/v1/suno/generate`,
+        method: 'POST',
+        payload
+      });
+    },
+    async getSunoRecord(taskId) {
+      const query = new URLSearchParams({ taskId: String(taskId || '') });
+      return requestJson({
+        apiKey,
+        url: `${apiBaseUrl}/api/v1/suno/record-info?${query.toString()}`,
+        method: 'GET'
+      });
     }
   };
 }

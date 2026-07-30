@@ -2,7 +2,7 @@ const crypto = require('crypto');
 
 const VALID_TOOL_STATUS = new Set(['draft', 'active', 'inactive']);
 const VALID_INPUT_DATA_TYPES = new Set(['image', 'video', 'audio', 'number', 'textarea', 'text', 'select', 'switch']);
-const DEFAULT_REMOVE_BACKGROUND_PREVIEW_IMAGE_URL = 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80';
+const DEFAULT_REMOVE_BACKGROUND_PREVIEW_IMAGE_URL = 'https://lfs.creativefabrica.com/studio/images/lp/background-remover/slazzer-background-remover-1.webp';
 
 function createToolRepository(database) {
   const statements = {
@@ -517,6 +517,100 @@ function createToolRepository(database) {
         outputType: 'video',
         previewMode: 'video',
         fallbackPaths: ['url', 'fileUrl', 'file_url', 'download_url', 'resultUrls', 'fullResultUrls']
+      }
+    });
+
+    seedToolIfMissing({
+      toolKey: 'kie-suno-music',
+      name: 'Kie AI Music',
+      slug: 'kie-suno-music',
+      categoryId: 'audio',
+      shortDescription: '使用 Kie Suno API 生成高品質 AI 音樂與歌曲，支援多種 Suno 模型與自定義風格。',
+      topDetailHtml: '<p>選擇 Suno 模型、輸入音樂描述或歌詞，啟用自定義模式設定風格與標題，生成高品質 AI 歌曲與音樂。</p>',
+      detailHtml: '<h2>最佳用途</h2><p>AI 音樂創作、自定義風格歌曲生成、背景音樂製作、配樂生成、歌詞創作。</p>',
+      previewImageUrl: 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?auto=format&fit=crop&w=900&q=80',
+      creditCost: 1,
+      workflowId: 'kie:suno-music',
+      instanceType: 'default',
+      status: 'active',
+      sortOrder: 40,
+      inputNodes: [
+        {
+          nodeId: 'kie-input',
+          fieldName: 'model',
+          key: 'model',
+          dataType: 'select',
+          label: 'Model',
+          defaultValue: 'V4_5',
+          required: true,
+          options: [
+            { label: 'V3.5', value: 'V3_5' },
+            { label: 'V4', value: 'V4' },
+            { label: 'V4.5', value: 'V4_5' },
+            { label: 'V4.5 Plus', value: 'V4_5PLUS' },
+            { label: 'V4.5 All', value: 'V4_5ALL' },
+            { label: 'V5', value: 'V5' },
+            { label: 'V5.5', value: 'V5_5' }
+          ]
+        },
+        {
+          nodeId: 'kie-input',
+          fieldName: 'prompt',
+          key: 'prompt',
+          dataType: 'textarea',
+          label: 'Prompt（音樂描述）',
+          placeholder: '描述你想要生成的音樂風格、情緒、節奏、樂器等...',
+          defaultValue: 'An upbeat pop song with catchy melody, energetic drums, bright synthesizers, and a feel-good summer vibe.',
+          required: true,
+          options: []
+        },
+        {
+          nodeId: 'kie-input',
+          fieldName: 'customMode',
+          key: 'customMode',
+          dataType: 'switch',
+          label: 'Custom Mode（自定義模式）',
+          defaultValue: false,
+          required: false,
+          options: []
+        },
+        {
+          nodeId: 'kie-input',
+          fieldName: 'instrumental',
+          key: 'instrumental',
+          dataType: 'switch',
+          label: 'Instrumental（純音樂）',
+          defaultValue: false,
+          required: false,
+          options: []
+        },
+        {
+          nodeId: 'kie-input',
+          fieldName: 'style',
+          key: 'style',
+          dataType: 'text',
+          label: 'Style（風格）',
+          placeholder: '例如：Pop, Rock, Jazz, Classical, Electronic...',
+          defaultValue: '',
+          required: false,
+          options: []
+        },
+        {
+          nodeId: 'kie-input',
+          fieldName: 'title',
+          key: 'title',
+          dataType: 'text',
+          label: 'Title（歌曲標題）',
+          placeholder: '輸入歌曲標題（最多 80 字元）',
+          defaultValue: '',
+          required: false,
+          options: []
+        }
+      ],
+      outputConfig: {
+        outputType: 'audio',
+        previewMode: 'audio',
+        fallbackPaths: ['url', 'audioUrl', 'streamAudioUrl', 'fileUrl', 'download_url']
       }
     });
   }

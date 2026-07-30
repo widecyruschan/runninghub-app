@@ -2569,6 +2569,12 @@
                     :src="resultImageUrl"
                     alt="Generated result"
                   >
+                  <audio
+                    v-else-if="isResultAudio"
+                    :src="resultImageUrl"
+                    controls
+                    class="result-audio-player"
+                  ></audio>
                   <video
                     v-else
                     :src="resultImageUrl"
@@ -2958,7 +2964,14 @@
           if (isMarketplace.value) return '';
           return getDisplayHtml(toolConfig.value?.detailHtml);
         });
-        const isResultImage = computed(() => !resultImageUrl.value || !/\.(mp4|webm|mov)(\?|#|$)/i.test(resultImageUrl.value));
+        const isResultImage = computed(() => {
+          if (!resultImageUrl.value) return true;
+          return !/\.(mp4|webm|mov|mp3|wav|flac|m4a|ogg)(\?|#|$)/i.test(resultImageUrl.value);
+        });
+        const isResultAudio = computed(() => {
+          if (!resultImageUrl.value) return false;
+          return /\.(mp3|wav|flac|m4a|ogg)(\?|#|$)/i.test(resultImageUrl.value);
+        });
 
         const canExecute = computed(() => (
           memberLoggedIn.value
@@ -4048,6 +4061,7 @@
           lockedSeedFields,
           resultImageUrl,
           isResultImage,
+          isResultAudio,
           isDragover,
           isExecuting,
           executionMessage,

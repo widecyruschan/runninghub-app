@@ -32,6 +32,8 @@ const KIE_DEFAULT_NANO_BANANA_MODEL = 'nano-banana-pro';
 const KIE_VEO_WORKFLOW = 'veo-3-1';
 const KIE_VEO_MODELS = new Set(['veo3', 'veo3_fast', 'veo3_lite']);
 const KIE_VEO_GENERATION_TYPES = new Set(['TEXT_2_VIDEO', 'FIRST_AND_LAST_FRAMES_2_VIDEO', 'REFERENCE_2_VIDEO']);
+const KIE_SUNO_WORKFLOW = 'suno-music';
+const KIE_SUNO_MODELS = new Set(['V3_5', 'V4', 'V4_5', 'V4_5PLUS', 'V4_5ALL', 'V5', 'V5_5']);
 const RICH_EDITOR_UPLOAD_MIME_TYPES = new Set([
   'image/jpeg',
   'image/png',
@@ -1175,6 +1177,10 @@ async function executeToolWithConfig(tool, requestBody, options = {}) {
 }
 
 async function createKieToolTask(tool, task, inputValues) {
+  if (isKieSunoTool(tool)) {
+    return createKieSunoToolTask(tool, task, inputValues);
+  }
+
   if (isKieVeoTool(tool)) {
     return createKieVeoToolTask(tool, task, inputValues);
   }
@@ -1225,6 +1231,52 @@ async function createKieVeoToolTask(tool, task, inputValues) {
       name: tool.name
     }
   };
+}
+
+async function createKieSunoToolTask(tool, task, inputValues) {
+  const payload = buildKieSunoTaskPayload(inputValues);
+  const kieResponse = await kieClient.createSunoTask(payload);
+  const kieTaskId = extractKieTaskId(kieResponse);
+
+  if (!kieTaskId) {
+    throwHttpError('Suno 任務建立失敗，未返回 KIE 任務 ID', 'KIE_TASK_ID_MISSING', 502);
+  }
+
+  const savedTask = taskRepository.attachRunningHubTask(task.id, kieTaskId, 'QUEUED');
+
+  return {
+    taskId: savedTask.id,
+    runningHubTaskId: savedTask.runningHubTaskId,
+    status: savedTask.status,
+    tool: {
+      id: tool.id,
+      slug: tool.slug,
+      name: tool.name
+    }
+  };
+}
+
+function buildKieSunoTaskPayload(inputValues) {
+  const model = String(inputValues.model || 'V4_5').trim();
+  const prompt = String(inputValues.prompt || '').trim();
+  const customMode = inputValues.customMode === true || String(inputValues.customMode).toLowerCase() === 'true';
+  const instrumental = inputValues.instrumental === true || String(inputValues.instrumental).toLowerCase() === 'true';
+  const style = String(inputValues.style || '').trim();
+  const title = String(inputValues.title || '').trim().slice(0, 80);
+
+  const payload = {
+    model: KIE_SUNO_MODELS.has(model) ? model : 'V4_5',
+    prompt,
+    customMode,
+    instrumental
+  };
+
+  if (customMode) {
+    if (style) payload.style = style;
+    if (title) payload.title = title;
+  }
+
+  return payload;
 }
 
 function buildKieTaskInput(tool, inputValues) {
@@ -1657,31 +1709,37 @@ async function getKieTaskOutputs(task, tool) {
 }
 
 function getKieToolRecord(tool, taskId) {
+  if (isKieSunoTool(tool)) return kieClient.getSunoRecord(taskId);
   if (isKieVeoTool(tool)) return kieClient.getVeoRecord(taskId);
   return kieClient.getTaskRecord(taskId);
 }
 
 function extractKieToolStatus(tool, responseData) {
+  if (isKieSunoTool(tool)) return extractKieSunoStatus(responseData);
   if (isKieVeoTool(tool)) return extractKieVeoStatus(responseData);
   return extractKieStatus(responseData);
 }
 
 function extractKieToolFailureCode(tool, responseData) {
+  if (isKieSunoTool(tool)) return extractKieSunoFailureCode(responseData);
   if (isKieVeoTool(tool)) return extractKieVeoFailureCode(responseData);
   return extractKieFailureCode(responseData);
 }
 
 function extractKieToolFailureMessage(tool, responseData) {
+  if (isKieSunoTool(tool)) return extractKieSunoFailureMessage(responseData);
   if (isKieVeoTool(tool)) return extractKieVeoFailureMessage(responseData);
   return extractKieFailureMessage(responseData);
 }
 
 function extractKieToolResults(tool, responseData) {
+  if (isKieSunoTool(tool)) return extractKieSunoResults(responseData);
   if (isKieVeoTool(tool)) return extractKieVeoResults(responseData);
   return extractKieResults(responseData);
 }
 
 function extractKieToolUsage(tool, responseData) {
+  if (isKieSunoTool(tool)) return extractKieSunoUsage(responseData);
   if (isKieVeoTool(tool)) return extractKieVeoUsage(responseData);
   return extractKieUsage(responseData);
 }
@@ -2117,6 +2175,10 @@ function isKieVeoTool(tool) {
   return getKieModelName(tool) === KIE_VEO_WORKFLOW;
 }
 
+function isKieSunoTool(tool) {
+  return getKieModelName(tool) === KIE_SUNO_WORKFLOW;
+}
+
 function getKieModelName(tool) {
   const workflowId = String(tool?.workflowId || '').trim();
   if (!workflowId.startsWith(KIE_WORKFLOW_PREFIX)) return '';
@@ -2363,6 +2425,57 @@ function extractKieVeoResults(responseData) {
   }));
 }
 
+function extractKieSunoStatus(responseData) {
+  const record = responseData?.data || responseData || {};
+  const responseList = Array.isArray(record.response) ? record.response : [];
+  const responseItem = responseList.length > 0 ? responseList[0] : null;
+  const status = String(record.status || responseItem?.status || '').toUpperCase().trim();
+
+  if (status === 'SUCCESS') return 'SUCCESS';
+  if (['CREATE_TASK_FAILED', 'GENERATE_AUDIO_FAILED', 'SENSITIVE_WORD_ERROR', 'FAILED'].includes(status)) return 'FAILED';
+  if (status === 'ERROR') return 'FAILED';
+  return 'RUNNING';
+}
+
+function extractKieSunoFailureCode(responseData) {
+  const record = responseData?.data || responseData || {};
+  return record.errorCode || record.errorCode || 'KIE_SUNO_TASK_FAILED';
+}
+
+function extractKieSunoFailureMessage(responseData) {
+  const record = responseData?.data || responseData || {};
+  const responseList = Array.isArray(record.response) ? record.response : [];
+  const responseItem = responseList.length > 0 ? responseList[0] : null;
+  return record.errorMessage || record.errorMsg || responseItem?.errorMessage || record.msg || '';
+}
+
+function extractKieSunoResults(responseData) {
+  const record = responseData?.data || responseData || {};
+  const responseList = Array.isArray(record.response) ? record.response : [];
+  const results = [];
+
+  for (const item of responseList) {
+    if (item.audioUrl || item.streamAudioUrl) {
+      results.push({
+        url: item.audioUrl || item.streamAudioUrl || '',
+        streamUrl: item.streamAudioUrl || '',
+        imageUrl: item.imageUrl || '',
+        title: item.title || '',
+        prompt: item.prompt || '',
+        tags: item.tags || '',
+        duration: item.duration || '',
+        outputType: 'audio'
+      });
+    }
+  }
+
+  return results;
+}
+
+function extractKieSunoUsage(responseData) {
+  return normalizeRunningHubUsage(findProviderUsage(responseData));
+}
+
 function parseKieResultJson(value) {
   if (!value) return {};
   if (typeof value === 'object') return value;
@@ -2381,6 +2494,11 @@ function guessOutputTypeFromUrl(url) {
   if (pathname.endsWith('.jpg') || pathname.endsWith('.jpeg')) return 'jpg';
   if (pathname.endsWith('.webp')) return 'webp';
   if (pathname.endsWith('.mp4')) return 'mp4';
+  if (pathname.endsWith('.mp3')) return 'mp3';
+  if (pathname.endsWith('.wav')) return 'wav';
+  if (pathname.endsWith('.flac')) return 'flac';
+  if (pathname.endsWith('.m4a')) return 'm4a';
+  if (pathname.endsWith('.ogg')) return 'ogg';
   if (pathname.endsWith('.png')) return 'png';
   return 'image';
 }
