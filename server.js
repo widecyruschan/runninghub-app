@@ -34,6 +34,10 @@ const KIE_VEO_MODELS = new Set(['veo3', 'veo3_fast', 'veo3_lite']);
 const KIE_VEO_GENERATION_TYPES = new Set(['TEXT_2_VIDEO', 'FIRST_AND_LAST_FRAMES_2_VIDEO', 'REFERENCE_2_VIDEO']);
 const KIE_SUNO_WORKFLOW = 'suno-music';
 const KIE_SUNO_MODELS = new Set(['V3_5', 'V4', 'V4_5', 'V4_5PLUS', 'V4_5ALL', 'V5', 'V5_5']);
+const KIE_SEEDANCE_WORKFLOW = 'seedance-2-0';
+const KIE_SEEDANCE_MODELS = new Set(['seedance-2-fast', 'seedance-2', 'doubao-seedance-2-0-pro']);
+const KIE_SEEDANCE_RESOLUTIONS = new Set(['480p', '720p', '1080p', '4K']);
+const KIE_SEEDANCE_ASPECT_RATIOS = new Set(['16:9', '4:3', '1:1', '3:4', '9:16', '21:9']);
 const RICH_EDITOR_UPLOAD_MIME_TYPES = new Set([
   'image/jpeg',
   'image/png',
@@ -1185,6 +1189,10 @@ async function createKieToolTask(tool, task, inputValues) {
     return createKieVeoToolTask(tool, task, inputValues);
   }
 
+  if (isKieSeedanceTool(tool)) {
+    return createKieSeedanceToolTask(tool, task, inputValues);
+  }
+
   const model = getKieTaskModel(tool, inputValues);
   const kieInput = buildKieTaskInput(tool, inputValues);
   const kieResponse = await kieClient.createTask({
@@ -1711,36 +1719,42 @@ async function getKieTaskOutputs(task, tool) {
 function getKieToolRecord(tool, taskId) {
   if (isKieSunoTool(tool)) return kieClient.getSunoRecord(taskId);
   if (isKieVeoTool(tool)) return kieClient.getVeoRecord(taskId);
+  if (isKieSeedanceTool(tool)) return kieClient.getSeedanceRecord(taskId);
   return kieClient.getTaskRecord(taskId);
 }
 
 function extractKieToolStatus(tool, responseData) {
   if (isKieSunoTool(tool)) return extractKieSunoStatus(responseData);
   if (isKieVeoTool(tool)) return extractKieVeoStatus(responseData);
+  if (isKieSeedanceTool(tool)) return extractKieSeedanceStatus(responseData);
   return extractKieStatus(responseData);
 }
 
 function extractKieToolFailureCode(tool, responseData) {
   if (isKieSunoTool(tool)) return extractKieSunoFailureCode(responseData);
   if (isKieVeoTool(tool)) return extractKieVeoFailureCode(responseData);
+  if (isKieSeedanceTool(tool)) return extractKieSeedanceFailureCode(responseData);
   return extractKieFailureCode(responseData);
 }
 
 function extractKieToolFailureMessage(tool, responseData) {
   if (isKieSunoTool(tool)) return extractKieSunoFailureMessage(responseData);
   if (isKieVeoTool(tool)) return extractKieVeoFailureMessage(responseData);
+  if (isKieSeedanceTool(tool)) return extractKieSeedanceFailureMessage(responseData);
   return extractKieFailureMessage(responseData);
 }
 
 function extractKieToolResults(tool, responseData) {
   if (isKieSunoTool(tool)) return extractKieSunoResults(responseData);
   if (isKieVeoTool(tool)) return extractKieVeoResults(responseData);
+  if (isKieSeedanceTool(tool)) return extractKieSeedanceResults(responseData);
   return extractKieResults(responseData);
 }
 
 function extractKieToolUsage(tool, responseData) {
   if (isKieSunoTool(tool)) return extractKieSunoUsage(responseData);
   if (isKieVeoTool(tool)) return extractKieVeoUsage(responseData);
+  if (isKieSeedanceTool(tool)) return extractKieSeedanceUsage(responseData);
   return extractKieUsage(responseData);
 }
 
@@ -2179,6 +2193,10 @@ function isKieSunoTool(tool) {
   return getKieModelName(tool) === KIE_SUNO_WORKFLOW;
 }
 
+function isKieSeedanceTool(tool) {
+  return getKieModelName(tool) === KIE_SEEDANCE_WORKFLOW;
+}
+
 function getKieModelName(tool) {
   const workflowId = String(tool?.workflowId || '').trim();
   if (!workflowId.startsWith(KIE_WORKFLOW_PREFIX)) return '';
@@ -2473,6 +2491,104 @@ function extractKieSunoResults(responseData) {
 }
 
 function extractKieSunoUsage(responseData) {
+  return normalizeRunningHubUsage(findProviderUsage(responseData));
+}
+
+async function createKieSeedanceToolTask(tool, task, inputValues) {
+  const payload = buildKieSeedanceTaskPayload(inputValues);
+  const kieResponse = await kieClient.createSeedanceTask(payload);
+  const kieTaskId = extractKieTaskId(kieResponse);
+
+  if (!kieTaskId) {
+    throwHttpError('Seedance 任務建立失敗，未返回 KIE 任務 ID', 'KIE_TASK_ID_MISSING', 502);
+  }
+
+  const savedTask = taskRepository.attachRunningHubTask(task.id, kieTaskId, 'QUEUED');
+
+  return {
+    taskId: savedTask.id,
+    runningHubTaskId: savedTask.runningHubTaskId,
+    status: savedTask.status,
+    tool: {
+      id: tool.id,
+      slug: tool.slug,
+      name: tool.name
+    }
+  };
+}
+
+function buildKieSeedanceTaskPayload(inputValues) {
+  const model = String(inputValues.model || 'seedance-2').trim();
+  const prompt = String(inputValues.prompt || '').trim();
+  const aspectRatio = String(inputValues.aspect_ratio || '16:9').trim();
+  const resolution = String(inputValues.resolution || '720p').trim();
+  const duration = normalizeKieSeedanceDuration(inputValues.duration);
+  const generateAudio = inputValues.generate_audio === true || String(inputValues.generate_audio).toLowerCase() === 'true';
+
+  const payload = {
+    prompt,
+    model: KIE_SEEDANCE_MODELS.has(model) ? model : 'seedance-2',
+    aspect_ratio: KIE_SEEDANCE_ASPECT_RATIOS.has(aspectRatio) ? aspectRatio : '16:9',
+    resolution: KIE_SEEDANCE_RESOLUTIONS.has(resolution) ? resolution : '720p',
+    duration,
+    generate_audio: generateAudio,
+    nsfw_checker: true
+  };
+
+  const firstFrameUrl = String(inputValues.first_frame_url || '').trim();
+  const lastFrameUrl = String(inputValues.last_frame_url || '').trim();
+
+  if (firstFrameUrl) payload.first_frame_url = firstFrameUrl;
+  if (lastFrameUrl) payload.last_frame_url = lastFrameUrl;
+
+  const referenceImageUrls = normalizeKieImageInput(inputValues.reference_image_urls || inputValues.image_input);
+  if (referenceImageUrls.length) payload.reference_image_urls = referenceImageUrls;
+
+  const referenceVideoUrls = normalizeKieImageInput(inputValues.reference_video_urls);
+  if (referenceVideoUrls.length) payload.reference_video_urls = referenceVideoUrls;
+
+  const referenceAudioUrls = normalizeKieImageInput(inputValues.reference_audio_urls);
+  if (referenceAudioUrls.length) payload.reference_audio_urls = referenceAudioUrls;
+
+  return payload;
+}
+
+function normalizeKieSeedanceDuration(value) {
+  const duration = Number.parseInt(value, 10);
+  if (!Number.isFinite(duration) || duration < 4) return 4;
+  return Math.min(duration, 15);
+}
+
+function extractKieSeedanceStatus(responseData) {
+  const successFlag = Number(responseData?.data?.successFlag ?? responseData?.successFlag);
+  if (successFlag === 1) return 'SUCCESS';
+  if (successFlag === 2 || successFlag === 3) return 'FAILED';
+  return 'RUNNING';
+}
+
+function extractKieSeedanceFailureCode(responseData) {
+  return responseData?.data?.errorCode || responseData?.errorCode || 'KIE_SEEDANCE_TASK_FAILED';
+}
+
+function extractKieSeedanceFailureMessage(responseData) {
+  return responseData?.data?.errorMessage || responseData?.errorMessage || responseData?.msg || '';
+}
+
+function extractKieSeedanceResults(responseData) {
+  const responsePayload = responseData?.data?.response || responseData?.response || {};
+  const resultUrls = [
+    ...normalizeKieImageInput(responsePayload.resultUrls),
+    ...normalizeKieImageInput(responsePayload.fullResultUrls)
+  ];
+  const uniqueUrls = Array.from(new Set(resultUrls.filter(Boolean)));
+
+  return uniqueUrls.map((url) => ({
+    url,
+    outputType: 'video'
+  }));
+}
+
+function extractKieSeedanceUsage(responseData) {
   return normalizeRunningHubUsage(findProviderUsage(responseData));
 }
 

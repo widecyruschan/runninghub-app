@@ -613,6 +613,162 @@ function createToolRepository(database) {
         fallbackPaths: ['url', 'audioUrl', 'streamAudioUrl', 'fileUrl', 'download_url']
       }
     });
+
+    seedToolIfMissing({
+      toolKey: 'kie-seedance-2-0',
+      name: 'Seedance 2.0',
+      slug: 'kie-seedance-2-0',
+      categoryId: 'video',
+      shortDescription: 'Generate realistic videos with Seedance 2.0 — text-to-video, image-to-video, and multi-modal reference support.',
+      topDetailHtml: '<p>Describe a scene, upload optional reference images, video clips, or audio, then generate a high-quality video with Seedance 2.0.</p>',
+      detailHtml: '<h2>Best for</h2><p>Realistic human motion, multi-camera cinematic shots, music-synchronized clips, character videos, and creative storytelling.</p>',
+      creditCost: 4,
+      workflowId: 'kie:seedance-2-0',
+      inputNodes: [
+        {
+          nodeId: 'kie-input',
+          fieldName: 'model',
+          key: 'model',
+          dataType: 'select',
+          label: 'Model（模型）',
+          placeholder: '',
+          defaultValue: 'seedance-2',
+          required: true,
+          options: [
+            { label: 'Seedance 2 Fast（快速版）', value: 'seedance-2-fast' },
+            { label: 'Seedance 2（標準版）', value: 'seedance-2' },
+            { label: 'Seedance 2.0 Pro', value: 'doubao-seedance-2-0-pro' }
+          ]
+        },
+        {
+          nodeId: 'kie-input',
+          fieldName: 'prompt',
+          key: 'prompt',
+          dataType: 'textarea',
+          label: 'Prompt（提示詞）',
+          placeholder: '描述你想要生成的影片內容，例如：A cinematic shot of a dancer performing in a neon-lit street at night...',
+          defaultValue: 'A cinematic shot of a dancer performing elegant moves in a neon-lit street at night, with reflections on wet pavement and smooth camera movement.',
+          required: true,
+          options: []
+        },
+        {
+          nodeId: 'kie-input',
+          fieldName: 'aspect_ratio',
+          key: 'aspect_ratio',
+          dataType: 'select',
+          label: 'Aspect Ratio（畫面比例）',
+          placeholder: '',
+          defaultValue: '16:9',
+          required: false,
+          options: [
+            { label: '16:9（橫向）', value: '16:9' },
+            { label: '9:16（直向）', value: '9:16' },
+            { label: '1:1（方形）', value: '1:1' },
+            { label: '4:3', value: '4:3' },
+            { label: '3:4', value: '3:4' },
+            { label: '21:9（超寬）', value: '21:9' }
+          ]
+        },
+        {
+          nodeId: 'kie-input',
+          fieldName: 'resolution',
+          key: 'resolution',
+          dataType: 'select',
+          label: 'Resolution（解析度）',
+          placeholder: '',
+          defaultValue: '720p',
+          required: false,
+          options: [
+            { label: '480p', value: '480p' },
+            { label: '720p', value: '720p' },
+            { label: '1080p', value: '1080p' },
+            { label: '4K', value: '4K' }
+          ]
+        },
+        {
+          nodeId: 'kie-input',
+          fieldName: 'duration',
+          key: 'duration',
+          dataType: 'number',
+          label: 'Duration（影片長度，秒）',
+          placeholder: '4 ~ 15',
+          defaultValue: '4',
+          required: false,
+          options: []
+        },
+        {
+          nodeId: 'kie-input',
+          fieldName: 'generate_audio',
+          key: 'generate_audio',
+          dataType: 'switch',
+          label: 'Generate Audio（生成同步音頻）',
+          placeholder: '',
+          defaultValue: false,
+          required: false,
+          options: []
+        },
+        {
+          nodeId: 'kie-input',
+          fieldName: 'first_frame_url',
+          key: 'first_frame_url',
+          dataType: 'image',
+          label: 'First Frame（起始影格圖片）',
+          placeholder: '上傳起始影格參考圖片',
+          defaultValue: '',
+          required: false,
+          options: []
+        },
+        {
+          nodeId: 'kie-input',
+          fieldName: 'last_frame_url',
+          key: 'last_frame_url',
+          dataType: 'image',
+          label: 'Last Frame（結束影格圖片）',
+          placeholder: '上傳結束影格參考圖片',
+          defaultValue: '',
+          required: false,
+          options: []
+        },
+        {
+          nodeId: 'kie-input',
+          fieldName: 'reference_image_urls',
+          key: 'reference_image_urls',
+          dataType: 'image',
+          label: 'Reference Images（參考圖片，最多 9 張）',
+          placeholder: '上傳參考圖片（可多選）',
+          defaultValue: '',
+          required: false,
+          options: []
+        },
+        {
+          nodeId: 'kie-input',
+          fieldName: 'reference_video_urls',
+          key: 'reference_video_urls',
+          dataType: 'video',
+          label: 'Reference Videos（參考影片，最多 3 部）',
+          placeholder: '上傳參考影片（每部最大 50MB，總長不超過 15 秒）',
+          defaultValue: '',
+          required: false,
+          options: []
+        },
+        {
+          nodeId: 'kie-input',
+          fieldName: 'reference_audio_urls',
+          key: 'reference_audio_urls',
+          dataType: 'audio',
+          label: 'Reference Audio（參考音訊，最多 3 段）',
+          placeholder: '上傳參考音訊（每段最大 15MB）',
+          defaultValue: '',
+          required: false,
+          options: []
+        }
+      ],
+      outputConfig: {
+        outputType: 'video',
+        previewMode: 'video',
+        fallbackPaths: ['url', 'videoUrl', 'streamVideoUrl', 'fileUrl', 'download_url']
+      }
+    });
   }
 
   function seedToolIfMissing(tool) {

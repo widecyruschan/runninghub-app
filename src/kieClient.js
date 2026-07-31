@@ -95,6 +95,22 @@ function createKieClient(options = {}) {
         url: `${apiBaseUrl}/api/v1/suno/record-info?${query.toString()}`,
         method: 'GET'
       });
+    },
+    async createSeedanceTask(payload) {
+      return requestJson({
+        apiKey,
+        url: `${apiBaseUrl}/api/v1/seedance/generate`,
+        method: 'POST',
+        payload
+      });
+    },
+    async getSeedanceRecord(taskId) {
+      const query = new URLSearchParams({ taskId: String(taskId || '') });
+      return requestJson({
+        apiKey,
+        url: `${apiBaseUrl}/api/v1/seedance/record-info?${query.toString()}`,
+        method: 'GET'
+      });
     }
   };
 }
