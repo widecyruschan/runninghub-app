@@ -614,6 +614,8 @@ function createToolRepository(database) {
       }
     });
 
+    upgradeSeedanceTool();
+
     seedToolIfMissing({
       toolKey: 'kie-seedance-2-0',
       name: 'Seedance 2.0',
@@ -624,6 +626,8 @@ function createToolRepository(database) {
       detailHtml: '<h2>Best for</h2><p>Realistic human motion, multi-camera cinematic shots, music-synchronized clips, character videos, and creative storytelling.</p>',
       creditCost: 4,
       workflowId: 'kie:seedance-2-0',
+      status: 'active',
+      sortOrder: 50,
       inputNodes: [
         {
           nodeId: 'kie-input',
@@ -803,6 +807,21 @@ function createToolRepository(database) {
       ),
       workflowId: 'kie:nano-banana',
       inputNodes: hasModelNode ? inputNodes : [createNanoBananaModelNode(), ...inputNodes]
+    };
+
+    saveTool(nextTool);
+  }
+
+  function upgradeSeedanceTool() {
+    const existingRecord = statements.findByToolKey.get('kie-seedance-2-0');
+    if (!existingRecord) return;
+    if (existingRecord.status === 'active') return;
+
+    const existingTool = mapToolRecord(existingRecord);
+    const nextTool = {
+      ...existingTool,
+      status: 'active',
+      sortOrder: existingTool.sortOrder || 50
     };
 
     saveTool(nextTool);
