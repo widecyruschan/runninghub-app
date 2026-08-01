@@ -3343,6 +3343,7 @@
             topDetailHtml: '',
             detailHtml: '',
             status: 'draft',
+            sortOrder: 100,
             lastTestStatus: 'untested',
             lastTestStatusLabel: '未測試',
             lastTestStatusClass: 'status-draft',
@@ -3894,6 +3895,7 @@
               topDetailHtml: tool.topDetailHtml || '',
               detailHtml: tool.detailHtml || '',
               status: tool.status || 'draft',
+              sortOrder: tool.sortOrder ?? 100,
               lastTestStatus: tool.lastTestStatus || 'untested',
               lastTestStatusLabel: tool.lastTestStatusLabel || '未測試',
               lastTestStatusClass: tool.lastTestStatusClass || 'status-draft',
@@ -4620,8 +4622,8 @@
             creditCost: Number(toolForm.value.creditCost || 0),
             workflowId: toolForm.value.workflowId,
             instanceType: toolForm.value.instanceType,
-            status: toolForm.value.status || 'draft',
-            sortOrder: 100,
+            status: toolForm.value.status,
+            sortOrder: Number(toolForm.value.sortOrder ?? 100),
             inputNodes: toolForm.value.inputNodes.map(normalizeInputNodeForSave)
           };
 
