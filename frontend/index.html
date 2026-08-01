@@ -2635,9 +2635,7 @@
     axios.defaults.withCredentials = true;
 
     function getApiBaseUrl() {
-      const localHosts = new Set(['127.0.0.1', 'localhost', 'api.imgkit.io']);
-      if (localHosts.has(window.location.hostname)) return '';
-      return PRODUCTION_API_BASE_URL;
+      return '';
     }
 
     function apiUrl(path) {
