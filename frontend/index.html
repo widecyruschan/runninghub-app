@@ -2963,10 +2963,16 @@
           return getDisplayHtml(toolConfig.value?.detailHtml);
         });
         const isResultImage = computed(() => {
+          const outputType = toolConfig.value?.outputConfig?.outputType;
+          if (outputType === 'image') return true;
+          if (outputType === 'audio' || outputType === 'video') return false;
           if (!resultImageUrl.value) return true;
           return !/\.(mp4|webm|mov|mp3|wav|flac|m4a|ogg)(\?|#|$)/i.test(resultImageUrl.value);
         });
         const isResultAudio = computed(() => {
+          const outputType = toolConfig.value?.outputConfig?.outputType;
+          if (outputType === 'audio') return true;
+          if (outputType === 'image' || outputType === 'video') return false;
           if (!resultImageUrl.value) return false;
           return /\.(mp3|wav|flac|m4a|ogg)(\?|#|$)/i.test(resultImageUrl.value);
         });

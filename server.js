@@ -2473,13 +2473,14 @@ function extractKieSunoResults(responseData) {
   const results = [];
 
   for (const item of responseList) {
-    if (item.audioUrl || item.streamAudioUrl) {
+    const audioUrl = item.audioUrl || item.audio_url || item.streamAudioUrl || item.stream_audio_url || '';
+    if (audioUrl) {
       results.push({
-        url: item.audioUrl || item.streamAudioUrl || '',
-        streamUrl: item.streamAudioUrl || '',
-        imageUrl: item.imageUrl || '',
+        url: audioUrl,
+        streamUrl: item.streamAudioUrl || item.stream_audio_url || '',
+        imageUrl: item.imageUrl || item.image_url || item.coverImage || '',
         title: item.title || '',
-        prompt: item.prompt || '',
+        prompt: item.prompt || item.text || '',
         tags: item.tags || '',
         duration: item.duration || '',
         outputType: 'audio'
