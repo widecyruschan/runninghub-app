@@ -2,7 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { createDatabase } = require('./src/database');
+const { createDatabase, DEFAULT_DATA_DIR, DEFAULT_DATABASE_PATH } = require('./src/database');
 const { createToolRepository } = require('./src/toolRepository');
 const { createCategoryRepository } = require('./src/categoryRepository');
 const { createMenuRepository } = require('./src/menuRepository');
@@ -20,7 +20,7 @@ const {
 } = require('./src/runningHubResponse');
 
 const PUBLIC_DIR = path.join(__dirname, 'frontend');
-const UPLOAD_DIR = path.join(__dirname, 'data', 'uploads');
+const UPLOAD_DIR = path.join(DEFAULT_DATA_DIR, 'uploads');
 const DEFAULT_PORT = 3000;
 const MAX_UPLOAD_SIZE = 12 * 1024 * 1024;
 const MAX_JSON_BODY_SIZE = 18 * 1024 * 1024;
@@ -56,6 +56,33 @@ const RICH_EDITOR_UPLOAD_MIME_TYPES = new Set([
 ]);
 
 loadEnvFile(path.join(__dirname, '.env'));
+
+// Hostinger 持久化自動遷移：如果 DATABASE_PATH 指向舊的項目內路徑，
+// 且 $HOME 下有更安全的位置，則自動複製數據庫到 $HOME
+(function migrateToPersistentDataDir() {
+  const oldDbPath = process.env.DATABASE_PATH
+    ? path.resolve(process.env.DATABASE_PATH)
+    : path.join(__dirname, 'data', 'app.sqlite');
+
+  const home = process.env.HOME || process.env.USERPROFILE;
+  if (!home) return; // 無 HOME 目錄，保持現狀
+
+  const newDbPath = path.join(home, 'runninghub-data', 'app.sqlite');
+
+  // 如果新路徑已有數據庫，不需要遷移
+  if (fs.existsSync(newDbPath)) return;
+
+  // 如果舊路徑有數據庫，則遷移到新位置
+  if (fs.existsSync(oldDbPath)) {
+    const newDir = path.dirname(newDbPath);
+    if (!fs.existsSync(newDir)) fs.mkdirSync(newDir, { recursive: true });
+    fs.copyFileSync(oldDbPath, newDbPath);
+    console.log(`[migrate] 數據庫已從 ${oldDbPath} 遷移到 ${newDbPath}`);
+  }
+
+  // 清除舊的 DATABASE_PATH，讓 database.js 使用新的默認路徑（$HOME/runninghub-data/）
+  delete process.env.DATABASE_PATH;
+})();
 
 const runningHubApiKey = process.env.RUNNINGHUB_API_KEY;
 const runningHubApiBaseUrl = process.env.RUNNINGHUB_API_BASE_URL || 'https://www.runninghub.cn/openapi/v2';
@@ -537,6 +564,17 @@ async function handleAdminApi(request, response) {
         permissions: Array.from(getRolePermissions(session.role))
       }
     });
+    return;
+  }
+
+  // 數據庫備份下載端點
+  if (url.pathname === '/api/admin/backup' && request.method === 'GET') {
+    const backupSession = getAdminSession(request);
+    if (!backupSession) {
+      sendUnauthorized(response);
+      return;
+    }
+    await handleDatabaseBackup(request, response);
     return;
   }
 
@@ -3541,4 +3579,27 @@ function sendJson(response, statusCode, payload, extraHeaders = {}) {
     ...extraHeaders
   });
   response.end(JSON.stringify(payload));
+}
+
+// 數據庫備份：將 SQLite 文件作為下載返回
+async function handleDatabaseBackup(request, response) {
+  const databasePath = DEFAULT_DATABASE_PATH;
+
+  if (!fs.existsSync(databasePath)) {
+    sendJson(response, 404, { success: false, message: '數據庫文件不存在' });
+    return;
+  }
+
+  const stat = fs.statSync(databasePath);
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const filename = `runninghub-backup-${timestamp}.sqlite`;
+
+  response.writeHead(200, {
+    'Content-Type': 'application/octet-stream',
+    'Content-Disposition': `attachment; filename="${filename}"`,
+    'Content-Length': stat.size,
+    'Cache-Control': 'no-store'
+  });
+
+  fs.createReadStream(databasePath).pipe(response);
 }

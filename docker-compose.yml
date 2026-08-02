@@ -14,5 +14,10 @@ services:
       - ./src:/app/src:ro
       - ./frontend:/app/frontend:ro
       - ./package.json:/app/package.json:ro
-      - ./data:/app/data
+      # 使用命名卷保存 SQLite 數據，重新部署時數據不會丟失
+      - runninghub-data:/app/data
     restart: unless-stopped
+
+# 命名卷獨立於項目目錄，重新部署不會被覆蓋
+volumes:
+  runninghub-data:

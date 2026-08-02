@@ -2,8 +2,21 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const DEFAULT_DATABASE_PATH = path.join(__dirname, '..', 'data', 'app.sqlite');
-const DEFAULT_JSON_DATABASE_PATH = path.join(__dirname, '..', 'data', 'app.json');
+// Hostinger 持久化策略:
+//   DATABASE_PATH 環境變量 > $HOME/runninghub-data/ > ../data/ (舊默認)
+//   Hostinger 每次部署會替換 public_html/，所以必須把數據庫放在外面
+function resolveDefaultDataDir() {
+  if (process.env.DATABASE_PATH) return path.dirname(process.env.DATABASE_PATH);
+  // 優先使用用戶主目錄（Hostinger 上為 /home/u963014207/，部署不會觸及）
+  const home = process.env.HOME || process.env.USERPROFILE;
+  if (home) return path.join(home, 'runninghub-data');
+  // 最後回退到項目內 data 目錄（本地開發環境）
+  return path.join(__dirname, '..', 'data');
+}
+
+const DEFAULT_DATA_DIR = resolveDefaultDataDir();
+const DEFAULT_DATABASE_PATH = path.join(DEFAULT_DATA_DIR, 'app.sqlite');
+const DEFAULT_JSON_DATABASE_PATH = path.join(DEFAULT_DATA_DIR, 'app.json');
 
 function createDatabase(databasePath = process.env.DATABASE_PATH || DEFAULT_DATABASE_PATH) {
   const resolvedPath = resolveWritableDatabasePath(databasePath);
@@ -1317,5 +1330,7 @@ function ensureColumn(database, tableName, columnName, columnDefinition) {
 }
 
 module.exports = {
-  createDatabase
+  createDatabase,
+  DEFAULT_DATA_DIR,
+  DEFAULT_DATABASE_PATH
 };
