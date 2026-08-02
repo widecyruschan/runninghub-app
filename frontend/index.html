@@ -629,6 +629,138 @@
       gap: 8px;
     }
 
+    .dashboard-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .dashboard-stat-card {
+      min-height: 100px;
+      border: 1px solid #dfe7f2;
+      border-radius: 12px;
+      background: #ffffff;
+      padding: 18px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      transition: box-shadow 0.15s, border-color 0.15s;
+    }
+
+    .dashboard-stat-card:hover {
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+      border-color: #c7d4e4;
+    }
+
+    .dashboard-stat-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      font-size: 22px;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+
+    .dashboard-stat-body {
+      min-width: 0;
+    }
+
+    .dashboard-stat-value {
+      color: var(--strong);
+      font-size: 26px;
+      font-weight: 900;
+      line-height: 1.2;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .dashboard-stat-label {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .dashboard-chart {
+      min-height: 120px;
+    }
+
+    .dashboard-bar-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 3px;
+      height: 150px;
+      padding: 0 4px;
+    }
+
+    .dashboard-bar-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 0;
+      height: 100%;
+      justify-content: flex-end;
+    }
+
+    .dashboard-bar-value {
+      font-size: 9px;
+      color: var(--muted);
+      margin-bottom: 3px;
+      min-height: 13px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 100%;
+    }
+
+    .dashboard-bar {
+      width: 100%;
+      max-width: 28px;
+      border-radius: 4px 4px 0 0;
+      background: linear-gradient(180deg, #4f46e5, #818cf8);
+      min-height: 2px;
+      transition: height 0.3s ease;
+    }
+
+    .dashboard-bar-date {
+      font-size: 8px;
+      color: var(--muted);
+      margin-top: 4px;
+      transform: rotate(-45deg);
+      white-space: nowrap;
+      transform-origin: top left;
+    }
+
+    .order-status {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .order-status--captured,
+    .order-status--credited {
+      background: #dcfce7;
+      color: #16a34a;
+    }
+
+    .order-status--created,
+    .order-status--pending {
+      background: #fef3c7;
+      color: #d97706;
+    }
+
+    .order-status--failed,
+    .order-status--cancelled {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+
     .tool-page {
       flex: 1;
       display: grid;
@@ -2178,7 +2310,104 @@
           </section>
         </div>
 
-        <div v-else class="member-panel">
+        <div v-else-if="currentMemberPath === '/member/dashboard'" class="member-panel">
+          <h2 class="member-panel-title">Account Overview</h2>
+          <div class="dashboard-stats-grid">
+            <article class="dashboard-stat-card">
+              <div class="dashboard-stat-icon" style="background:#eef2ff;color:#4f46e5;">$</div>
+              <div class="dashboard-stat-body">
+                <div class="dashboard-stat-value">{{ memberStats.creditBalance }}</div>
+                <div class="dashboard-stat-label">Available Credits</div>
+              </div>
+            </article>
+            <article class="dashboard-stat-card">
+              <div class="dashboard-stat-icon" style="background:#fef3c7;color:#d97706;">📊</div>
+              <div class="dashboard-stat-body">
+                <div class="dashboard-stat-value">{{ memberStats.monthlyUsage }}</div>
+                <div class="dashboard-stat-label">This Month Usage</div>
+              </div>
+            </article>
+            <article class="dashboard-stat-card">
+              <div class="dashboard-stat-icon" style="background:#dcfce7;color:#16a34a;">∑</div>
+              <div class="dashboard-stat-body">
+                <div class="dashboard-stat-value">{{ memberStats.totalUsage }}</div>
+                <div class="dashboard-stat-label">Total Usage</div>
+              </div>
+            </article>
+            <article class="dashboard-stat-card">
+              <div class="dashboard-stat-icon" style="background:#fce7f3;color:#db2777;">⚡</div>
+              <div class="dashboard-stat-body">
+                <div class="dashboard-stat-value">{{ memberStats.monthlyTasks }}</div>
+                <div class="dashboard-stat-label">Tasks This Month</div>
+              </div>
+            </article>
+            <article class="dashboard-stat-card">
+              <div class="dashboard-stat-icon" style="background:#e0f2fe;color:#0284c7;">⊞</div>
+              <div class="dashboard-stat-body">
+                <div class="dashboard-stat-value">{{ memberStats.planName }}</div>
+                <div class="dashboard-stat-label">Current Plan</div>
+              </div>
+            </article>
+            <article class="dashboard-stat-card">
+              <div class="dashboard-stat-icon" style="background:#f0fdf4;color:#059669;">⬡</div>
+              <div class="dashboard-stat-body">
+                <div class="dashboard-stat-value">{{ memberStats.totalOrders }}</div>
+                <div class="dashboard-stat-label">Total Orders</div>
+              </div>
+            </article>
+          </div>
+
+          <h2 class="member-panel-title" style="margin-top:32px;">Daily Usage (Last 30 Days)</h2>
+          <div class="dashboard-chart" v-if="memberStats.dailyUsage && memberStats.dailyUsage.length">
+            <div class="dashboard-bar-chart">
+              <div
+                v-for="day in memberStats.dailyUsage"
+                :key="day.date"
+                class="dashboard-bar-item"
+                :title="`${day.date}: ${day.coins} coins (${day.count} tasks)`"
+              >
+                <div class="dashboard-bar-value">{{ day.coins }}</div>
+                <div
+                  class="dashboard-bar"
+                  :style="{ height: getBarHeight(day.coins, memberStats.maxDailyCoins) + 'px' }"
+                ></div>
+                <div class="dashboard-bar-date">{{ day.date.slice(5) }}</div>
+              </div>
+            </div>
+          </div>
+          <div v-else class="member-empty">No usage data yet. Run some AI tools to see your stats.</div>
+        </div>
+
+        <div v-else-if="currentMemberPath === '/member/orders'" class="member-panel">
+          <h2 class="member-panel-title">Order History</h2>
+          <table class="member-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Plan</th>
+                <th>Amount</th>
+                <th>Credits</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="order in memberOrders" :key="order.id">
+                <td>{{ formatOrderDate(order.createdAt) }}</td>
+                <td>{{ order.planKey }} <span v-if="order.billingCycle">({{ order.billingCycle }})</span></td>
+                <td>{{ order.amountValue }}{{ order.currencyCode === 'USD' ? '$' : '' }}{{ order.currencyCode !== 'USD' ? order.currencyCode : '' }}</td>
+                <td>+{{ order.creditAmount }}</td>
+                <td>
+                  <span class="order-status" :class="'order-status--' + order.paymentStatus">{{ formatOrderStatus(order.paymentStatus) }}</span>
+                </td>
+              </tr>
+              <tr v-if="!memberOrders.length">
+                <td colspan="5">No orders yet. <a href="#" @click.prevent="openMemberPage('/member/settings')">Upgrade now</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-else-if="currentMemberPath === '/member/transactions'" class="member-panel">
           <h2 class="member-panel-title">Transactions history</h2>
           <table class="member-table">
             <thead>
@@ -2741,6 +2970,19 @@
           { id: 'like-image-enhance', name: 'Image Enhance', category: 'Image Tools' }
         ]);
         const memberTransactions = ref([]);
+        const memberStats = ref({
+          creditBalance: 0,
+          monthlyUsage: 0,
+          totalUsage: 0,
+          monthlyTasks: 0,
+          totalTasks: 0,
+          totalOrders: 0,
+          planName: 'Free',
+          membershipGroup: 'free',
+          dailyUsage: [],
+          maxDailyCoins: 0
+        });
+        const memberOrders = ref([]);
 
         const isMarketplace = computed(() => {
           const normalizedPath = normalizePath(currentPath.value);
@@ -2770,10 +3012,12 @@
           const titles = {
             '/register': 'Member Registration',
             '/login': 'Member Login',
+            '/member/dashboard': 'Dashboard',
             '/member/files': 'My Files',
             '/member/likes': 'My Likes',
+            '/member/orders': 'Order History',
             '/member/settings': 'Settings',
-            '/member/transactions': 'Transactions history'
+            '/member/transactions': 'Transactions'
           };
           return titles[currentMemberPath.value] || 'Member Center';
         });
@@ -2782,8 +3026,10 @@
           const descriptions = {
             '/register': 'Create an account to save generated files, favorite tools, and review transaction records. Credits and membership plans will connect here next.',
             '/login': 'Log in to continue managing your files, favorites, and transaction records.',
+            '/member/dashboard': 'View your account overview, credit balance, usage statistics, and daily activity at a glance.',
             '/member/files': 'View generated and saved files in one place. Cloud drive and batch downloads will connect later.',
             '/member/likes': 'Save frequently used AI tools so you can open them faster next time.',
+            '/member/orders': 'Review your payment and subscription order history.'
             '/member/settings': 'Manage your account profile, membership plan, and notification preferences.',
             '/member/transactions': 'Review credit changes, membership plans, and tool execution spending.'
           };
@@ -2794,10 +3040,12 @@
         const getDisplayHtml = (value) => DETAIL_HTML_MAP[value] || value || '';
 
         const memberMenuItems = [
+          { path: '/member/dashboard', label: 'Dashboard', icon: '⊞' },
           { path: '/member/files', label: 'My Files', icon: '□' },
           { path: '/member/likes', label: 'My Likes', icon: '♡' },
-          { path: '/member/settings', label: 'Settings', icon: '⚙' },
-          { path: '/member/transactions', label: 'Transactions history', icon: '◷' }
+          { path: '/member/orders', label: 'Orders', icon: '$' },
+          { path: '/member/transactions', label: 'Transactions', icon: '◷' },
+          { path: '/member/settings', label: 'Settings', icon: '⚙' }
         ];
         const notificationItems = [
           {
@@ -3491,16 +3739,36 @@
           if (!memberLoggedIn.value) {
             memberFiles.value = [];
             memberTransactions.value = [];
+            memberStats.value = { creditBalance: 0, monthlyUsage: 0, totalUsage: 0, monthlyTasks: 0, totalTasks: 0, totalOrders: 0, planName: 'Free', membershipGroup: 'free', dailyUsage: [], maxDailyCoins: 0 };
+            memberOrders.value = [];
             return;
           }
 
           try {
-            const [tasksResponse, ledgerResponse] = await Promise.all([
+            const [tasksResponse, ledgerResponse, statsResponse, ordersResponse] = await Promise.all([
               axios.get('/api/me/tasks'),
-              axios.get('/api/me/ledger')
+              axios.get('/api/me/ledger'),
+              axios.get('/api/me/stats').catch(() => ({ data: {} })),
+              axios.get('/api/me/orders').catch(() => ({ data: {} }))
             ]);
             const tasks = Array.isArray(tasksResponse.data?.data) ? tasksResponse.data.data : [];
             const ledger = Array.isArray(ledgerResponse.data?.data) ? ledgerResponse.data.data : [];
+            const statsData = statsResponse.data?.data || {};
+
+            memberStats.value = {
+              creditBalance: statsData.creditBalance || 0,
+              monthlyUsage: statsData.monthlyUsage || 0,
+              totalUsage: statsData.totalUsage || 0,
+              monthlyTasks: statsData.monthlyTasks || 0,
+              totalTasks: statsData.totalTasks || 0,
+              totalOrders: statsData.totalOrders || 0,
+              planName: statsData.planName || 'Free',
+              membershipGroup: statsData.membershipGroup || 'free',
+              dailyUsage: statsData.dailyUsage || [],
+              maxDailyCoins: Math.max(1, ...(statsData.dailyUsage || []).map((d) => d.coins || 0))
+            };
+
+            memberOrders.value = Array.isArray(ordersResponse.data?.data) ? ordersResponse.data.data : [];
 
             memberFiles.value = tasks
               .filter((task) => task.status === 'SUCCESS' && task.outputUrls?.length)
@@ -3536,6 +3804,28 @@
         const formatCreditAmount = (amount) => {
           const numericAmount = Number(amount || 0);
           return numericAmount > 0 ? `+${numericAmount}` : String(numericAmount);
+        };
+
+        const getBarHeight = (coins, maxCoins) => {
+          if (!maxCoins || maxCoins <= 0) return 4;
+          return Math.max(4, Math.round((coins / maxCoins) * 120));
+        };
+
+        const formatOrderDate = (dateStr) => {
+          if (!dateStr) return '-';
+          return formatDateTime(dateStr);
+        };
+
+        const formatOrderStatus = (status) => {
+          const labels = {
+            created: 'Pending',
+            pending: 'Pending',
+            captured: 'Completed',
+            credited: 'Completed',
+            failed: 'Failed',
+            cancelled: 'Cancelled'
+          };
+          return labels[status] || status || 'Unknown';
         };
 
         const formatDateTime = (value) => {
@@ -4055,6 +4345,11 @@
           memberPageTitle,
           memberProfile,
           memberTransactions,
+          memberStats,
+          memberOrders,
+          getBarHeight,
+          formatOrderDate,
+          formatOrderStatus,
           billingCycleOptions,
           subscriptionPlans,
           primaryMediaInput,

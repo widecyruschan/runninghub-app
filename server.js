@@ -1009,6 +1009,87 @@ async function handleTaskApi(request, response) {
 async function handleMeApi(request, response) {
   const url = new URL(request.url, `http://${request.headers.host}`);
   const memberSession = requireActiveMemberSession(request);
+  const userId = memberSession.user.id;
+
+  // 账户概览统计 + 每日用量明细
+  if (url.pathname === '/api/me/stats' && request.method === 'GET') {
+    const user = userRepository.getUserById(userId);
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const allTasks = taskRepository.listTasksByUser(userId);
+
+    const monthlyTasks = allTasks.filter((t) => t.createdAt && t.createdAt >= monthStart);
+    const monthlyUsage = monthlyTasks.reduce((sum, t) => sum + (t.actualConsumeCoins || 0), 0);
+    const totalUsage = allTasks.reduce((sum, t) => sum + (t.actualConsumeCoins || 0), 0);
+
+    // 最近30天每日用量明细
+    const dailyUsageMap = {};
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      dailyUsageMap[key] = { date: key, count: 0, coins: 0 };
+    }
+    allTasks.forEach((t) => {
+      if (t.createdAt) {
+        const dayKey = t.createdAt.slice(0, 10);
+        if (dailyUsageMap[dayKey]) {
+          dailyUsageMap[dayKey].count += 1;
+          dailyUsageMap[dayKey].coins += (t.actualConsumeCoins || 0);
+        }
+      }
+    });
+
+    const orders = paymentRepository.listOrdersByUser(userId);
+    const paymentOrders = orders.filter((o) => o.paymentStatus === 'captured' || o.paymentStatus === 'credited');
+    const totalOrders = paymentOrders.length;
+
+    // 會員計劃名稱
+    const planName = (user.membershipGroup && user.membershipGroup !== 'member')
+      ? user.membershipGroup : (user.email ? '免费用户' : '游客');
+
+    sendJson(response, 200, {
+      success: true,
+      message: '操作成功',
+      data: {
+        creditBalance: user.credits || 0,
+        monthlyUsage,
+        totalUsage,
+        totalTasks: allTasks.length,
+        monthlyTasks: monthlyTasks.length,
+        totalOrders,
+        planName,
+        email: user.email || '',
+        membershipGroup: user.membershipGroup || 'free',
+        dailyUsage: Object.values(dailyUsageMap).reverse()
+      }
+    });
+    return;
+  }
+
+  // 订单列表
+  if (url.pathname === '/api/me/orders' && request.method === 'GET') {
+    const orders = paymentRepository.listOrdersByUser(userId).map((o) => ({
+      id: o.id,
+      planKey: o.planKey,
+      billingCycle: o.billingCycle,
+      amountValue: o.amountValue,
+      currencyCode: o.currencyCode,
+      creditAmount: o.creditAmount,
+      paymentStatus: o.paymentStatus,
+      status: o.status,
+      createdAt: o.createdAt,
+      creditedAt: o.creditedAt,
+      capturedAt: o.capturedAt
+    }));
+
+    sendJson(response, 200, {
+      success: true,
+      message: '操作成功',
+      data: orders
+    });
+    return;
+  }
 
   if (url.pathname === '/api/me/tasks' && request.method === 'GET') {
     sendJson(response, 200, {
