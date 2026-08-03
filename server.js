@@ -11,6 +11,7 @@ const { createUserRepository } = require('./src/userRepository');
 const { createMemberSessionRepository } = require('./src/memberSessionRepository');
 const { createKieClient } = require('./src/kieClient');
 const { createPaypalClient } = require('./src/paypalClient');
+const { createCreemClient } = require('./src/creemClient');
 const { createPaymentRepository } = require('./src/paymentRepository');
 const { getPaymentPlan } = require('./src/paymentPlans');
 const {
@@ -106,6 +107,7 @@ const userRepository = createUserRepository(database);
 const memberSessionRepository = createMemberSessionRepository(database);
 const kieClient = createKieClient();
 const paypalClient = createPaypalClient();
+const creemClient = createCreemClient();
 const paymentRepository = createPaymentRepository(database);
 
 toolRepository.seedDefaultTools();
@@ -209,6 +211,11 @@ const server = http.createServer(async (request, response) => {
       return;
     }
 
+    if (requestPathname.startsWith('/creem/')) {
+      await handleCreemWebhook(request, response);
+      return;
+    }
+
     if (requestPathname.startsWith('/api/payments/')) {
       await handlePaymentApi(request, response);
       return;
@@ -253,6 +260,7 @@ server.listen(...listenTarget.args, () => {
   console.log(`Local access URL: ${listenTarget.localUrl}`);
   console.log(`RUNNINGHUB_API_KEY: ${runningHubApiKey ? '已配置' : '未配置'}`);
   console.log(`PAYPAL: ${paypalClient.isConfigured ? '已配置' : '未配置'}`);
+  console.log(`CREEM: ${creemClient.isConfigured ? '已配置' : '未配置'}`);
   console.log(`ADMIN_USERNAME: ${adminUsername}`);
 });
 
@@ -1172,6 +1180,32 @@ async function handlePaymentApi(request, response) {
         method: 'POST',
         provider: 'paypal'
       }
+    });
+    return;
+  }
+
+  if (url.pathname === '/api/payments/creem/checkout' && request.method === 'POST') {
+    const memberSession = requireActiveMemberSession(request);
+    const requestBody = await readJsonBody(request);
+    const result = await createCreemCheckoutSession(request, memberSession.user, requestBody);
+
+    sendJson(response, 201, {
+      success: true,
+      message: 'Creem checkout session created',
+      data: result
+    });
+    return;
+  }
+
+  if (url.pathname === '/api/payments/creem/success' && request.method === 'POST') {
+    const memberSession = requireActiveMemberSession(request);
+    const requestBody = await readJsonBody(request);
+    const result = await finalizeCreemCheckoutSession(memberSession.user, requestBody);
+
+    sendJson(response, 200, {
+      success: true,
+      message: 'Creem payment completed',
+      data: result
     });
     return;
   }
@@ -2198,6 +2232,191 @@ function extractPaypalWebhookOrderId(event) {
     || event?.resource?.custom_id
     || event?.resource?.id
     || '';
+}
+
+// ---------------------------------------------------------------
+// Creem helpers
+// ---------------------------------------------------------------
+
+function resolveCreemPlanKey(planType, billingCycle) {
+  if (planType === 'credits_pack_1' || planType === 'credits_pack_2' || planType === 'credits_pack_3') {
+    return planType;
+  }
+  return `membership_${planType}_${billingCycle}`;
+}
+
+async function createCreemCheckoutSession(request, user, requestBody) {
+  const planType = requestBody?.plan_type || '';
+  const currency = requestBody?.currency || 'USD';
+  const returnUrl = requestBody?.return_url || '';
+  const cancelUrl = requestBody?.cancel_url || '';
+
+  const lineItems = resolveCreemPurchaseLineItems(planType, currency);
+  if (!lineItems.length) {
+    throwHttpError('Invalid plan selected', 'CREEM_PLAN_INVALID', 422);
+  }
+
+  const lineItem = lineItems[0];
+
+  const paymentOrder = paymentRepository.createOrder({
+    userId: user.id,
+    provider: 'creem',
+    planKey: resolveCreemPlanKey(planType, String(lineItem.duration || 'once')),
+    billingCycle: String(lineItem.duration || 'once'),
+    amountValue: lineItem.amount,
+    currencyCode: currency,
+    creditAmount: Number(lineItem.credits || 0),
+    status: 'CREATED',
+    rawResponse: { description: lineItem.description, planType }
+  });
+
+  try {
+    const session = await creemClient.createCheckoutSession({
+      amount: lineItem.amount,
+      currency,
+      description: lineItem.description,
+      customId: paymentOrder.id,
+      returnUrl,
+      cancelUrl
+    });
+
+    paymentRepository.saveProviderOrder(paymentOrder.id, session.id, session);
+
+    return {
+      orderId: paymentOrder.id,
+      checkoutUrl: session.checkout_url
+    };
+  } catch (error) {
+    throwHttpError(error.message || 'Creem checkout failed', error.code || 'CREEM_CHECKOUT_FAILED', error.statusCode || 502);
+  }
+}
+
+async function finalizeCreemCheckoutSession(user, requestBody) {
+  const orderId = requestBody?.order_id || '';
+
+  const paymentOrder = paymentRepository.getOrderById(orderId);
+  if (!paymentOrder) {
+    throwHttpError('Order not found', 'ORDER_NOT_FOUND', 404);
+  }
+
+  if (paymentOrder.status === 'CAPTURED' && paymentOrder.creditedAt) {
+    const userRecord = userRepository.findById(paymentOrder.userId);
+    return { message: 'Order already completed', user: userRecord || user };
+  }
+
+  const capturedOrder = paymentOrder.status === 'CAPTURED'
+    ? paymentOrder
+    : paymentRepository.saveCapturedOrder(paymentOrder.id, 'COMPLETED', { session_id: requestBody?.session_id || '' });
+
+  const result = fulfillPaidOrder(capturedOrder);
+
+  return {
+    message: result.creditedAt ? 'Credits granted' : 'Credits not granted',
+    user: result.user
+  };
+}
+
+async function handleCreemWebhook(request, response) {
+  const rawBody = await readRawBody(request);
+
+  if (request.method === 'GET') {
+    sendJson(response, 200, { status: 'ok' });
+    return;
+  }
+
+  if (request.method !== 'POST') {
+    sendJson(response, 405, { message: 'Method not allowed' });
+    return;
+  }
+
+  const signature = request.headers['creem-signature'];
+  try {
+    creemClient.verifyWebhookSignature(signature, rawBody);
+  } catch (error) {
+    sendJson(response, error.statusCode || 401, { message: error.message });
+    return;
+  }
+
+  const event = parseJsonPayload(rawBody);
+  if (!event) {
+    sendJson(response, 400, { message: 'Invalid JSON payload' });
+    return;
+  }
+
+  const eventType = event?.type || event?.event_type || '';
+  const resource = event?.data?.object || event?.data || event?.object || event;
+  const providerOrderId = resource?.id || '';
+  const orderId = resource?.metadata?.order_id || '';
+
+  console.log(`[Creem Webhook] ${eventType} - checkoutId: ${providerOrderId}, orderId: ${orderId}`);
+
+  const paymentOrder = orderId
+    ? paymentRepository.getOrderById(orderId)
+    : paymentRepository.getOrderByProviderOrderId(providerOrderId);
+
+  if (!paymentOrder) {
+    console.warn(`[Creem Webhook] Order not found: ${orderId || providerOrderId}`);
+    sendJson(response, 200, { received: true, warning: 'order not found' });
+    return;
+  }
+
+  if (eventType === 'checkout.completed' || eventType === 'checkout.session.completed') {
+    try {
+      const capturedOrder = paymentOrder.status === 'CAPTURED'
+        ? paymentOrder
+        : paymentRepository.saveCapturedOrder(paymentOrder.id, 'COMPLETED', resource);
+
+      if (!capturedOrder.creditedAt) {
+        fulfillPaidOrder(capturedOrder);
+      }
+
+      console.log(`[Creem Webhook] Order fulfilled: ${paymentOrder.id}, user: ${paymentOrder.userId}`);
+      sendJson(response, 200, { received: true });
+    } catch (error) {
+      console.error(`[Creem Webhook] Error processing order ${paymentOrder.id}:`, error);
+      sendJson(response, 500, { message: 'Internal processing error' });
+    }
+    return;
+  }
+
+  sendJson(response, 200, { received: true, note: 'event not processed' });
+}
+
+function resolveCreemPurchaseLineItems(planType, currency) {
+  if (planType === 'credits_pack_1') {
+    return [{ amount: 15, currency, description: '150 Credits Pack', credits: 150 }];
+  }
+  if (planType === 'credits_pack_2') {
+    return [{ amount: 25, currency, description: '300 Credits Pack', credits: 300 }];
+  }
+  if (planType === 'credits_pack_3') {
+    return [{ amount: 50, currency, description: '700 Credits Pack', credits: 700 }];
+  }
+
+  const plan = getPaymentPlan(planType, 'monthly');
+  if (plan) {
+    return [{ amount: Number(plan.amount), currency, description: `${plan.name} Monthly Subscription`, isSubscription: true, duration: 'monthly', credits: plan.credits || 0 }];
+  }
+
+  const annualPlan = getPaymentPlan(planType, 'annual');
+  if (annualPlan) {
+    return [{ amount: Number(annualPlan.amount), currency, description: `${annualPlan.name} Annual Subscription`, isSubscription: true, duration: 'annual', credits: annualPlan.credits || 0 }];
+  }
+
+  return [];
+}
+
+async function readRawBody(request) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    request.on('data', (chunk) => chunks.push(chunk));
+    request.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
+    request.on('error', reject);
+  });
+}
+
+function parseJsonPayload(raw) {
+  try { return JSON.parse(raw); } catch { return null; }
 }
 
 function formatFrontendLedgerReason(reason) {

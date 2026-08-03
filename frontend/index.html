@@ -2295,6 +2295,15 @@
                 {{ option.label }}
               </button>
             </div>
+            <div style="text-align:center; margin-bottom:16px;">
+              <span style="font-size:13px; color:#64748b; margin-right:10px;">Pay with</span>
+              <label style="cursor:pointer; margin-right:16px;" :style="{ fontWeight: selectedPaymentProvider === 'paypal' ? '600' : '400', color: selectedPaymentProvider === 'paypal' ? '#1e293b' : '#94a3b8' }">
+                <input type="radio" value="paypal" v-model="selectedPaymentProvider" style="vertical-align:middle; margin-right:4px;" /> PayPal
+              </label>
+              <label style="cursor:pointer;" :style="{ fontWeight: selectedPaymentProvider === 'creem' ? '600' : '400', color: selectedPaymentProvider === 'creem' ? '#1e293b' : '#94a3b8' }">
+                <input type="radio" value="creem" v-model="selectedPaymentProvider" style="vertical-align:middle; margin-right:4px;" /> Creem
+              </label>
+            </div>
             <div class="subscription-grid">
               <article
                 v-for="plan in subscriptionPlans"
@@ -2316,7 +2325,7 @@
                   :disabled="isPayPalProcessing"
                   @click="selectSubscriptionPlan(plan)"
                 >
-                  {{ getSubscriptionActionLabel(plan) }}
+                  {{ getSubscriptionActionLabel(plan, selectedPaymentProvider) }}
                 </button>
               </article>
             </div>
@@ -2976,6 +2985,7 @@
         const toolKeyword = ref('');
         const selectedCategory = ref('all');
         const selectedBillingCycle = ref('annual');
+        const selectedPaymentProvider = ref('paypal');
         const isLoadingMarketplace = ref(false);
         const memberLoggedIn = ref(false);
         const memberForm = ref({
@@ -3631,11 +3641,12 @@
           return selectedBillingCycle.value === 'annual' ? 'per month, billed annually' : 'per month';
         };
 
-        const getSubscriptionActionLabel = (plan) => {
+        const getSubscriptionActionLabel = (plan, provider) => {
           if (isPayPalProcessing.value) return 'Processing...';
           if (memberProfile.value.plan === plan.key && plan.key !== 'pay_as_you_go') return 'Current Plan';
           if (plan.key === 'pay_as_you_go') return 'Buy Credits';
-          return 'Pay with PayPal';
+          const providerName = provider === 'creem' ? 'Creem' : 'PayPal';
+          return `Pay with ${providerName}`;
         };
 
         const selectSubscriptionPlan = async (plan) => {
@@ -3655,6 +3666,16 @@
             return;
           }
 
+          const provider = selectedPaymentProvider.value;
+
+          if (provider === 'creem') {
+            await processCreemCheckout(plan);
+          } else {
+            await processPayPalCheckout(plan);
+          }
+        };
+
+        const processPayPalCheckout = async (plan) => {
           isPayPalProcessing.value = true;
 
           try {
@@ -3671,6 +3692,38 @@
             }
 
             window.location.href = approveUrl;
+          } catch (error) {
+            ElementPlus.ElMessage.error(getApiErrorMessage(error));
+            isPayPalProcessing.value = false;
+          }
+        };
+
+        const processCreemCheckout = async (plan) => {
+          isPayPalProcessing.value = true;
+
+          try {
+            const returnUrl = window.location.origin + '/member/settings?creem=return&order_id={ORDER_ID}';
+            const cancelUrl = window.location.origin + '/member/settings?creem=cancel';
+
+            const response = await axios.post('/api/payments/creem/checkout', {
+              plan_type: plan.key === 'pay_as_you_go'
+                ? (plan.oneTimePrice === 15 ? 'credits_pack_1' : plan.oneTimePrice === 25 ? 'credits_pack_2' : 'credits_pack_3')
+                : plan.key,
+              currency: 'USD',
+              return_url: returnUrl,
+              cancel_url: cancelUrl
+            }, {
+              headers: createJsonHeaders()
+            });
+
+            const checkoutUrl = response.data?.data?.checkoutUrl;
+
+            if (!checkoutUrl) {
+              throw new Error('Creem checkout URL was not returned');
+            }
+
+            const orderId = response.data?.data?.orderId || '';
+            window.location.href = checkoutUrl.replace('{ORDER_ID}', orderId);
           } catch (error) {
             ElementPlus.ElMessage.error(getApiErrorMessage(error));
             isPayPalProcessing.value = false;
@@ -3715,7 +3768,54 @@
           }
         };
 
+        const processCreemReturn = async () => {
+          const query = new URLSearchParams(window.location.search);
+          const creemStatus = query.get('creem');
+          const orderId = query.get('order_id');
+
+          if (creemStatus === 'cancel') {
+            ElementPlus.ElMessage.info('Creem payment was cancelled');
+            clearCreemQuery();
+            return;
+          }
+
+          if (creemStatus !== 'return' || !orderId) return;
+
+          isPayPalProcessing.value = true;
+
+          try {
+            const response = await axios.post('/api/payments/creem/success', {
+              order_id: orderId
+            }, {
+              headers: createJsonHeaders()
+            });
+            const user = response.data?.data?.user;
+            if (user) {
+              memberProfile.value = {
+                displayName: user.displayName || user.email,
+                email: user.email,
+                plan: user.membershipGroup || 'free',
+                credits: user.creditBalance || 0
+              };
+              memberLoggedIn.value = true;
+              persistMemberProfile();
+            }
+            ElementPlus.ElMessage.success('Creem payment completed. Credits have been added.');
+            await loadMemberRecords();
+          } catch (error) {
+            ElementPlus.ElMessage.error(getApiErrorMessage(error));
+          } finally {
+            isPayPalProcessing.value = false;
+            clearCreemQuery();
+          }
+        };
+
         const clearPayPalQuery = () => {
+          const cleanUrl = window.location.pathname || '/member/settings';
+          window.history.replaceState({}, '', cleanUrl);
+        };
+
+        const clearCreemQuery = () => {
           const cleanUrl = window.location.pathname || '/member/settings';
           window.history.replaceState({}, '', cleanUrl);
         };
@@ -4302,6 +4402,7 @@
         onMounted(() => {
           loadMemberSession().finally(() => {
             processPayPalReturn();
+            processCreemReturn();
           });
           const oauthStatus = new URLSearchParams(window.location.search).get('oauth');
           const oauthErrorMessage = getOAuthErrorMessage(oauthStatus);
@@ -4364,6 +4465,7 @@
           isPayPalProcessing,
           selectedCategory,
           selectedBillingCycle,
+          selectedPaymentProvider,
           currentToolSlug,
           toolKeyword,
           toolTitle,
