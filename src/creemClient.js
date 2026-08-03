@@ -3,16 +3,12 @@ const crypto = require('crypto');
 function createCreemClient(options = {}) {
   const apiKey = String(options.apiKey || process.env.CREEM_API_KEY || '').trim();
   const webhookSecret = String(options.webhookSecret || process.env.CREEM_WEBHOOK_SECRET || '').trim();
-  const apiBaseUrl = normalizeBaseUrl(
-    options.apiBaseUrl
-      || process.env.CREEM_API_BASE_URL
-      || 'https://api.creem.io/v1'
-  );
+  const resolvedBaseUrl = resolveApiBaseUrl(apiKey, options.apiBaseUrl);
 
   async function requestJson(method, path, payload) {
     ensureCreemConfigured(apiKey);
 
-    const response = await fetchCreem(`${apiBaseUrl}${path}`, {
+    const response = await fetchCreem(`${resolvedBaseUrl}${path}`, {
       method,
       headers: {
         'x-api-key': apiKey,
@@ -95,6 +91,23 @@ function ensureCreemConfigured(apiKey) {
   if (!apiKey) {
     throwCreemError('Creem is not configured', 'CREEM_NOT_CONFIGURED', 500);
   }
+}
+
+function resolveApiBaseUrl(apiKey, explicitBase) {
+  if (explicitBase) {
+    return normalizeBaseUrl(explicitBase);
+  }
+
+  const envBase = process.env.CREEM_API_BASE_URL;
+  if (envBase) {
+    return normalizeBaseUrl(envBase);
+  }
+
+  if (apiKey.startsWith('creem_test_')) {
+    return 'https://test-api.creem.io/v1';
+  }
+
+  return 'https://api.creem.io/v1';
 }
 
 function normalizeBaseUrl(value) {
