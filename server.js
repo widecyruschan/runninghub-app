@@ -1067,7 +1067,7 @@ async function handleMeApi(request, response) {
     });
 
     const orders = paymentRepository.listOrdersByUser(userId);
-    const paymentOrders = orders.filter((o) => o.paymentStatus === 'captured' || o.paymentStatus === 'credited');
+    const paymentOrders = orders.filter((o) => o.status === 'CAPTURED');
     const totalOrders = paymentOrders.length;
 
     // 會員計劃名稱
@@ -1093,21 +1093,23 @@ async function handleMeApi(request, response) {
     return;
   }
 
-  // 订单列表
+  // 订单列表（仅返回已付款成功的订单）
   if (url.pathname === '/api/me/orders' && request.method === 'GET') {
-    const orders = paymentRepository.listOrdersByUser(userId).map((o) => ({
-      id: o.id,
-      planKey: o.planKey,
-      billingCycle: o.billingCycle,
-      amountValue: o.amountValue,
-      currencyCode: o.currencyCode,
-      creditAmount: o.creditAmount,
-      paymentStatus: o.paymentStatus,
-      status: o.status,
-      createdAt: o.createdAt,
-      creditedAt: o.creditedAt,
-      capturedAt: o.capturedAt
-    }));
+    const orders = paymentRepository.listOrdersByUser(userId)
+      .filter((o) => o.status === 'CAPTURED')
+      .map((o) => ({
+        id: o.id,
+        planKey: o.planKey,
+        billingCycle: o.billingCycle,
+        amountValue: o.amountValue,
+        currencyCode: o.currencyCode,
+        creditAmount: o.creditAmount,
+        paymentStatus: o.paymentStatus,
+        status: o.status,
+        createdAt: o.createdAt,
+        creditedAt: o.creditedAt,
+        capturedAt: o.capturedAt
+      }));
 
     sendJson(response, 200, {
       success: true,

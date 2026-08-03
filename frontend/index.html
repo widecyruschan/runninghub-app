@@ -4044,15 +4044,18 @@
         };
 
         const formatOrderStatus = (status) => {
+          const normalized = String(status || '').toLowerCase();
           const labels = {
             created: 'Pending',
             pending: 'Pending',
             captured: 'Completed',
             credited: 'Completed',
+            completed: 'Completed',
             failed: 'Failed',
+            denied: 'Failed',
             cancelled: 'Cancelled'
           };
-          return labels[status] || status || 'Unknown';
+          return labels[normalized] || status || 'Unknown';
         };
 
         const formatDateTime = (value) => {
