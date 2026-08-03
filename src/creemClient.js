@@ -33,23 +33,24 @@ function createCreemClient(options = {}) {
     isConfigured: Boolean(apiKey),
     hasWebhookVerification: Boolean(webhookSecret),
 
-    async createCheckoutSession({ amount, currency, description, customId, returnUrl, cancelUrl }) {
-      const amountInCents = Math.round(Number(amount) * 100);
-
-      return requestJson('POST', '/checkout', {
-        currency: String(currency || 'USD').toUpperCase(),
-        amount: amountInCents,
-        description: String(description || 'IMGKTI purchase').slice(0, 255),
+    async createCheckoutSession({ productId, amount, currency, customId, returnUrl, cancelUrl }) {
+      const payload = {
+        product_id: String(productId),
+        success_url: String(returnUrl || ''),
         metadata: {
           order_id: String(customId || '')
-        },
-        redirect_url: returnUrl,
-        cancel_url: cancelUrl
-      });
+        }
+      };
+
+      if (amount) {
+        payload.custom_price = Math.round(Number(amount) * 100);
+      }
+
+      return requestJson('POST', '/checkouts', payload);
     },
 
     async getCheckoutSession(sessionId) {
-      return requestJson('GET', `/checkout/${encodeURIComponent(sessionId)}`);
+      return requestJson('GET', `/checkouts?checkout_id=${encodeURIComponent(sessionId)}`);
     },
 
     verifyWebhookSignature(signature, rawBody) {

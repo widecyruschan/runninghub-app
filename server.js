@@ -2250,13 +2250,17 @@ async function createCreemCheckoutSession(request, user, requestBody) {
   const currency = requestBody?.currency || 'USD';
   const returnUrl = requestBody?.return_url || '';
   const cancelUrl = requestBody?.cancel_url || '';
+  const billingCycle = requestBody?.billing_cycle || 'monthly';
 
-  const lineItems = resolveCreemPurchaseLineItems(planType, currency);
+  const lineItems = resolveCreemPurchaseLineItems(planType, currency, billingCycle);
   if (!lineItems.length) {
     throwHttpError('Invalid plan selected', 'CREEM_PLAN_INVALID', 422);
   }
 
   const lineItem = lineItems[0];
+  if (!lineItem.productId) {
+    throwHttpError('No Creem product configured for this plan', 'CREEM_PRODUCT_NOT_FOUND', 500);
+  }
 
   const paymentOrder = paymentRepository.createOrder({
     userId: user.id,
@@ -2267,14 +2271,13 @@ async function createCreemCheckoutSession(request, user, requestBody) {
     currencyCode: currency,
     creditAmount: Number(lineItem.credits || 0),
     status: 'CREATED',
-    rawResponse: { description: lineItem.description, planType }
+    rawResponse: { description: lineItem.description, planType, productId: lineItem.productId }
   });
 
   try {
     const session = await creemClient.createCheckoutSession({
+      productId: lineItem.productId,
       amount: lineItem.amount,
-      currency,
-      description: lineItem.description,
       customId: paymentOrder.id,
       returnUrl,
       cancelUrl
@@ -2382,25 +2385,44 @@ async function handleCreemWebhook(request, response) {
   sendJson(response, 200, { received: true, note: 'event not processed' });
 }
 
-function resolveCreemPurchaseLineItems(planType, currency) {
+const CREEM_PRODUCT_MAP = {
+  credits_pack_1: 'prod_4w7HRl6TiJ3bYm6VGnIdzS',
+  credits_pack_2: 'prod_cNddR3oZT4jsWZ3xcVp90',
+  credits_pack_3: 'prod_5SmOdxX7Qhy9qeOC2L6gMa',
+  pro_monthly: 'prod_10UHMojpNEwm1Asbr1akVv',
+  pro_annual: 'prod_2PvSUFPwI36LMYcVezjyms',
+  pro_plus_monthly: 'prod_6DCaxhEILimSdtgS3U3TbL',
+  pro_plus_annual: 'prod_43PUalwq8EkqJZtxlx3mCs',
+  pro_max_monthly: 'prod_4BZ4AZqnFDctxAsIXZEmXQ',
+  pro_max_annual: 'prod_3CtUAKCVWoBd9QoKyu6Fmy'
+};
+
+function resolveCreemProductId(planType, billingCycle) {
+  if (planType === 'credits_pack_1' || planType === 'credits_pack_2' || planType === 'credits_pack_3') {
+    return CREEM_PRODUCT_MAP[planType] || null;
+  }
+  const cycle = String(billingCycle || 'monthly').trim();
+  const key = `${planType}_${cycle}`;
+  return CREEM_PRODUCT_MAP[key] || null;
+}
+
+function resolveCreemPurchaseLineItems(planType, currency, billingCycle) {
   if (planType === 'credits_pack_1') {
-    return [{ amount: 15, currency, description: '150 Credits Pack', credits: 150 }];
+    return [{ amount: 15, currency, description: '150 Credits Pack', credits: 150, productId: CREEM_PRODUCT_MAP.credits_pack_1 }];
   }
   if (planType === 'credits_pack_2') {
-    return [{ amount: 25, currency, description: '300 Credits Pack', credits: 300 }];
+    return [{ amount: 25, currency, description: '300 Credits Pack', credits: 300, productId: CREEM_PRODUCT_MAP.credits_pack_2 }];
   }
   if (planType === 'credits_pack_3') {
-    return [{ amount: 50, currency, description: '700 Credits Pack', credits: 700 }];
+    return [{ amount: 50, currency, description: '700 Credits Pack', credits: 700, productId: CREEM_PRODUCT_MAP.credits_pack_3 }];
   }
 
-  const plan = getPaymentPlan(planType, 'monthly');
+  const cycle = String(billingCycle || 'monthly').trim();
+  const plan = getPaymentPlan(planType, cycle);
   if (plan) {
-    return [{ amount: Number(plan.amount), currency, description: `${plan.name} Monthly Subscription`, isSubscription: true, duration: 'monthly', credits: plan.credits || 0 }];
-  }
-
-  const annualPlan = getPaymentPlan(planType, 'annual');
-  if (annualPlan) {
-    return [{ amount: Number(annualPlan.amount), currency, description: `${annualPlan.name} Annual Subscription`, isSubscription: true, duration: 'annual', credits: annualPlan.credits || 0 }];
+    const duration = cycle === 'annual' ? 'annual' : 'monthly';
+    const productId = CREEM_PRODUCT_MAP[`${planType}_${duration}`] || null;
+    return [{ amount: Number(plan.amount), currency, description: `${plan.name} ${duration === 'annual' ? 'Annual' : 'Monthly'} Subscription`, isSubscription: true, duration, credits: plan.credits || 0, productId }];
   }
 
   return [];

@@ -3710,6 +3710,7 @@
                 ? (plan.oneTimePrice === 15 ? 'credits_pack_1' : plan.oneTimePrice === 25 ? 'credits_pack_2' : 'credits_pack_3')
                 : plan.key,
               currency: 'USD',
+              billing_cycle: selectedBillingCycle.value,
               return_url: returnUrl,
               cancel_url: cancelUrl
             }, {
