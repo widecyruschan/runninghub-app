@@ -7,7 +7,7 @@ const MEMBER_PLAN_GROUPS = new Set(['pro', 'pro_plus', 'pro_max']);
 const VALID_MEMBERSHIP_GROUPS = new Set(['staff', 'free', 'pro', 'pro_plus', 'pro_max']);
 const VALID_USER_STATUS = new Set(['active', 'disabled']);
 const REGISTER_BONUS_CREDITS = 100;
-const DAILY_LOGIN_BONUS_CREDITS = 50;
+const DAILY_LOGIN_BONUS_CREDITS = 20;
 const LOGIN_BONUS_EXPIRES_DAYS = 3;
 
 function createUserRepository(database) {

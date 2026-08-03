@@ -157,7 +157,7 @@ const MEMBER_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 const OAUTH_STATE_MAX_AGE_SECONDS = 60 * 10;
 const GOOGLE_OAUTH_SCOPE = 'openid email profile';
 const REGISTER_BONUS_CREDITS = 100;
-const DAILY_LOGIN_BONUS_CREDITS = 50;
+const DAILY_LOGIN_BONUS_CREDITS = 20;
 const ADMIN_ROLE_PERMISSIONS = {
   admin: new Set(['manage_tools', 'manage_users', 'manage_content', 'view_tasks', 'manage_credits']),
   content_editor: new Set(['manage_content']),
