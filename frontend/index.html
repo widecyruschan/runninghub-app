@@ -571,7 +571,7 @@
 
     .subscription-grid {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(5, minmax(0, 1fr));
       gap: 14px;
       margin-top: 16px;
     }
@@ -1987,6 +1987,10 @@
       .hero-copy {
         max-width: 680px;
       }
+
+      .subscription-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
     }
 
     @media (max-width: 680px) {
@@ -2048,6 +2052,10 @@
       .notification-dropdown,
       .member-dropdown {
         right: -12px;
+      }
+
+      .subscription-grid {
+        grid-template-columns: 1fr;
       }
     }
   </style>
@@ -3079,7 +3087,17 @@
             monthlyPrice: 0,
             annualPrice: 0,
             description: 'Best for trying the basic tools first.',
-            features: ['Registration bonus credits', 'Daily login rewards', 'Basic image tools']
+            features: ['100 credits sign-up bonus', '50 daily login credits', 'Basic image tools'],
+            credits: 0
+          },
+          {
+            key: 'pro',
+            name: 'Starter',
+            monthlyPrice: 9.99,
+            annualPrice: 7.99,
+            description: 'Best for hobbyists and occasional creators.',
+            features: ['300 credits / month', 'All image generation tools', 'Standard-priority generation', '50 daily tasks'],
+            credits: 300
           },
           {
             key: 'pro_plus',
@@ -3088,7 +3106,17 @@
             annualPrice: 23.99,
             featured: true,
             description: 'Best for professional users who generate with AI regularly.',
-            features: ['More monthly credits', 'Image and video tools', 'High-priority generation']
+            features: ['1,500 credits / month', 'All image & video tools', 'High-priority generation', '300 daily tasks'],
+            credits: 1500
+          },
+          {
+            key: 'pro_max',
+            name: 'Pro Max',
+            monthlyPrice: 49.99,
+            annualPrice: 39.99,
+            description: 'Best for power users and teams with heavy workloads.',
+            features: ['5,000 credits / month', 'All tools (image/video/audio)', 'Highest-priority generation', 'Unlimited daily tasks', 'API access'],
+            credits: 5000
           },
           {
             key: 'pay_as_you_go',
@@ -3097,7 +3125,8 @@
             annualPrice: 0,
             oneTimePrice: 9.99,
             description: 'Best for occasional use with a one-time PayPal credit purchase.',
-            features: ['No monthly commitment', 'Credit pack purchases', 'Good for temporary projects']
+            features: ['500 credits per pack', 'No monthly commitment', 'Credits never expire'],
+            credits: 500
           }
         ];
 

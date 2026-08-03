@@ -1,4 +1,16 @@
 const PAYMENT_PLANS = {
+  pro: {
+    key: 'pro',
+    name: 'Starter',
+    type: 'membership',
+    membershipGroup: 'pro',
+    credits: 300,
+    currency: 'USD',
+    prices: {
+      monthly: '9.99',
+      annual: '95.88'
+    }
+  },
   pro_plus: {
     key: 'pro_plus',
     name: 'Pro',
@@ -9,6 +21,18 @@ const PAYMENT_PLANS = {
     prices: {
       monthly: '29.99',
       annual: '287.88'
+    }
+  },
+  pro_max: {
+    key: 'pro_max',
+    name: 'Pro Max',
+    type: 'membership',
+    membershipGroup: 'pro_max',
+    credits: 5000,
+    currency: 'USD',
+    prices: {
+      monthly: '49.99',
+      annual: '479.88'
     }
   },
   pay_as_you_go: {

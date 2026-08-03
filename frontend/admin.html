@@ -2713,6 +2713,7 @@
                   <tr>
                     <th>套餐</th>
                     <th>月付價格</th>
+                    <th>年付價格</th>
                     <th>每日使用</th>
                     <th>每月積分</th>
                     <th>優先級</th>
@@ -2723,6 +2724,7 @@
                   <tr v-for="plan in membershipPlans" :key="plan.key">
                     <td>{{ plan.name }}</td>
                     <td>{{ plan.price }}</td>
+                    <td>{{ plan.annualPrice }}</td>
                     <td>{{ plan.dailyUses }}</td>
                     <td>{{ plan.credits }}</td>
                     <td>{{ plan.priority }}</td>
@@ -3074,9 +3076,10 @@
         ];
 
         const membershipPlans = [
-          { key: 'pro', name: 'PRO', price: 'US$9.99/月', dailyUses: '50', credits: '300', priority: 'Standard', status: '啟用' },
-          { key: 'pro_plus', name: 'PRO+', price: 'US$29.99/月', dailyUses: '300', credits: '1500', priority: 'High', status: '啟用' },
-          { key: 'pro_max', name: 'PRO MAX', price: 'US$49.99/月', dailyUses: '不限', credits: '5000', priority: 'Highest', status: '啟用' }
+          { key: 'pro', name: 'Starter', price: 'US$9.99/月', annualPrice: 'US$95.88/年', dailyUses: '50', credits: '300', priority: 'Standard', status: '啟用' },
+          { key: 'pro_plus', name: 'Pro', price: 'US$29.99/月', annualPrice: 'US$287.88/年', dailyUses: '300', credits: '1500', priority: 'High', status: '啟用' },
+          { key: 'pro_max', name: 'Pro Max', price: 'US$49.99/月', annualPrice: 'US$479.88/年', dailyUses: '不限', credits: '5000', priority: 'Highest', status: '啟用' },
+          { key: 'pay_as_you_go', name: 'Pay As You Go', price: 'US$9.99/次', annualPrice: '-', dailyUses: '-', credits: '500', priority: '-', status: '啟用' }
         ];
 
         const recentTasks = [
