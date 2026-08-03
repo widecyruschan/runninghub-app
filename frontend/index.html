@@ -569,14 +569,32 @@
       color: #ffffff;
     }
 
-    .subscription-grid {
-      display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
-      gap: 14px;
+    .subscription-carousel {
+      position: relative;
+      display: flex;
+      align-items: center;
       margin-top: 16px;
     }
 
+    .subscription-grid {
+      display: flex;
+      gap: 16px;
+      overflow-x: auto;
+      scroll-behavior: smooth;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      padding: 4px 40px;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      width: 100%;
+    }
+
+    .subscription-grid::-webkit-scrollbar {
+      display: none;
+    }
+
     .subscription-card {
+      flex: 0 0 280px;
       min-height: 250px;
       display: flex;
       flex-direction: column;
@@ -586,11 +604,45 @@
       border-radius: 8px;
       background: #ffffff;
       padding: 18px;
+      scroll-snap-align: start;
     }
 
     .subscription-card .primary-button {
       width: 100%;
       margin-top: auto;
+    }
+
+    .carousel-arrow {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 10;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #dfe7f2;
+      border-radius: 50%;
+      background: #ffffff;
+      color: #475569;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .carousel-arrow:hover {
+      background: #f8fbff;
+      color: #1e293b;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+    }
+
+    .carousel-arrow-left {
+      left: 0;
+    }
+
+    .carousel-arrow-right {
+      right: 0;
     }
 
     .subscription-card.is-featured {
@@ -1993,8 +2045,8 @@
         max-width: 680px;
       }
 
-      .subscription-grid {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+      .subscription-card {
+        flex: 0 0 260px;
       }
     }
 
@@ -2059,8 +2111,12 @@
         right: -12px;
       }
 
-      .subscription-grid {
-        grid-template-columns: 1fr;
+      .subscription-card {
+        flex: 0 0 260px;
+      }
+
+      .carousel-arrow {
+        display: none;
       }
     }
   </style>
@@ -2304,30 +2360,48 @@
                 <input type="radio" value="creem" v-model="selectedPaymentProvider" style="vertical-align:middle; margin-right:4px;" /> Creem
               </label>
             </div>
-            <div class="subscription-grid">
-              <article
-                v-for="plan in subscriptionPlans"
-                :key="plan.key"
-                class="subscription-card"
-                :class="{ 'is-featured': plan.featured }"
+            <div class="subscription-carousel">
+              <button
+                type="button"
+                class="carousel-arrow carousel-arrow-left"
+                aria-label="Scroll left"
+                @click="scrollSubscriptionCarousel('left')"
               >
-                <span v-if="plan.featured" class="subscription-badge">Most Popular</span>
-                <div class="subscription-title">{{ plan.name }}</div>
-                <div class="subscription-price">{{ getSubscriptionPrice(plan) }}</div>
-                <div class="subscription-period">{{ getSubscriptionPeriodLabel(plan) }}</div>
-                <p class="subscription-description">{{ plan.description }}</p>
-                <div class="subscription-feature-list">
-                  <div v-for="feature in plan.features" :key="feature" class="subscription-feature">✓ {{ feature }}</div>
-                </div>
-                <button
-                  class="primary-button"
-                  type="button"
-                  :disabled="isPayPalProcessing"
-                  @click="selectSubscriptionPlan(plan)"
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+              </button>
+              <div ref="subscriptionGrid" class="subscription-grid">
+                <article
+                  v-for="plan in subscriptionPlans"
+                  :key="plan.key"
+                  class="subscription-card"
+                  :class="{ 'is-featured': plan.featured }"
                 >
-                  {{ getSubscriptionActionLabel(plan, selectedPaymentProvider) }}
-                </button>
-              </article>
+                  <span v-if="plan.featured" class="subscription-badge">Most Popular</span>
+                  <div class="subscription-title">{{ plan.name }}</div>
+                  <div class="subscription-price">{{ getSubscriptionPrice(plan) }}</div>
+                  <div class="subscription-period">{{ getSubscriptionPeriodLabel(plan) }}</div>
+                  <p class="subscription-description">{{ plan.description }}</p>
+                  <div class="subscription-feature-list">
+                    <div v-for="feature in plan.features" :key="feature" class="subscription-feature">✓ {{ feature }}</div>
+                  </div>
+                  <button
+                    class="primary-button"
+                    type="button"
+                    :disabled="isPayPalProcessing"
+                    @click="selectSubscriptionPlan(plan)"
+                  >
+                    {{ getSubscriptionActionLabel(plan, selectedPaymentProvider) }}
+                  </button>
+                </article>
+              </div>
+              <button
+                type="button"
+                class="carousel-arrow carousel-arrow-right"
+                aria-label="Scroll right"
+                @click="scrollSubscriptionCarousel('right')"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+              </button>
             </div>
           </section>
         </div>
@@ -2986,6 +3060,7 @@
         const selectedCategory = ref('all');
         const selectedBillingCycle = ref('annual');
         const selectedPaymentProvider = ref('paypal');
+        const subscriptionGrid = ref(null);
         const isLoadingMarketplace = ref(false);
         const memberLoggedIn = ref(false);
         const memberForm = ref({
@@ -3673,6 +3748,16 @@
           } else {
             await processPayPalCheckout(plan);
           }
+        };
+
+        const scrollSubscriptionCarousel = (direction) => {
+          const grid = subscriptionGrid.value;
+          if (!grid) return;
+          const scrollAmount = 300;
+          grid.scrollBy({
+            left: direction === 'left' ? -scrollAmount : scrollAmount,
+            behavior: 'smooth'
+          });
         };
 
         const processPayPalCheckout = async (plan) => {
@@ -4467,6 +4552,7 @@
           selectedCategory,
           selectedBillingCycle,
           selectedPaymentProvider,
+          subscriptionGrid,
           currentToolSlug,
           toolKeyword,
           toolTitle,
@@ -4547,6 +4633,7 @@
           rollSeedField,
           saveMemberSettings,
           selectSubscriptionPlan,
+          scrollSubscriptionCarousel,
           executeWorkflow,
           downloadResult
         };
