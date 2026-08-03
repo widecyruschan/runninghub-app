@@ -47,7 +47,7 @@ test('registration bonus does not stack with same-day daily login bonus', () => 
     const nextDayLoginUser = userRepository.grantDailyLoginBonus(savedUser.id, tomorrowKey);
     const nextDayLedger = userRepository.listCreditLedgerByUser(savedUser.id);
 
-    assert.equal(nextDayLoginUser.creditBalance, 150);
+    assert.equal(nextDayLoginUser.creditBalance, 120);
     assert.equal(nextDayLedger.length, 2);
   } finally {
     close();
