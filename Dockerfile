@@ -7,6 +7,7 @@ ENV PORT=3000
 
 COPY package.json ./
 COPY package-lock.json ./
+COPY .env ./
 RUN npm ci --omit=dev
 
 COPY server.js ./
