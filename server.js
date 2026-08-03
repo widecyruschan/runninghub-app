@@ -192,6 +192,22 @@ const server = http.createServer(async (request, response) => {
       return;
     }
 
+    if (requestPathname === '/api/debug/env') {
+      sendJson(response, 200, {
+        paypal: {
+          configured: paypalClient.isConfigured,
+          clientId: Boolean(process.env.PAYPAL_CLIENT_ID),
+          clientSecret: Boolean(process.env.PAYPAL_CLIENT_SECRET),
+        },
+        creem: {
+          configured: creemClient.isConfigured,
+          apiKey: Boolean(process.env.CREEM_API_KEY),
+          webhookSecret: Boolean(process.env.CREEM_WEBHOOK_SECRET),
+        },
+      });
+      return;
+    }
+
     if (requestPathname.startsWith('/api/admin/')) {
       await handleAdminApi(request, response);
       return;
