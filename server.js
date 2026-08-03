@@ -150,7 +150,9 @@ const frontendRoutePrefixes = [
   '/login',
   '/member',
   '/register',
-  '/tools'
+  '/tools',
+  '/privacy',
+  '/terms'
 ];
 const adminSessions = new Map();
 const pendingOAuthStates = new Map();

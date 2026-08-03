@@ -2119,6 +2119,107 @@
         display: none;
       }
     }
+
+    /* ---- Legal Pages ---- */
+    .legal-page {
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 48px 24px 64px;
+      color: #334155;
+      line-height: 1.78;
+      font-size: 15px;
+    }
+
+    .legal-page h1 {
+      font-size: 32px;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 0 0 8px;
+      letter-spacing: -0.5px;
+    }
+
+    .legal-page .legal-date {
+      font-size: 13px;
+      color: #94a3b8;
+      margin: 0 0 36px;
+    }
+
+    .legal-page h2 {
+      font-size: 20px;
+      font-weight: 750;
+      color: #1e293b;
+      margin: 36px 0 12px;
+      padding-top: 0;
+    }
+
+    .legal-page p {
+      margin: 0 0 14px;
+    }
+
+    .legal-page ul {
+      margin: 0 0 14px;
+      padding-left: 22px;
+    }
+
+    .legal-page li {
+      margin-bottom: 6px;
+    }
+
+    .legal-page a {
+      color: #2563eb;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    .legal-page a:hover {
+      color: #1d4ed8;
+    }
+
+    /* ---- Footer ---- */
+    .site-footer {
+      border-top: 1px solid #e2e8f0;
+      background: #f8fbff;
+      padding: 28px 32px 32px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      font-size: 13px;
+      color: #64748b;
+    }
+
+    .site-footer .footer-links {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .site-footer .footer-links a {
+      color: #475569;
+      text-decoration: none;
+      font-weight: 600;
+      transition: color 0.15s ease;
+    }
+
+    .site-footer .footer-links a:hover {
+      color: #2563eb;
+    }
+
+    .site-footer .footer-copy {
+      color: #94a3b8;
+    }
+
+    @media (max-width: 600px) {
+      .site-footer {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .legal-page {
+        padding: 32px 16px 48px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -2158,7 +2259,7 @@
             </div>
           </div>
           <a href="#faq">FAQ</a>
-          <a href="#privacy">Privacy</a>
+          <a href="/terms" @click.prevent="openLegalPage('/terms')">Terms</a>
           <div class="notification-nav">
             <button class="round-icon-button" type="button" aria-label="Notifications">
               <span class="notification-dot" aria-hidden="true"></span>
@@ -2936,6 +3037,188 @@
       </div>
 
     </main>
+
+    <!-- Legal Pages -->
+    <section v-if="isLegalPage" class="legal-page" aria-label="Legal information">
+      <!-- Privacy Policy -->
+      <div v-if="currentLegalPath === '/privacy'">
+        <h1>Privacy Policy</h1>
+        <p class="legal-date">Last updated: August 3, 2026</p>
+
+        <p>ImgKit ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our website and services (collectively, the "Service"). Please read this policy carefully.</p>
+
+        <h2>1. Information We Collect</h2>
+        <h2>1.1 Information You Provide</h2>
+        <p>We collect information you voluntarily provide when you register for an account, make a purchase, or contact us, including:</p>
+        <ul>
+          <li>Account information: display name, email address, and password (hashed).</li>
+          <li>Payment information: processed securely through PayPal and Creem. We do not store your full credit card or payment account numbers.</li>
+          <li>Content you upload: images, audio, and other files you submit for processing through our AI tools.</li>
+          <li>Communications: any messages you send to us via contact forms or support channels.</li>
+        </ul>
+
+        <h2>1.2 Information Collected Automatically</h2>
+        <p>When you access the Service, we automatically collect:</p>
+        <ul>
+          <li>Usage data: pages visited, tools used, features interacted with, and time spent on the Service.</li>
+          <li>Device information: browser type, operating system, device type, IP address, and approximate location.</li>
+          <li>Cookies and similar technologies: to maintain your session, remember preferences, and analyze usage. We use Google Analytics to understand traffic patterns.</li>
+        </ul>
+
+        <h2>2. How We Use Your Information</h2>
+        <p>We use the collected information for the following purposes:</p>
+        <ul>
+          <li>To provide, maintain, and improve our AI processing services.</li>
+          <li>To process your payments and manage your account, credits, and subscriptions.</li>
+          <li>To send transactional communications (order confirmations, credit updates, service announcements).</li>
+          <li>To detect and prevent fraud, abuse, and security incidents.</li>
+          <li>To comply with legal obligations and enforce our Terms of Service.</li>
+          <li>To analyze usage trends and improve user experience.</li>
+        </ul>
+
+        <h2>3. How We Share Your Information</h2>
+        <p>We do not sell your personal information. We may share your information in the following circumstances:</p>
+        <ul>
+          <li><strong>Service Providers:</strong> With third-party vendors who help us operate the Service, including payment processors (PayPal, Creem), AI computing providers, analytics services (Google Analytics), and hosting infrastructure.</li>
+          <li><strong>Legal Requirements:</strong> If required by law, court order, or governmental regulation, or to protect the rights, property, or safety of ImgKit, our users, or the public.</li>
+          <li><strong>Business Transfers:</strong> In connection with a merger, acquisition, or sale of assets, your information may be transferred as part of that transaction.</li>
+          <li><strong>With Your Consent:</strong> We may share your information for any other purpose with your explicit consent.</li>
+        </ul>
+
+        <h2>4. Data Retention</h2>
+        <p>We retain your personal information for as long as your account is active or as needed to provide you with the Service. Uploaded content is processed in real-time and not permanently stored on our servers unless you explicitly save files to your account. We may retain certain data for longer periods as required by law or for legitimate business purposes (such as transaction records, dispute resolution, and enforcement of our agreements).</p>
+
+        <h2>5. Data Security</h2>
+        <p>We implement appropriate technical and organizational measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction. These measures include encryption in transit (TLS), secure credential storage (bcrypt hashing), and access controls. However, no method of electronic transmission or storage is 100% secure, and we cannot guarantee absolute security.</p>
+
+        <h2>6. Your Rights</h2>
+        <p>Depending on your jurisdiction, you may have the following rights regarding your personal data:</p>
+        <ul>
+          <li><strong>Access:</strong> Request a copy of the personal data we hold about you.</li>
+          <li><strong>Correction:</strong> Request that we correct inaccurate or incomplete data.</li>
+          <li><strong>Deletion:</strong> Request that we delete your personal data, subject to legal exceptions.</li>
+          <li><strong>Portability:</strong> Request a copy of your data in a structured, machine-readable format.</li>
+          <li><strong>Objection:</strong> Object to the processing of your personal data for certain purposes.</li>
+        </ul>
+        <p>To exercise any of these rights, please contact us at <a href="mailto:privacy@imgkit.io">privacy@imgkit.io</a>. We will respond to your request within 30 days.</p>
+
+        <h2>7. Cookies</h2>
+        <p>We use essential cookies to maintain your session and authentication state. We also use analytics cookies (Google Analytics) to understand how our Service is used. You can control cookies through your browser settings; however, disabling essential cookies may affect the functionality of the Service.</p>
+
+        <h2>8. Children's Privacy</h2>
+        <p>The Service is not intended for individuals under the age of 13. We do not knowingly collect personal information from children under 13. If we become aware that we have collected such information, we will take immediate steps to delete it.</p>
+
+        <h2>9. International Data Transfers</h2>
+        <p>Your information may be transferred to and processed on servers located outside of your country of residence. We take appropriate safeguards to ensure that your data remains protected in accordance with this Privacy Policy and applicable laws.</p>
+
+        <h2>10. Changes to This Policy</h2>
+        <p>We may update this Privacy Policy from time to time. We will notify you of material changes by posting the updated policy on this page and updating the "Last updated" date. Your continued use of the Service after any changes constitutes acceptance of the updated policy.</p>
+
+        <h2>11. Contact Us</h2>
+        <p>If you have any questions, concerns, or requests regarding this Privacy Policy, please contact us:</p>
+        <ul>
+          <li>Email: <a href="mailto:privacy@imgkit.io">privacy@imgkit.io</a></li>
+          <li>Website: <a href="/">www.imgkit.io</a></li>
+        </ul>
+      </div>
+
+      <!-- Terms of Service -->
+      <div v-if="currentLegalPath === '/terms'">
+        <h1>Terms of Service</h1>
+        <p class="legal-date">Last updated: August 3, 2026</p>
+
+        <p>Welcome to ImgKit. By accessing or using our website and AI-powered image processing services (collectively, the "Service"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, please do not use the Service.</p>
+
+        <h2>1. Acceptance of Terms</h2>
+        <p>By creating an account, making a purchase, or otherwise using the Service, you confirm that you have read, understood, and agree to be bound by these Terms. We reserve the right to modify these Terms at any time. Material changes will be communicated by updating the "Last updated" date and, where appropriate, by email notification. Continued use of the Service after changes constitutes acceptance of the modified Terms.</p>
+
+        <h2>2. Eligibility</h2>
+        <p>You must be at least 13 years of age to use the Service. By using the Service, you represent and warrant that you meet this age requirement and have the legal capacity to enter into a binding agreement.</p>
+
+        <h2>3. Account Registration</h2>
+        <p>To access certain features, you must register for an account. You agree to:</p>
+        <ul>
+          <li>Provide accurate, current, and complete registration information.</li>
+          <li>Maintain and promptly update your account information.</li>
+          <li>Keep your password confidential and secure.</li>
+          <li>Accept responsibility for all activities that occur under your account.</li>
+          <li>Notify us immediately of any unauthorized use of your account.</li>
+        </ul>
+        <p>We reserve the right to suspend or terminate accounts that violate these Terms or engage in fraudulent, abusive, or illegal activity.</p>
+
+        <h2>4. Credits and Payments</h2>
+        <h2>4.1 Credits</h2>
+        <p>The Service operates on a credit-based system. Each AI processing task consumes a specified number of credits. Credits are non-refundable except where required by applicable law. We reserve the right to modify credit pricing and consumption rates with reasonable notice.</p>
+
+        <h2>4.2 Subscription Plans</h2>
+        <p>We offer various subscription plans with recurring credit allocations. By subscribing, you authorize us to charge your payment method on a recurring basis according to your selected billing cycle (monthly or annual). You may cancel your subscription at any time through your account settings; cancellation takes effect at the end of the current billing period.</p>
+
+        <h2>4.3 Payment Processing</h2>
+        <p>Payments are processed through third-party payment processors (PayPal and Creem). We do not store your full payment card details. All payments are subject to the terms and policies of the respective payment processor.</p>
+
+        <h2>5. Acceptable Use</h2>
+        <p>You agree not to use the Service to:</p>
+        <ul>
+          <li>Generate, upload, or distribute content that is illegal, harmful, harassing, defamatory, obscene, or otherwise objectionable.</li>
+          <li>Create deepfakes, non-consensual intimate imagery, or content intended to impersonate or deceive others.</li>
+          <li>Infringe upon the intellectual property rights, privacy rights, or publicity rights of others.</li>
+          <li>Violate any applicable laws or regulations.</li>
+          <li>Attempt to bypass usage limits, reverse engineer the Service, or interfere with the Service's operation.</li>
+          <li>Use automated means (bots, scrapers) to access the Service without our express permission.</li>
+        </ul>
+
+        <h2>6. Intellectual Property</h2>
+        <h2>6.1 Our IP</h2>
+        <p>The Service, including its code, design, branding, and underlying technology, is owned by ImgKit and protected by copyright, trademark, and other intellectual property laws. You may not copy, modify, distribute, or create derivative works of the Service without our prior written consent.</p>
+
+        <h2>6.2 Your Content</h2>
+        <p>You retain ownership of the content you upload to the Service. By uploading content, you grant us a limited, non-exclusive, royalty-free license to process that content solely for the purpose of providing the Service to you. We do not claim ownership of your uploaded content or generated outputs.</p>
+
+        <h2>6.3 Generated Outputs</h2>
+        <p>Subject to your compliance with these Terms and applicable laws, you own the AI-generated images and other outputs produced through the Service. However, due to the nature of AI generation, we cannot guarantee that generated outputs are free from third-party intellectual property claims. You are responsible for verifying that your use of generated outputs does not infringe upon the rights of others.</p>
+
+        <h2>7. Third-Party Services</h2>
+        <p>The Service may integrate with or link to third-party services (payment processors, AI model providers, analytics). We are not responsible for the content, policies, or practices of these third-party services. Your use of third-party services is subject to their respective terms and policies.</p>
+
+        <h2>8. Disclaimer of Warranties</h2>
+        <p>THE SERVICE IS PROVIDED ON AN "AS IS" AND "AS AVAILABLE" BASIS. TO THE MAXIMUM EXTENT PERMITTED BY LAW, IMGKIT DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. WE DO NOT GUARANTEE THAT THE SERVICE WILL BE UNINTERRUPTED, ERROR-FREE, OR SECURE, OR THAT AI-GENERATED OUTPUTS WILL MEET YOUR EXPECTATIONS.</p>
+
+        <h2>9. Limitation of Liability</h2>
+        <p>TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IMGKIT AND ITS AFFILIATES, OFFICERS, EMPLOYEES, AND AGENTS SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING LOSS OF PROFITS, DATA, OR GOODWILL, ARISING FROM YOUR USE OF OR INABILITY TO USE THE SERVICE, EVEN IF WE HAVE BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES. OUR TOTAL LIABILITY FOR ANY CLAIM ARISING FROM THESE TERMS OR THE SERVICE SHALL NOT EXCEED THE AMOUNT YOU PAID US IN THE TWELVE (12) MONTHS PRECEDING THE CLAIM.</p>
+
+        <h2>10. Indemnification</h2>
+        <p>You agree to indemnify and hold harmless ImgKit and its affiliates from any claims, damages, losses, liabilities, costs, and expenses (including reasonable attorneys' fees) arising from your violation of these Terms, your use of the Service, or your infringement of any third-party rights.</p>
+
+        <h2>11. Termination</h2>
+        <p>We reserve the right to suspend or terminate your access to the Service at any time, with or without cause, and with or without notice. Upon termination, your right to use the Service will immediately cease. Provisions that by their nature should survive termination (including intellectual property, disclaimers, and limitations of liability) shall survive.</p>
+
+        <h2>12. Governing Law</h2>
+        <p>These Terms shall be governed by and construed in accordance with the laws of Hong Kong Special Administrative Region, without regard to its conflict of law principles. Any disputes arising from these Terms shall be resolved in the courts of Hong Kong.</p>
+
+        <h2>13. Refund Policy</h2>
+        <p>Credits and subscription fees are generally non-refundable. If you believe you are entitled to a refund due to a billing error or service malfunction, please contact us within 14 days of the transaction. We will review refund requests on a case-by-case basis. Refunds, if granted, will be processed through the original payment method.</p>
+
+        <h2>14. Miscellaneous</h2>
+        <p>These Terms constitute the entire agreement between you and ImgKit regarding the Service. Our failure to enforce any right or provision of these Terms shall not constitute a waiver of such right or provision. If any provision of these Terms is held to be invalid or unenforceable, the remaining provisions shall remain in full force and effect.</p>
+
+        <h2>15. Contact Us</h2>
+        <p>For questions about these Terms of Service, please contact us:</p>
+        <ul>
+          <li>Email: <a href="mailto:support@imgkit.io">support@imgkit.io</a></li>
+          <li>Website: <a href="/">www.imgkit.io</a></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="site-footer" aria-label="Site footer">
+      <div class="footer-copy">&copy; 2026 ImgKit. All rights reserved.</div>
+      <div class="footer-links">
+        <a href="/privacy" @click.prevent="openLegalPage('/privacy')">Privacy Policy</a>
+        <a href="/terms" @click.prevent="openLegalPage('/terms')">Terms of Service</a>
+      </div>
+    </footer>
+
   </div>
 
   <script>
@@ -3107,6 +3390,17 @@
           if (normalizedPath === '/register') return '/register';
           if (normalizedPath.startsWith('/member/')) return normalizedPath;
           return '/member/files';
+        });
+
+        const isLegalPage = computed(() => {
+          const normalizedPath = normalizePath(currentPath.value);
+          return normalizedPath === '/privacy' || normalizedPath === '/terms';
+        });
+
+        const currentLegalPath = computed(() => {
+          const normalizedPath = normalizePath(currentPath.value);
+          if (normalizedPath === '/privacy' || normalizedPath === '/terms') return normalizedPath;
+          return '/privacy';
         });
 
         const memberEmail = computed(() => (
@@ -3616,6 +3910,15 @@
           resetTool();
           toolConfig.value = null;
           document.title = memberPageTitle.value + ' - ';
+        };
+
+        const openLegalPage = (path) => {
+          window.history.pushState({}, '', path);
+          setCurrentPath();
+          resetTool();
+          toolConfig.value = null;
+          const titles = { '/privacy': 'Privacy Policy', '/terms': 'Terms of Service' };
+          document.title = (titles[path] || 'Legal') + ' - ImgKit';
         };
 
         const registerMember = async () => {
@@ -4515,6 +4818,13 @@
               return;
             }
 
+            if (isLegalPage.value) {
+              toolConfig.value = null;
+              const titles = { '/privacy': 'Privacy Policy', '/terms': 'Terms of Service' };
+              document.title = (titles[currentLegalPath.value] || 'Legal') + ' - ImgKit';
+              return;
+            }
+
             loadToolConfig().catch((error) => {
               console.error('Tool configuration failed to load:', error);
               setStatus(error.message || 'Tool configuration failed to load', 'error');
@@ -4534,6 +4844,13 @@
             return;
           }
 
+          if (isLegalPage.value) {
+            loadMarketplaceData();
+            const titles = { '/privacy': 'Privacy Policy', '/terms': 'Terms of Service' };
+            document.title = (titles[currentLegalPath.value] || 'Legal') + ' - ImgKit';
+            return;
+          }
+
           loadMarketplaceData();
           loadToolConfig().catch((error) => {
             console.error('Tool configuration failed to load:', error);
@@ -4544,6 +4861,8 @@
         return {
           isMarketplace,
           isMemberPage,
+          isLegalPage,
+          currentLegalPath,
           categories: activeCategories,
           currentMemberPath,
           dynamicInputFields,
@@ -4625,6 +4944,7 @@
           loginMember,
           loginWithGoogle,
           openMemberPage,
+          openLegalPage,
           openTool,
           openMenuTool,
           goToMarketplace,
