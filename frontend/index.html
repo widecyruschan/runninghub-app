@@ -2864,6 +2864,13 @@
     axios.defaults.withCredentials = true;
 
     function getApiBaseUrl() {
+      const hostname = window.location.hostname.toLowerCase();
+      if (hostname === 'imgkit.io') {
+        return 'https://api.imgkit.io';
+      }
+      if (hostname === 'www.imgkit.io') {
+        return 'https://api.imgkit.io';
+      }
       return '';
     }
 

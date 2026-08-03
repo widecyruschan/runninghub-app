@@ -3257,6 +3257,9 @@ function isLocalRedirectUriForRemoteRequest(redirectUri, request) {
 
 function getPaymentReturnOrigin(request) {
   if (publicAppBaseUrl) return publicAppBaseUrl;
+  if (publicApiBaseUrl && !isLocalHost(getRequestHost(request))) {
+    return publicApiBaseUrl.replace(/\/\/api\./, '//');
+  }
   if (process.env.NODE_ENV === 'production') {
     throwHttpError('PayPal public return URL is not configured', 'PAYPAL_PUBLIC_URL_MISSING', 500);
   }
@@ -3264,7 +3267,13 @@ function getPaymentReturnOrigin(request) {
 }
 
 function getFrontendReturnOrigin(request) {
-  return publicAppBaseUrl || getRequestOrigin(request);
+  if (publicAppBaseUrl) return publicAppBaseUrl;
+  // If API base URL is configured, derive frontend URL from it
+  // e.g., https://api.imgkit.io → https://imgkit.io
+  if (publicApiBaseUrl && !isLocalHost(getRequestHost(request))) {
+    return publicApiBaseUrl.replace(/\/\/api\./, '//');
+  }
+  return getRequestOrigin(request);
 }
 
 function normalizePublicBaseUrl(value) {
