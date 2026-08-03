@@ -578,14 +578,19 @@
 
     .subscription-card {
       min-height: 250px;
-      display: grid;
+      display: flex;
+      flex-direction: column;
       gap: 14px;
-      align-content: start;
       position: relative;
       border: 1px solid #dfe7f2;
       border-radius: 8px;
       background: #ffffff;
       padding: 18px;
+    }
+
+    .subscription-card .primary-button {
+      width: 100%;
+      margin-top: auto;
     }
 
     .subscription-card.is-featured {
