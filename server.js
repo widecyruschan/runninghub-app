@@ -2277,7 +2277,7 @@ async function createCreemCheckoutSession(request, user, requestBody) {
   try {
     const session = await creemClient.createCheckoutSession({
       productId: lineItem.productId,
-      amount: lineItem.amount,
+      amount: lineItem.isSubscription ? null : lineItem.amount,
       customId: paymentOrder.id,
       returnUrl,
       cancelUrl
