@@ -2233,7 +2233,7 @@
             <h1 class="member-title">{{ memberPageTitle }}</h1>
             <p class="member-description">{{ memberPageDescription }}</p>
           </div>
-          <button class="primary-button" type="button" @click="openMemberPage('/register')">
+          <button class="primary-button" type="button" @click="openMemberPage(memberLoggedIn ? '/member/settings' : '/register')">
             {{ memberLoggedIn ? 'Upgrade Plan' : 'Register Free' }}
           </button>
         </div>
@@ -3651,7 +3651,7 @@
             memberLoggedIn.value = true;
             persistMemberProfile();
             ElementPlus.ElMessage.success('Member account created. Registration bonus credits have been added.');
-            openMemberPage('/member/files');
+            openMemberPage('/member/dashboard');
           } catch (error) {
             ElementPlus.ElMessage.error(getApiErrorMessage(error));
           }
@@ -3688,7 +3688,7 @@
             memberLoggedIn.value = true;
             persistMemberProfile();
             ElementPlus.ElMessage.success('Logged in successfully.');
-            openMemberPage('/member/files');
+            openMemberPage('/member/dashboard');
           } catch (error) {
             ElementPlus.ElMessage.error(getApiErrorMessage(error));
           }
