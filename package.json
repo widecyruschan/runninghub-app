@@ -13,5 +13,8 @@
   "type": "commonjs",
   "optionalDependencies": {
     "better-sqlite3": "^12.11.1"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2"
   }
 }
