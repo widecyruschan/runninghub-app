@@ -32,10 +32,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./server.js:/app/server.js:ro
-      - ./src:/app/src:ro
-      - ./frontend:/app/frontend:ro
-      - ./package.json:/app/package.json:ro
+      # 源碼已打包在 Docker 鏡像中，無需掛載
       # 使用命名卷保存 SQLite 數據，重新部署時數據不會丟失
       - runninghub-data:/app/data
     restart: unless-stopped
