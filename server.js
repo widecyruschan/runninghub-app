@@ -16,6 +16,7 @@ const { createPaypalClient } = require('./src/paypalClient');
 const { createCreemClient } = require('./src/creemClient');
 const { createPaymentRepository } = require('./src/paymentRepository');
 const { getPaymentPlan } = require('./src/paymentPlans');
+const { moderateToolInput, createModerationError } = require('./src/moderationService');
 const {
   extractRunningHubTaskId,
   getRunningHubResponseError,
@@ -152,7 +153,8 @@ const frontendRoutePrefixes = [
   '/register',
   '/tools',
   '/privacy',
-  '/terms'
+  '/terms',
+  '/pricing'
 ];
 const adminSessions = new Map();
 const pendingOAuthStates = new Map();
@@ -1276,6 +1278,15 @@ async function executeConfiguredTool(idOrSlug, requestBody, request) {
   ensureToolProviderConfigured(tool);
 
   const memberSession = requireActiveMemberSession(request);
+
+  // Content Moderation – screen all prompts before execution
+  const moderationViolation = await moderateToolInput(
+    requestBody?.inputValues || {}
+  );
+  if (moderationViolation) {
+    const err = createModerationError(moderationViolation);
+    throwHttpError(err.body.message, err.body.error.code, err.statusCode);
+  }
 
   return executeToolWithConfig(tool, requestBody, {
     userId: memberSession.user.id,
