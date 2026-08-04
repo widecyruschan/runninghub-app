@@ -177,7 +177,7 @@ function createToolRepository(database) {
   }
 
   async function getActiveToolByIdOrSlug(idOrSlug) {
-    const record = await statements.findByIdOrSlug.get(idOrSlug, idOrSlug);
+    const record = await statements.findByIdOrSlug.get([idOrSlug, idOrSlug]);
     if (!record || record.status !== 'active') return null;
     return mapPublicToolRecord(record);
   }

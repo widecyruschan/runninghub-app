@@ -271,7 +271,7 @@ function createUserRepository(database) {
   }
 
   function grantCreditsOnceInternal(userId, amount, reason, relatedTaskId, options) {
-    const existingRecord = statements.findPositiveLedgerByRelatedTask.get(userId, relatedTaskId);
+    const existingRecord = statements.findPositiveLedgerByRelatedTask.get([userId, relatedTaskId]);
     if (existingRecord) return getUserById(userId);
     return adjustCredits(userId, amount, reason, relatedTaskId, options);
   }
