@@ -122,11 +122,11 @@ function createTaskRepository(database) {
     `)
   };
 
-  function createTask(payload) {
+  async function createTask(payload) {
     const now = new Date().toISOString();
     const id = crypto.randomUUID();
 
-    statements.insert.run({
+    await statements.insert.run({
       id,
       userId: payload.userId || '',
       toolId: payload.tool.id,
@@ -148,26 +148,28 @@ function createTaskRepository(database) {
       updatedAt: now
     });
 
-    return getTaskById(id);
+    return await getTaskById(id);
   }
 
-  function getTaskById(id) {
-    const record = statements.findById.get(id);
+  async function getTaskById(id) {
+    const record = await statements.findById.get(id);
     return record ? mapTaskRecord(record) : null;
   }
 
-  function listTasks() {
-    return statements.list.all().map(mapTaskRecord);
+  async function listTasks() {
+    const rows = await statements.list.all([]);
+    return (rows || []).map(mapTaskRecord);
   }
 
-  function listTasksByUser(userId) {
-    return statements.listByUser.all(userId).map(mapTaskRecord);
+  async function listTasksByUser(userId) {
+    const rows = await statements.listByUser.all([userId]);
+    return (rows || []).map(mapTaskRecord);
   }
 
-  function attachRunningHubTask(id, runningHubTaskId, status = 'QUEUED') {
+  async function attachRunningHubTask(id, runningHubTaskId, status = 'QUEUED') {
     const now = new Date().toISOString();
 
-    statements.updateRunningHubTask.run({
+    await statements.updateRunningHubTask.run({
       id,
       runningHubTaskId,
       status,
@@ -175,27 +177,27 @@ function createTaskRepository(database) {
       updatedAt: now
     });
 
-    return getTaskById(id);
+    return await getTaskById(id);
   }
 
-  function updateTaskPayload(id, inputValues, nodeInfoList) {
+  async function updateTaskPayload(id, inputValues, nodeInfoList) {
     const now = new Date().toISOString();
 
-    statements.updatePayload.run({
+    await statements.updatePayload.run({
       id,
       inputValuesJson: JSON.stringify(inputValues || {}),
       nodeInfoListJson: JSON.stringify(nodeInfoList || []),
       updatedAt: now
     });
 
-    return getTaskById(id);
+    return await getTaskById(id);
   }
 
-  function markTaskStatus(id, status, error) {
+  async function markTaskStatus(id, status, error) {
     const now = new Date().toISOString();
     const isFinished = !RUNNING_STATUSES.has(status);
 
-    statements.updateStatus.run({
+    await statements.updateStatus.run({
       id,
       status,
       errorCode: error?.code || '',
@@ -204,13 +206,13 @@ function createTaskRepository(database) {
       updatedAt: now
     });
 
-    return getTaskById(id);
+    return await getTaskById(id);
   }
 
-  function completeTask(id, outputs, outputUrls, usage = {}, chargedCredits = 0) {
+  async function completeTask(id, outputs, outputUrls, usage = {}, chargedCredits = 0) {
     const now = new Date().toISOString();
 
-    statements.updateOutputs.run({
+    await statements.updateOutputs.run({
       id,
       status: 'SUCCESS',
       outputValuesJson: JSON.stringify(outputs || []),
@@ -221,7 +223,7 @@ function createTaskRepository(database) {
       updatedAt: now
     });
 
-    return getTaskById(id);
+    return await getTaskById(id);
   }
 
   return {

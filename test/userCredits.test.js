@@ -6,10 +6,10 @@ const test = require('node:test');
 const { createDatabase } = require('../src/database');
 const { createUserRepository } = require('../src/userRepository');
 
-function createTestUserRepository() {
+async function createTestUserRepository() {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'runninghub-user-credits-'));
   const databasePath = path.join(dataDir, 'app.sqlite');
-  const database = createDatabase(databasePath);
+  const database = await createDatabase(databasePath);
   const userRepository = createUserRepository(database);
 
   return {
@@ -21,12 +21,12 @@ function createTestUserRepository() {
   };
 }
 
-test('registration bonus does not stack with same-day daily login bonus', () => {
-  const { close, userRepository } = createTestUserRepository();
+test('registration bonus does not stack with same-day daily login bonus', async () => {
+  const { close, userRepository } = await createTestUserRepository();
   try {
     const todayKey = '2026-07-26';
     const tomorrowKey = '2026-07-27';
-    const savedUser = userRepository.saveUser({
+    const savedUser = await userRepository.saveUser({
       email: 'new-member@example.com',
       displayName: 'New Member',
       role: 'free_user',
@@ -35,17 +35,17 @@ test('registration bonus does not stack with same-day daily login bonus', () => 
       status: 'active'
     });
 
-    const registeredUser = userRepository.grantRegisterBonus(savedUser.id);
-    const markedUser = userRepository.markDailyLoginBonusClaimed(registeredUser.id, todayKey);
-    const sameDayLoginUser = userRepository.grantDailyLoginBonus(markedUser.id, todayKey);
-    const sameDayLedger = userRepository.listCreditLedgerByUser(savedUser.id);
+    const registeredUser = await userRepository.grantRegisterBonus(savedUser.id);
+    const markedUser = await userRepository.markDailyLoginBonusClaimed(registeredUser.id, todayKey);
+    const sameDayLoginUser = await userRepository.grantDailyLoginBonus(markedUser.id, todayKey);
+    const sameDayLedger = await userRepository.listCreditLedgerByUser(savedUser.id);
 
     assert.equal(sameDayLoginUser.creditBalance, 100);
     assert.equal(sameDayLedger.length, 1);
     assert.equal(sameDayLedger[0].amount, 100);
 
-    const nextDayLoginUser = userRepository.grantDailyLoginBonus(savedUser.id, tomorrowKey);
-    const nextDayLedger = userRepository.listCreditLedgerByUser(savedUser.id);
+    const nextDayLoginUser = await userRepository.grantDailyLoginBonus(savedUser.id, tomorrowKey);
+    const nextDayLedger = await userRepository.listCreditLedgerByUser(savedUser.id);
 
     assert.equal(nextDayLoginUser.creditBalance, 120);
     assert.equal(nextDayLedger.length, 2);

@@ -46,12 +46,12 @@ function createMemberSessionRepository(database) {
     `)
   };
 
-  function createSession(payload) {
+  async function createSession(payload) {
     const now = new Date().toISOString();
     const expiresAt = new Date(Date.now() + Number(payload.maxAgeSeconds || 2592000) * 1000).toISOString();
     const id = crypto.randomBytes(32).toString('hex');
 
-    statements.insert.run({
+    await statements.insert.run({
       id,
       userId: payload.userId,
       provider: payload.provider || 'google',
@@ -64,24 +64,24 @@ function createMemberSessionRepository(database) {
     return getSessionById(id);
   }
 
-  function getSessionById(id) {
-    const record = statements.findById.get(id);
+  async function getSessionById(id) {
+    const record = await statements.findById.get([id]);
     if (!record) return null;
 
     if (new Date(record.expires_at).getTime() <= Date.now()) {
-      deleteSession(id);
+      await deleteSession(id);
       return null;
     }
 
     return mapSessionRecord(record);
   }
 
-  function deleteSession(id) {
-    statements.deleteById.run(id);
+  async function deleteSession(id) {
+    await statements.deleteById.run([id]);
   }
 
-  function deleteExpiredSessions() {
-    statements.deleteExpired.run(new Date().toISOString());
+  async function deleteExpiredSessions() {
+    await statements.deleteExpired.run([new Date().toISOString()]);
   }
 
   return {

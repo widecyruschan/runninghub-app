@@ -148,22 +148,23 @@ function createUserRepository(database) {
     ? database.transaction(grantCreditsOnceInternal)
     : grantCreditsOnceInternal;
 
-  function listUsers() {
-    return statements.list.all().map(mapUserRecord);
+  async function listUsers() {
+    const rows = await statements.list.all([]);
+    return (rows || []).map(mapUserRecord);
   }
 
-  function getUserById(id) {
-    const record = statements.findById.get(id);
+  async function getUserById(id) {
+    const record = await statements.findById.get(id);
     return record ? mapUserRecord(record) : null;
   }
 
-  function getUserByEmail(email) {
-    const record = statements.findByEmail.get(String(email || '').trim().toLowerCase());
+  async function getUserByEmail(email) {
+    const record = await statements.findByEmail.get(String(email || '').trim().toLowerCase());
     return record ? mapUserRecord(record) : null;
   }
 
-  function getUserAuthByEmail(email) {
-    const record = statements.findAuthByEmail.get(String(email || '').trim().toLowerCase());
+  async function getUserAuthByEmail(email) {
+    const record = await statements.findAuthByEmail.get(String(email || '').trim().toLowerCase());
     if (!record) return null;
 
     return {
@@ -174,9 +175,9 @@ function createUserRepository(database) {
     };
   }
 
-  function saveUser(rawUser, options = {}) {
+  async function saveUser(rawUser, options = {}) {
     const normalizedUser = normalizeUserPayload(rawUser);
-    const existingUser = normalizedUser.id ? getUserById(normalizedUser.id) : null;
+    const existingUser = normalizedUser.id ? await getUserById(normalizedUser.id) : null;
     const now = new Date().toISOString();
     const id = existingUser ? existingUser.id : crypto.randomUUID();
     const creditBalance = getSaveUserCreditBalance(normalizedUser, existingUser, options);
@@ -191,23 +192,23 @@ function createUserRepository(database) {
 
     try {
       if (existingUser) {
-        statements.update.run(payload);
+        await statements.update.run(payload);
       } else {
-        statements.insert.run(payload);
+        await statements.insert.run(payload);
       }
     } catch (error) {
-      if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+      if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.code === 'ER_DUP_ENTRY') {
         throwValidationError('用戶 Email 已存在', 'USER_EMAIL_EXISTS', 409);
       }
 
       throw error;
     }
 
-    return getUserById(id);
+    return await getUserById(id);
   }
 
-  function adjustCredits(userId, amount, reason, relatedTaskId = '', options = {}) {
-    const user = getUserById(userId);
+  async function adjustCredits(userId, amount, reason, relatedTaskId = '', options = {}) {
+    const user = await getUserById(userId);
     if (!user) {
       throwValidationError('用戶不存在', 'USER_NOT_FOUND', 404);
     }
@@ -226,7 +227,7 @@ function createUserRepository(database) {
       throwValidationError('用戶積分不足', 'USER_CREDIT_NOT_ENOUGH', 409);
     }
 
-    const savedUser = saveUser({
+    const savedUser = await saveUser({
       ...user,
       creditBalance: balanceAfter
     }, {
@@ -234,7 +235,7 @@ function createUserRepository(database) {
     });
     const now = new Date().toISOString();
 
-    statements.insertLedger.run({
+    await statements.insertLedger.run({
       id: crypto.randomUUID(),
       userId,
       amount: creditDelta,
@@ -255,6 +256,17 @@ function createUserRepository(database) {
       throwValidationError('積分發放必須關聯訂單或任務', 'USER_CREDIT_RELATED_ID_REQUIRED', 422);
     }
 
+    if (database.type === 'mysql') {
+      return database.transaction(async (tx) => {
+        const rows = await tx.get(
+          'SELECT * FROM credit_ledger WHERE user_id = ? AND related_task_id = ? AND amount > 0 LIMIT 1',
+          [userId, normalizedRelatedTaskId]
+        );
+        if (rows) return getUserById(userId);
+        return adjustCredits(userId, amount, reason, normalizedRelatedTaskId, options);
+      });
+    }
+
     return runGrantCreditsOnce(userId, amount, reason, normalizedRelatedTaskId, options);
   }
 
@@ -264,15 +276,15 @@ function createUserRepository(database) {
     return adjustCredits(userId, amount, reason, relatedTaskId, options);
   }
 
-  function grantRegisterBonus(userId) {
-    return grantCreditsIfReasonMissing(userId, REGISTER_BONUS_CREDITS, '註冊贈送積分');
+  async function grantRegisterBonus(userId) {
+    return await grantCreditsIfReasonMissing(userId, REGISTER_BONUS_CREDITS, '註冊贈送積分');
   }
 
-  function grantDailyLoginBonus(userId, todayKey = getTodayKey()) {
-    const user = getUserById(userId);
+  async function grantDailyLoginBonus(userId, todayKey = getTodayKey()) {
+    const user = await getUserById(userId);
     if (!user || user.lastLoginCreditDate === todayKey) return user;
 
-    const savedUser = adjustCredits(
+    const savedUser = await adjustCredits(
       userId,
       DAILY_LOGIN_BONUS_CREDITS,
       `每日登入贈送積分 ${todayKey}`,
@@ -280,34 +292,34 @@ function createUserRepository(database) {
       { expiresAt: addDaysIso(new Date(), LOGIN_BONUS_EXPIRES_DAYS) }
     );
     const now = new Date().toISOString();
-    statements.updateLastLoginCreditDate.run({
+    await statements.updateLastLoginCreditDate.run({
       id: userId,
       lastLoginCreditDate: todayKey,
       updatedAt: now
     });
-    return getUserById(savedUser.id);
+    return await getUserById(savedUser.id);
   }
 
-  function markDailyLoginBonusClaimed(userId, todayKey = getTodayKey()) {
-    const user = getUserById(userId);
+  async function markDailyLoginBonusClaimed(userId, todayKey = getTodayKey()) {
+    const user = await getUserById(userId);
     if (!user || user.lastLoginCreditDate === todayKey) return user;
 
     const now = new Date().toISOString();
-    statements.updateLastLoginCreditDate.run({
+    await statements.updateLastLoginCreditDate.run({
       id: userId,
       lastLoginCreditDate: todayKey,
       updatedAt: now
     });
-    return getUserById(userId);
+    return await getUserById(userId);
   }
 
-  function spendCredits(userId, amount, reason, relatedTaskId = '') {
+  async function spendCredits(userId, amount, reason, relatedTaskId = '') {
     const spendAmount = parseInteger(amount, '扣減積分不正確', 'USER_CREDIT_SPEND_AMOUNT_INVALID');
     if (spendAmount <= 0) {
       throwValidationError('扣減積分必須大於 0', 'USER_CREDIT_SPEND_AMOUNT_INVALID', 422);
     }
 
-    const user = getUserById(userId);
+    const user = await getUserById(userId);
     if (!user) {
       throwValidationError('用戶不存在', 'USER_NOT_FOUND', 404);
     }
@@ -317,22 +329,24 @@ function createUserRepository(database) {
     }
 
     const now = new Date();
-    const spendableCredits = getSpendableCredits(userId, now);
+    const spendableCredits = await getSpendableCredits(userId, now);
     if (spendableCredits < spendAmount) {
       throwValidationError('積分不足，請先充值或領取登入獎勵', 'USER_CREDIT_NOT_ENOUGH', 409);
     }
 
-    consumeLedgerCredits(userId, spendAmount, now);
-    return adjustCredits(userId, -spendAmount, reason, relatedTaskId);
+    await consumeLedgerCredits(userId, spendAmount, now);
+    return await adjustCredits(userId, -spendAmount, reason, relatedTaskId);
   }
 
-  function listCreditLedgerByUser(userId) {
-    return statements.listLedgerByUser.all(userId).map(mapCreditLedgerRecord);
+  async function listCreditLedgerByUser(userId) {
+    const rows = await statements.listLedgerByUser.all([userId]);
+    return (rows || []).map(mapCreditLedgerRecord);
   }
 
   return {
     DAILY_LOGIN_BONUS_CREDITS,
     adjustCredits,
+    findById: getUserById,
     grantCreditsOnce,
     grantDailyLoginBonus,
     grantRegisterBonus,
@@ -346,26 +360,28 @@ function createUserRepository(database) {
     spendCredits
   };
 
-  function grantCreditsIfReasonMissing(userId, amount, reason, options = {}) {
-    const existingRecord = listCreditLedgerByUser(userId).find((record) => record.reason === reason);
-    if (existingRecord) return getUserById(userId);
-    return adjustCredits(userId, amount, reason, '', options);
+  async function grantCreditsIfReasonMissing(userId, amount, reason, options = {}) {
+    const ledger = await listCreditLedgerByUser(userId);
+    const existingRecord = ledger.find((record) => record.reason === reason);
+    if (existingRecord) return await getUserById(userId);
+    return await adjustCredits(userId, amount, reason, '', options);
   }
 
-  function getSpendableCredits(userId, now) {
-    return getActivePositiveLedger(userId, now).reduce((sum, record) => sum + record.remainingAmount, 0);
+  async function getSpendableCredits(userId, now) {
+    const records = await getActivePositiveLedger(userId, now);
+    return records.reduce((sum, record) => sum + record.remainingAmount, 0);
   }
 
-  function consumeLedgerCredits(userId, amount, now) {
+  async function consumeLedgerCredits(userId, amount, now) {
     let remainingAmount = amount;
-    const records = getActivePositiveLedger(userId, now);
+    const records = await getActivePositiveLedger(userId, now);
 
     for (const record of records) {
       if (remainingAmount <= 0) break;
 
       const consumedAmount = Math.min(record.remainingAmount, remainingAmount);
       const nextRemainingAmount = record.remainingAmount - consumedAmount;
-      statements.updateLedgerRemainingAmount.run({
+      await statements.updateLedgerRemainingAmount.run({
         id: record.id,
         remainingAmount: nextRemainingAmount
       });
@@ -373,8 +389,9 @@ function createUserRepository(database) {
     }
   }
 
-  function getActivePositiveLedger(userId, now) {
-    return statements.listSpendableLedgerByUser.all(userId)
+  async function getActivePositiveLedger(userId, now) {
+    const rows = await statements.listSpendableLedgerByUser.all([userId]);
+    return (rows || [])
       .map(mapCreditLedgerRecord)
       .filter((record) => !record.expiresAt || new Date(record.expiresAt) > now);
   }

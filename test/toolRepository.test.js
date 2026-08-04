@@ -6,10 +6,10 @@ const test = require('node:test');
 const { createDatabase } = require('../src/database');
 const { createToolRepository } = require('../src/toolRepository');
 
-function createTestToolRepository() {
+async function createTestToolRepository() {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'runninghub-tools-'));
   const databasePath = path.join(dataDir, 'app.sqlite');
-  const database = createDatabase(databasePath);
+  const database = await createDatabase(databasePath);
   const toolRepository = createToolRepository(database);
 
   return {
@@ -21,23 +21,22 @@ function createTestToolRepository() {
   };
 }
 
-test('default seed does not overwrite a custom remove background preview image', () => {
-  const { close, toolRepository } = createTestToolRepository();
+test('default seed does not overwrite a custom remove background preview image', async () => {
+  const { close, toolRepository } = await createTestToolRepository();
   try {
-    toolRepository.seedDefaultTools();
-    const originalTool = toolRepository
-      .listTools()
-      .find((tool) => tool.slug === 'remove-background');
+    await toolRepository.seedDefaultTools();
+    const tools = await toolRepository.listTools();
+    const originalTool = tools.find((tool) => tool.slug === 'remove-background');
     const customPreviewImageUrl = 'https://example.com/custom-remove-background.webp';
 
-    toolRepository.saveTool({
+    await toolRepository.saveTool({
       ...originalTool,
       previewImageUrl: customPreviewImageUrl
     });
 
-    toolRepository.seedDefaultTools();
+    await toolRepository.seedDefaultTools();
 
-    const updatedTool = toolRepository.getToolById(originalTool.id);
+    const updatedTool = await toolRepository.getToolById(originalTool.id);
     assert.equal(updatedTool.previewImageUrl, customPreviewImageUrl);
   } finally {
     close();

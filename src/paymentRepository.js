@@ -90,11 +90,11 @@ function createPaymentRepository(database) {
     `)
   };
 
-  function createOrder(payload) {
+  async function createOrder(payload) {
     const now = new Date().toISOString();
     const id = crypto.randomUUID();
 
-    statements.insert.run({
+    await statements.insert.run({
       id,
       userId: payload.userId,
       provider: payload.provider || 'paypal',
@@ -118,22 +118,23 @@ function createPaymentRepository(database) {
     return getOrderById(id);
   }
 
-  function getOrderById(id) {
-    const record = statements.findById.get(id);
+  async function getOrderById(id) {
+    const record = await statements.findById.get([id]);
     return record ? mapPaymentOrderRecord(record) : null;
   }
 
-  function getOrderByProviderOrderId(providerOrderId) {
-    const record = statements.findByProviderOrderId.get(providerOrderId);
+  async function getOrderByProviderOrderId(providerOrderId) {
+    const record = await statements.findByProviderOrderId.get([providerOrderId]);
     return record ? mapPaymentOrderRecord(record) : null;
   }
 
-  function listOrdersByUser(userId) {
-    return statements.listByUser.all(userId).map(mapPaymentOrderRecord);
+  async function listOrdersByUser(userId) {
+    const rows = await statements.listByUser.all([userId]);
+    return (rows || []).map(mapPaymentOrderRecord);
   }
 
-  function saveProviderOrder(id, providerOrderId, rawResponse) {
-    statements.updateProviderOrder.run({
+  async function saveProviderOrder(id, providerOrderId, rawResponse) {
+    await statements.updateProviderOrder.run({
       id,
       providerOrderId,
       status: 'CREATED',
@@ -143,9 +144,9 @@ function createPaymentRepository(database) {
     return getOrderById(id);
   }
 
-  function saveCapturedOrder(id, paymentStatus, rawResponse) {
+  async function saveCapturedOrder(id, paymentStatus, rawResponse) {
     const now = new Date().toISOString();
-    statements.updateStatus.run({
+    await statements.updateStatus.run({
       id,
       status: paymentStatus === 'COMPLETED' ? 'CAPTURED' : 'FAILED',
       paymentStatus,
@@ -156,9 +157,9 @@ function createPaymentRepository(database) {
     return getOrderById(id);
   }
 
-  function markOrderCredited(id, creditsGranted, membershipGroup) {
+  async function markOrderCredited(id, creditsGranted, membershipGroup) {
     const now = new Date().toISOString();
-    statements.markCredited.run({
+    await statements.markCredited.run({
       id,
       creditsGranted,
       membershipGroup: membershipGroup || '',

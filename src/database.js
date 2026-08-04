@@ -1,6 +1,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { createAdapter } = require('./dbAdapter');
 
 // Hostinger 持久化策略:
 //   DATABASE_PATH 環境變量 > $HOME/runninghub-data/ > ../data/ (舊默認)
@@ -16,298 +17,191 @@ function resolveDefaultDataDir() {
 
 const DEFAULT_DATA_DIR = resolveDefaultDataDir();
 const DEFAULT_DATABASE_PATH = path.join(DEFAULT_DATA_DIR, 'app.sqlite');
-const DEFAULT_JSON_DATABASE_PATH = path.join(DEFAULT_DATA_DIR, 'app.json');
 
-function createDatabase(databasePath = process.env.DATABASE_PATH || DEFAULT_DATABASE_PATH) {
-  const resolvedPath = resolveWritableDatabasePath(databasePath);
+async function createDatabase(databasePath = process.env.DATABASE_PATH || DEFAULT_DATABASE_PATH) {
+  const adapter = createAdapter(databasePath);
 
-  const database = createDatabaseAdapter(resolvedPath);
+  await migrateDatabase(adapter);
 
-  if (typeof database.pragma === 'function') {
-    database.pragma('journal_mode = WAL');
-    database.pragma('foreign_keys = ON');
-  }
+  const backendType = adapter.type;
+  console.log(`[database] Backend: ${backendType}, path: ${process.env.DATABASE_PATH || databasePath}`);
 
-  migrateDatabase(database);
-
-  const backendType = typeof database.pragma === 'function' ? 'sqlite' : 'json';
-  console.log(`[database] Backend: ${backendType}, path: ${resolvedPath}`);
-
-  return database;
+  return adapter;
 }
 
-function resolveWritableDatabasePath(databasePath) {
-  const requestedPath = path.resolve(databasePath || DEFAULT_DATABASE_PATH);
-
-  try {
-    ensureWritableDirectory(path.dirname(requestedPath));
-    return requestedPath;
-  } catch (error) {
-    const fallbackPath = path.join(os.tmpdir(), 'runninghub-app', path.basename(requestedPath || 'app.sqlite'));
-    console.warn(`資料庫目錄無法寫入，已切換到暫存資料庫路徑：${fallbackPath}`);
-    ensureWritableDirectory(path.dirname(fallbackPath));
-    return fallbackPath;
-  }
-}
-
-function ensureWritableDirectory(directoryPath) {
-  fs.mkdirSync(directoryPath, { recursive: true });
-  fs.accessSync(directoryPath, fs.constants.W_OK);
-}
-
-function createDatabaseAdapter(resolvedPath) {
-  if (process.env.DATABASE_DRIVER === 'json') {
-    return new JsonFileDatabase(getJsonDatabasePath(resolvedPath));
-  }
-
-  const BetterSqliteDatabase = loadBetterSqlite();
-  if (!BetterSqliteDatabase) {
-    const jsonPath = getJsonDatabasePath(resolvedPath);
-    console.warn(`better-sqlite3 無法載入，已自動切換到 JSON 檔案資料庫。JSON 路徑：${jsonPath}`);
-    return new JsonFileDatabase(jsonPath);
-  }
-
-  const database = new BetterSqliteDatabase(resolvedPath);
-  database.pragma('journal_mode = WAL');
-  database.pragma('foreign_keys = ON');
-
-  return database;
-}
-
-function loadBetterSqlite() {
-  try {
-    return require('better-sqlite3');
-  } catch (error) {
-    if (process.env.DATABASE_DRIVER === 'sqlite') {
-      throw error;
-    }
-
-    return null;
-  }
-}
-
-function getJsonDatabasePath(databasePath) {
-  if (process.env.JSON_DATABASE_PATH) {
-    return path.resolve(process.env.JSON_DATABASE_PATH);
-  }
-
-  if (!databasePath || databasePath === DEFAULT_DATABASE_PATH) {
-    return DEFAULT_JSON_DATABASE_PATH;
-  }
-
-  return databasePath.replace(/\.[^.]+$/, '') + '.json';
-}
-
-function migrateDatabase(database) {
-  database.exec(`
+async function migrateDatabase(adapter) {
+  await adapter.exec(`
     CREATE TABLE IF NOT EXISTS tool_categories (
-      id TEXT PRIMARY KEY,
-      category_key TEXT NOT NULL UNIQUE,
-      name TEXT NOT NULL,
-      sort_order INTEGER NOT NULL DEFAULT 100,
-      status TEXT NOT NULL DEFAULT 'active',
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
+      id VARCHAR(64) PRIMARY KEY,
+      category_key VARCHAR(64) NOT NULL UNIQUE,
+      name VARCHAR(128) NOT NULL,
+      sort_order INT NOT NULL DEFAULT 100,
+      status VARCHAR(16) NOT NULL DEFAULT 'active',
+      created_at VARCHAR(32) NOT NULL,
+      updated_at VARCHAR(32) NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS tools (
-      id TEXT PRIMARY KEY,
-      tool_key TEXT NOT NULL UNIQUE,
-      name TEXT NOT NULL,
-      slug TEXT NOT NULL,
-      category_id TEXT NOT NULL DEFAULT 'image',
-      short_description TEXT NOT NULL DEFAULT '',
-      top_detail_html TEXT NOT NULL DEFAULT '',
-      detail_html TEXT NOT NULL DEFAULT '',
-      preview_image_url TEXT NOT NULL DEFAULT '',
-      credit_cost INTEGER NOT NULL DEFAULT 1,
-      workflow_id TEXT NOT NULL,
-      instance_type TEXT NOT NULL DEFAULT 'default',
-      status TEXT NOT NULL DEFAULT 'draft',
-      last_test_status TEXT NOT NULL DEFAULT 'untested',
-      last_test_task_id TEXT NOT NULL DEFAULT '',
+      id VARCHAR(64) PRIMARY KEY,
+      tool_key VARCHAR(128) NOT NULL UNIQUE,
+      name VARCHAR(256) NOT NULL,
+      slug VARCHAR(256) NOT NULL,
+      category_id VARCHAR(64) NOT NULL DEFAULT 'image',
+      short_description TEXT NOT NULL,
+      top_detail_html TEXT NOT NULL,
+      detail_html TEXT NOT NULL,
+      preview_image_url TEXT NOT NULL,
+      credit_cost INT NOT NULL DEFAULT 1,
+      workflow_id VARCHAR(256) NOT NULL,
+      instance_type VARCHAR(64) NOT NULL DEFAULT 'default',
+      status VARCHAR(16) NOT NULL DEFAULT 'draft',
+      last_test_status VARCHAR(16) NOT NULL DEFAULT 'untested',
+      last_test_task_id VARCHAR(64) NOT NULL DEFAULT '',
       last_test_error TEXT NOT NULL DEFAULT '',
-      last_tested_at TEXT,
-      sort_order INTEGER NOT NULL DEFAULT 100,
-      input_nodes_json TEXT NOT NULL DEFAULT '[]',
-      output_config_json TEXT NOT NULL DEFAULT '{}',
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
+      last_tested_at VARCHAR(32),
+      sort_order INT NOT NULL DEFAULT 100,
+      input_nodes_json TEXT NOT NULL,
+      output_config_json TEXT NOT NULL,
+      created_at VARCHAR(32) NOT NULL,
+      updated_at VARCHAR(32) NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS execution_tasks (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL DEFAULT '',
-      tool_id TEXT NOT NULL,
-      tool_key TEXT NOT NULL,
-      tool_name TEXT NOT NULL,
-      runninghub_task_id TEXT NOT NULL DEFAULT '',
-      status TEXT NOT NULL DEFAULT 'CREATED',
-      input_values_json TEXT NOT NULL DEFAULT '{}',
-      node_info_list_json TEXT NOT NULL DEFAULT '[]',
-      output_values_json TEXT NOT NULL DEFAULT '[]',
-      output_urls_json TEXT NOT NULL DEFAULT '[]',
-      actual_consume_coins REAL NOT NULL DEFAULT 0,
-      charged_credits INTEGER NOT NULL DEFAULT 0,
-      error_code TEXT NOT NULL DEFAULT '',
-      error_message TEXT NOT NULL DEFAULT '',
-      started_at TEXT,
-      completed_at TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      FOREIGN KEY (tool_id) REFERENCES tools(id)
+      id VARCHAR(64) PRIMARY KEY,
+      user_id VARCHAR(64) NOT NULL DEFAULT '',
+      tool_id VARCHAR(64) NOT NULL,
+      tool_key VARCHAR(128) NOT NULL,
+      tool_name VARCHAR(256) NOT NULL,
+      runninghub_task_id VARCHAR(128) NOT NULL DEFAULT '',
+      status VARCHAR(16) NOT NULL DEFAULT 'CREATED',
+      input_values_json TEXT NOT NULL,
+      node_info_list_json TEXT NOT NULL,
+      output_values_json TEXT NOT NULL,
+      output_urls_json TEXT NOT NULL,
+      actual_consume_coins DOUBLE NOT NULL DEFAULT 0,
+      charged_credits INT NOT NULL DEFAULT 0,
+      error_code VARCHAR(64) NOT NULL DEFAULT '',
+      error_message TEXT NOT NULL,
+      started_at VARCHAR(32),
+      completed_at VARCHAR(32),
+      created_at VARCHAR(32) NOT NULL,
+      updated_at VARCHAR(32) NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS app_users (
-      id TEXT PRIMARY KEY,
-      email TEXT NOT NULL UNIQUE,
-      display_name TEXT NOT NULL,
-      role TEXT NOT NULL DEFAULT 'free_user',
-      membership_group TEXT NOT NULL DEFAULT 'free',
-      password_hash TEXT NOT NULL DEFAULT '',
-      credit_balance INTEGER NOT NULL DEFAULT 0,
-      last_login_credit_date TEXT NOT NULL DEFAULT '',
-      status TEXT NOT NULL DEFAULT 'active',
-      notes TEXT NOT NULL DEFAULT '',
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
+      id VARCHAR(64) PRIMARY KEY,
+      email VARCHAR(256) NOT NULL UNIQUE,
+      display_name VARCHAR(128) NOT NULL,
+      role VARCHAR(32) NOT NULL DEFAULT 'free_user',
+      membership_group VARCHAR(32) NOT NULL DEFAULT 'free',
+      password_hash VARCHAR(256) NOT NULL DEFAULT '',
+      credit_balance INT NOT NULL DEFAULT 0,
+      last_login_credit_date VARCHAR(16) NOT NULL DEFAULT '',
+      status VARCHAR(16) NOT NULL DEFAULT 'active',
+      notes TEXT NOT NULL,
+      created_at VARCHAR(32) NOT NULL,
+      updated_at VARCHAR(32) NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS credit_ledger (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      amount INTEGER NOT NULL,
-      remaining_amount INTEGER NOT NULL DEFAULT 0,
-      balance_after INTEGER NOT NULL,
-      reason TEXT NOT NULL,
-      related_task_id TEXT NOT NULL DEFAULT '',
-      expires_at TEXT,
-      created_at TEXT NOT NULL,
-      FOREIGN KEY (user_id) REFERENCES app_users(id)
+      id VARCHAR(64) PRIMARY KEY,
+      user_id VARCHAR(64) NOT NULL,
+      amount INT NOT NULL,
+      remaining_amount INT NOT NULL DEFAULT 0,
+      balance_after INT NOT NULL,
+      reason VARCHAR(512) NOT NULL,
+      related_task_id VARCHAR(64) NOT NULL DEFAULT '',
+      expires_at VARCHAR(32),
+      created_at VARCHAR(32) NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS app_user_sessions (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      provider TEXT NOT NULL DEFAULT 'google',
-      provider_subject TEXT NOT NULL DEFAULT '',
-      expires_at TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      FOREIGN KEY (user_id) REFERENCES app_users(id)
+      id VARCHAR(128) PRIMARY KEY,
+      user_id VARCHAR(64) NOT NULL,
+      provider VARCHAR(32) NOT NULL DEFAULT 'google',
+      provider_subject VARCHAR(256) NOT NULL DEFAULT '',
+      expires_at VARCHAR(32) NOT NULL,
+      created_at VARCHAR(32) NOT NULL,
+      updated_at VARCHAR(32) NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS payment_orders (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      provider TEXT NOT NULL DEFAULT 'paypal',
-      provider_order_id TEXT NOT NULL DEFAULT '',
-      plan_key TEXT NOT NULL,
-      billing_cycle TEXT NOT NULL DEFAULT '',
-      amount_value TEXT NOT NULL,
-      currency_code TEXT NOT NULL DEFAULT 'USD',
-      credit_amount INTEGER NOT NULL DEFAULT 0,
-      status TEXT NOT NULL DEFAULT 'CREATED',
-      payment_status TEXT NOT NULL DEFAULT '',
-      credits_granted INTEGER NOT NULL DEFAULT 0,
-      membership_group TEXT NOT NULL DEFAULT '',
-      raw_response_json TEXT NOT NULL DEFAULT '{}',
-      captured_at TEXT,
-      credited_at TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      FOREIGN KEY (user_id) REFERENCES app_users(id)
+      id VARCHAR(64) PRIMARY KEY,
+      user_id VARCHAR(64) NOT NULL,
+      provider VARCHAR(32) NOT NULL DEFAULT 'paypal',
+      provider_order_id VARCHAR(256) NOT NULL DEFAULT '',
+      plan_key VARCHAR(64) NOT NULL,
+      billing_cycle VARCHAR(64) NOT NULL DEFAULT '',
+      amount_value VARCHAR(32) NOT NULL,
+      currency_code VARCHAR(8) NOT NULL DEFAULT 'USD',
+      credit_amount INT NOT NULL DEFAULT 0,
+      status VARCHAR(32) NOT NULL DEFAULT 'CREATED',
+      payment_status VARCHAR(64) NOT NULL DEFAULT '',
+      credits_granted INT NOT NULL DEFAULT 0,
+      membership_group VARCHAR(32) NOT NULL DEFAULT '',
+      raw_response_json TEXT NOT NULL,
+      captured_at VARCHAR(32),
+      credited_at VARCHAR(32),
+      created_at VARCHAR(32) NOT NULL,
+      updated_at VARCHAR(32) NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS admin_menus (
-      id TEXT PRIMARY KEY,
-      parent_id TEXT NOT NULL DEFAULT '',
-      menu_key TEXT NOT NULL UNIQUE,
-      label TEXT NOT NULL,
-      mark TEXT NOT NULL DEFAULT '',
-      path TEXT NOT NULL DEFAULT '',
-      target_type TEXT NOT NULL DEFAULT 'route',
-      sort_order INTEGER NOT NULL DEFAULT 100,
-      status TEXT NOT NULL DEFAULT 'active',
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
+      id VARCHAR(64) PRIMARY KEY,
+      parent_id VARCHAR(64) NOT NULL DEFAULT '',
+      menu_key VARCHAR(64) NOT NULL UNIQUE,
+      label VARCHAR(128) NOT NULL,
+      mark VARCHAR(8) NOT NULL DEFAULT '',
+      path VARCHAR(256) NOT NULL DEFAULT '',
+      target_type VARCHAR(16) NOT NULL DEFAULT 'route',
+      sort_order INT NOT NULL DEFAULT 100,
+      status VARCHAR(16) NOT NULL DEFAULT 'active',
+      created_at VARCHAR(32) NOT NULL,
+      updated_at VARCHAR(32) NOT NULL
     );
-
-    CREATE INDEX IF NOT EXISTS idx_tools_status_sort
-      ON tools(status, sort_order);
-
-    CREATE INDEX IF NOT EXISTS idx_tool_categories_status_sort
-      ON tool_categories(status, sort_order);
-
-    CREATE INDEX IF NOT EXISTS idx_execution_tasks_status_updated
-      ON execution_tasks(status, updated_at);
-
-    CREATE INDEX IF NOT EXISTS idx_execution_tasks_tool_created
-      ON execution_tasks(tool_id, created_at);
-
-    CREATE INDEX IF NOT EXISTS idx_app_users_role_group
-      ON app_users(role, membership_group);
-
-    CREATE INDEX IF NOT EXISTS idx_credit_ledger_user_created
-      ON credit_ledger(user_id, created_at);
-
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_credit_ledger_user_related_positive
-      ON credit_ledger(user_id, related_task_id)
-      WHERE amount > 0 AND related_task_id != '';
-
-    CREATE INDEX IF NOT EXISTS idx_app_user_sessions_user_expires
-      ON app_user_sessions(user_id, expires_at);
-
-    CREATE INDEX IF NOT EXISTS idx_payment_orders_provider_order
-      ON payment_orders(provider, provider_order_id);
-
-    CREATE INDEX IF NOT EXISTS idx_payment_orders_user_created
-      ON payment_orders(user_id, created_at);
-
-    CREATE INDEX IF NOT EXISTS idx_admin_menus_parent_sort
-      ON admin_menus(parent_id, sort_order);
   `);
 
-  ensureColumn(database, 'tools', 'category_id', "TEXT NOT NULL DEFAULT 'image'");
-  ensureColumn(database, 'tools', 'preview_image_url', "TEXT NOT NULL DEFAULT ''");
-  ensureColumn(database, 'tools', 'credit_cost', 'INTEGER NOT NULL DEFAULT 1');
-  ensureColumn(database, 'tools', 'top_detail_html', "TEXT NOT NULL DEFAULT ''");
-  ensureColumn(database, 'tools', 'detail_html', "TEXT NOT NULL DEFAULT ''");
-  ensureColumn(database, 'tools', 'last_test_status', "TEXT NOT NULL DEFAULT 'untested'");
-  ensureColumn(database, 'tools', 'last_test_task_id', "TEXT NOT NULL DEFAULT ''");
-  ensureColumn(database, 'tools', 'last_test_error', "TEXT NOT NULL DEFAULT ''");
-  ensureColumn(database, 'tools', 'last_tested_at', 'TEXT');
-  ensureColumn(database, 'execution_tasks', 'user_id', "TEXT NOT NULL DEFAULT ''");
-  ensureColumn(database, 'execution_tasks', 'actual_consume_coins', 'REAL NOT NULL DEFAULT 0');
-  ensureColumn(database, 'execution_tasks', 'charged_credits', 'INTEGER NOT NULL DEFAULT 0');
-  ensureColumn(database, 'credit_ledger', 'remaining_amount', 'INTEGER NOT NULL DEFAULT 0');
-  ensureColumn(database, 'credit_ledger', 'expires_at', 'TEXT');
-  ensureColumn(database, 'app_users', 'password_hash', "TEXT NOT NULL DEFAULT ''");
-  ensureColumn(database, 'app_users', 'last_login_credit_date', "TEXT NOT NULL DEFAULT ''");
-  ensureColumn(database, 'payment_orders', 'credits_granted', 'INTEGER NOT NULL DEFAULT 0');
-  ensureColumn(database, 'payment_orders', 'credit_amount', 'INTEGER NOT NULL DEFAULT 0');
-  ensureColumn(database, 'payment_orders', 'membership_group', "TEXT NOT NULL DEFAULT ''");
-  ensureColumn(database, 'payment_orders', 'credited_at', 'TEXT');
+  // Indexes: MySQL requires CREATE INDEX IF NOT EXISTS (or we use a stored procedure pattern)
+  await createIndexSafely(adapter, 'idx_tools_status_sort', 'tools', 'status, sort_order');
+  await createIndexSafely(adapter, 'idx_tool_categories_status_sort', 'tool_categories', 'status, sort_order');
+  await createIndexSafely(adapter, 'idx_execution_tasks_status_updated', 'execution_tasks', 'status, updated_at');
+  await createIndexSafely(adapter, 'idx_execution_tasks_tool_created', 'execution_tasks', 'tool_id, created_at');
+  await createIndexSafely(adapter, 'idx_app_users_role_group', 'app_users', 'role, membership_group');
+  await createIndexSafely(adapter, 'idx_credit_ledger_user_created', 'credit_ledger', 'user_id, created_at');
+  await createIndexSafely(adapter, 'idx_app_user_sessions_user_expires', 'app_user_sessions', 'user_id, expires_at');
+  await createIndexSafely(adapter, 'idx_payment_orders_provider_order', 'payment_orders', 'provider, provider_order_id');
+  await createIndexSafely(adapter, 'idx_payment_orders_user_created', 'payment_orders', 'user_id, created_at');
+  await createIndexSafely(adapter, 'idx_admin_menus_parent_sort', 'admin_menus', 'parent_id, sort_order');
+  await createIndexSafely(adapter, 'idx_execution_tasks_user_created', 'execution_tasks', 'user_id, created_at');
+  await createIndexSafely(adapter, 'idx_credit_ledger_user_expiry', 'credit_ledger', 'user_id, expires_at, created_at');
 
-  database.exec(`
-    CREATE INDEX IF NOT EXISTS idx_execution_tasks_user_created
-      ON execution_tasks(user_id, created_at);
+  // Note: The SQLite partial unique index on credit_ledger(user_id, related_task_id) WHERE amount > 0 AND related_task_id != ''
+  // is not supported in MySQL. Application-layer check handles the uniqueness constraint in grantCreditsOnce().
 
-    CREATE INDEX IF NOT EXISTS idx_credit_ledger_user_expiry
-      ON credit_ledger(user_id, expires_at, created_at);
+  // Column migration (ensureColumn for previous SQLite additions)
+  await ensureColumn(adapter, 'tools', 'category_id', "VARCHAR(64) NOT NULL DEFAULT 'image'");
+  await ensureColumn(adapter, 'tools', 'preview_image_url', "TEXT NOT NULL");
+  await ensureColumn(adapter, 'tools', 'credit_cost', "INT NOT NULL DEFAULT 1");
+  await ensureColumn(adapter, 'tools', 'top_detail_html', "TEXT NOT NULL");
+  await ensureColumn(adapter, 'tools', 'detail_html', "TEXT NOT NULL");
+  await ensureColumn(adapter, 'tools', 'last_test_status', "VARCHAR(16) NOT NULL DEFAULT 'untested'");
+  await ensureColumn(adapter, 'tools', 'last_test_task_id', "VARCHAR(64) NOT NULL DEFAULT ''");
+  await ensureColumn(adapter, 'tools', 'last_test_error', "TEXT NOT NULL");
+  await ensureColumn(adapter, 'tools', 'last_tested_at', 'VARCHAR(32)');
+  await ensureColumn(adapter, 'execution_tasks', 'user_id', "VARCHAR(64) NOT NULL DEFAULT ''");
+  await ensureColumn(adapter, 'execution_tasks', 'actual_consume_coins', "DOUBLE NOT NULL DEFAULT 0");
+  await ensureColumn(adapter, 'execution_tasks', 'charged_credits', "INT NOT NULL DEFAULT 0");
+  await ensureColumn(adapter, 'credit_ledger', 'remaining_amount', "INT NOT NULL DEFAULT 0");
+  await ensureColumn(adapter, 'credit_ledger', 'expires_at', 'VARCHAR(32)');
+  await ensureColumn(adapter, 'app_users', 'password_hash', "VARCHAR(256) NOT NULL DEFAULT ''");
+  await ensureColumn(adapter, 'app_users', 'last_login_credit_date', "VARCHAR(16) NOT NULL DEFAULT ''");
+  await ensureColumn(adapter, 'payment_orders', 'credits_granted', "INT NOT NULL DEFAULT 0");
+  await ensureColumn(adapter, 'payment_orders', 'credit_amount', "INT NOT NULL DEFAULT 0");
+  await ensureColumn(adapter, 'payment_orders', 'membership_group', "VARCHAR(32) NOT NULL DEFAULT ''");
+  await ensureColumn(adapter, 'payment_orders', 'credited_at', 'VARCHAR(32)');
 
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_credit_ledger_user_related_positive
-      ON credit_ledger(user_id, related_task_id)
-      WHERE amount > 0 AND related_task_id != '';
-
-    CREATE INDEX IF NOT EXISTS idx_payment_orders_provider_order
-      ON payment_orders(provider, provider_order_id);
-
-    CREATE INDEX IF NOT EXISTS idx_payment_orders_user_created
-      ON payment_orders(user_id, created_at);
-  `);
-
-  database.prepare(`
+  // Staff membership_group fix
+  const staffUpdate = adapter.prepare(`
     UPDATE app_users
     SET
       membership_group = 'staff',
@@ -315,900 +209,89 @@ function migrateDatabase(database) {
       updated_at = ?
     WHERE role IN ('admin', 'content_editor')
       AND (membership_group != 'staff' OR credit_balance != 0)
-  `).run(new Date().toISOString());
+  `);
+  await staffUpdate.run([new Date().toISOString()]);
 
-  seedDefaultCategories(database);
-  seedDefaultUsers(database);
+  // Seed data
+  await seedDefaultCategories(adapter);
+  await seedDefaultUsers(adapter);
 
-  database.prepare(`
+  // Category fallback fix
+  const catFix = adapter.prepare(`
     UPDATE tools
     SET category_id = 'image'
     WHERE category_id = ''
-  `).run();
+  `);
+  await catFix.run([]);
 
-  database.prepare(`
+  // Initialize remaining_amount
+  const ledgerFix = adapter.prepare(`
     UPDATE credit_ledger
     SET remaining_amount = amount
     WHERE amount > 0
       AND remaining_amount = 0
-  `).run();
-
-  if (typeof database.persist === 'function') {
-    database.persist();
-  }
+  `);
+  await ledgerFix.run([]);
 }
 
-class JsonFileDatabase {
-  constructor(filePath) {
-    this.filePath = filePath;
-    this.state = this.loadState();
-  }
-
-  pragma() {}
-
-  exec() {}
-
-  transaction(callback) {
-    return (...args) => callback(...args);
-  }
-
-  prepare(sql) {
-    return new JsonStatement(sql, this);
-  }
-
-  loadState() {
-    fs.mkdirSync(path.dirname(this.filePath), { recursive: true });
-
-    if (!fs.existsSync(this.filePath)) {
-      return createEmptyState();
-    }
-
+async function createIndexSafely(adapter, indexName, tableName, columns) {
+  if (adapter.type === 'mysql') {
+    // MySQL: CREATE INDEX IF NOT EXISTS not supported in all versions, use a safe wrapper
     try {
-      const state = JSON.parse(fs.readFileSync(this.filePath, 'utf8'));
-      return {
-        tool_categories: Array.isArray(state.tool_categories) ? state.tool_categories : [],
-        tools: Array.isArray(state.tools) ? state.tools : [],
-        execution_tasks: Array.isArray(state.execution_tasks) ? state.execution_tasks : [],
-        app_users: Array.isArray(state.app_users) ? state.app_users : [],
-        credit_ledger: Array.isArray(state.credit_ledger) ? state.credit_ledger : [],
-        app_user_sessions: Array.isArray(state.app_user_sessions) ? state.app_user_sessions : [],
-        payment_orders: Array.isArray(state.payment_orders) ? state.payment_orders : [],
-        admin_menus: Array.isArray(state.admin_menus) ? state.admin_menus : []
-      };
+      await adapter.exec(`CREATE INDEX ${indexName} ON ${tableName} (${columns})`);
     } catch (error) {
-      console.warn('JSON 資料庫讀取失敗，將使用空白資料庫。', error.message);
-      return createEmptyState();
-    }
-  }
-
-  persist() {
-    fs.writeFileSync(this.filePath, JSON.stringify(this.state, null, 2));
-  }
-}
-
-class JsonStatement {
-  constructor(sql, database) {
-    this.sql = sql;
-    this.normalizedSql = sql.replace(/\s+/g, ' ').trim();
-    this.database = database;
-  }
-
-  all(...params) {
-    if (this.normalizedSql.startsWith('PRAGMA table_info')) {
-      const tableName = this.normalizedSql.match(/PRAGMA table_info\(([^)]+)\)/)?.[1];
-      return getJsonTableColumns(tableName).map((name) => ({ name }));
-    }
-
-    if (this.normalizedSql.includes('FROM tool_categories')) {
-      if (this.normalizedSql.includes('WHERE id = ?')) {
-        return this.database.state.tool_categories.filter((category) => category.id === params[0]);
+      // Ignore "Duplicate key name" errors (index already exists)
+      if (error.code !== 'ER_DUP_KEYNAME' && error.code !== 'ER_DUP_KEY') {
+        throw error;
       }
-
-      if (this.normalizedSql.includes('WHERE category_key = ?')) {
-        return this.database.state.tool_categories.filter((category) => category.category_key === params[0]);
-      }
-
-      return [...this.database.state.tool_categories].sort(compareCategoryRecords);
     }
-
-    if (this.normalizedSql.includes('FROM admin_menus')) {
-      if (this.normalizedSql.includes('WHERE id = ?')) {
-        return this.database.state.admin_menus.filter((menu) => menu.id === params[0]);
-      }
-
-      if (this.normalizedSql.includes('WHERE menu_key = ?')) {
-        return this.database.state.admin_menus.filter((menu) => menu.menu_key === params[0]);
-      }
-
-      return [...this.database.state.admin_menus].sort(compareMenuRecords);
-    }
-
-    if (this.normalizedSql.includes('FROM tools')) {
-      return this.queryTools(params);
-    }
-
-    if (this.normalizedSql.includes('FROM execution_tasks')) {
-      return this.queryTasks(params);
-    }
-
-    if (this.normalizedSql.includes('FROM app_users')) {
-      return this.queryUsers(params);
-    }
-
-    if (this.normalizedSql.includes('FROM credit_ledger')) {
-      return this.queryCreditLedger(params);
-    }
-
-    if (this.normalizedSql.includes('FROM app_user_sessions')) {
-      return this.queryUserSessions(params);
-    }
-
-    if (this.normalizedSql.includes('FROM payment_orders')) {
-      return this.queryPaymentOrders(params);
-    }
-
-    return [];
-  }
-
-  get(...params) {
-    if (this.normalizedSql === 'SELECT COUNT(*) AS count FROM tools') {
-      return { count: this.database.state.tools.length };
-    }
-
-    if (this.normalizedSql === 'SELECT COUNT(*) AS count FROM app_users') {
-      return { count: this.database.state.app_users.length };
-    }
-
-    return this.all(...params)[0];
-  }
-
-  run(payload) {
-    if (this.normalizedSql.startsWith('INSERT OR IGNORE INTO tool_categories')) {
-      if (!this.database.state.tool_categories.some((category) => category.id === payload.id)) {
-        this.database.state.tool_categories.push(toCategoryRecord(payload));
-        this.database.persist();
-      }
-
-      return { changes: 1 };
-    }
-
-    if (this.normalizedSql.startsWith("UPDATE tools SET category_id = 'image'")) {
-      this.database.state.tools.forEach((tool) => {
-        if (!tool.category_id) {
-          tool.category_id = 'image';
-        }
-      });
-      this.database.persist();
-      return { changes: 1 };
-    }
-
-    if (this.normalizedSql.startsWith('INSERT INTO tool_categories')) {
-      this.ensureUniqueCategory(payload);
-      this.database.state.tool_categories.push(toCategoryRecord(payload));
-      this.database.persist();
-      return { changes: 1 };
-    }
-
-    if (this.normalizedSql.startsWith('UPDATE tool_categories')) {
-      this.updateRecord('tool_categories', payload.id, toCategoryRecord(payload));
-      return { changes: 1 };
-    }
-
-    if (this.normalizedSql.startsWith('INSERT INTO admin_menus')) {
-      this.ensureUniqueMenu(payload);
-      this.database.state.admin_menus.push(toMenuRecord(payload));
-      this.database.persist();
-      return { changes: 1 };
-    }
-
-    if (this.normalizedSql.startsWith('UPDATE admin_menus')) {
-      this.ensureUniqueMenu(payload);
-      this.updateRecord('admin_menus', payload.id, toMenuRecord(payload));
-      return { changes: 1 };
-    }
-
-    if (this.normalizedSql.startsWith('INSERT INTO tools')) {
-      this.ensureUniqueTool(payload);
-      this.database.state.tools.push(toToolRecord(payload));
-      this.database.persist();
-      return { changes: 1 };
-    }
-
-    if (this.normalizedSql.startsWith('UPDATE tools SET tool_key')) {
-      this.ensureUniqueTool(payload);
-      this.updateRecord('tools', payload.id, toToolRecord(payload));
-      return { changes: 1 };
-    }
-
-    if (this.normalizedSql.startsWith('UPDATE tools SET last_test_status')) {
-      const tool = this.findRecord('tools', payload.id);
-      if (tool) {
-        tool.last_test_status = payload.lastTestStatus;
-        tool.last_test_task_id = payload.lastTestTaskId;
-        tool.last_test_error = payload.lastTestError;
-        tool.last_tested_at = payload.lastTestedAt;
-        tool.updated_at = payload.updatedAt;
-        this.database.persist();
-      }
-      return { changes: tool ? 1 : 0 };
-    }
-
-    if (this.normalizedSql.startsWith('UPDATE tools SET status')) {
-      const tool = this.findRecord('tools', payload.id);
-      if (tool) {
-        tool.status = payload.status;
-        tool.updated_at = payload.updatedAt;
-        this.database.persist();
-      }
-      return { changes: tool ? 1 : 0 };
-    }
-
-    if (this.normalizedSql.startsWith('INSERT INTO execution_tasks')) {
-      this.database.state.execution_tasks.push(toTaskRecord(payload));
-      this.database.persist();
-      return { changes: 1 };
-    }
-
-    if (this.normalizedSql.startsWith('UPDATE execution_tasks SET runninghub_task_id')) {
-      const task = this.findRecord('execution_tasks', payload.id);
-      if (task) {
-        task.runninghub_task_id = payload.runningHubTaskId;
-        task.status = payload.status;
-        task.started_at = task.started_at || payload.startedAt;
-        task.updated_at = payload.updatedAt;
-        this.database.persist();
-      }
-      return { changes: task ? 1 : 0 };
-    }
-
-    if (this.normalizedSql.startsWith('UPDATE execution_tasks SET input_values_json')) {
-      const task = this.findRecord('execution_tasks', payload.id);
-      if (task) {
-        task.input_values_json = payload.inputValuesJson;
-        task.node_info_list_json = payload.nodeInfoListJson;
-        task.updated_at = payload.updatedAt;
-        this.database.persist();
-      }
-      return { changes: task ? 1 : 0 };
-    }
-
-    if (this.normalizedSql.startsWith('UPDATE execution_tasks SET status = @status, output_values_json')) {
-      const task = this.findRecord('execution_tasks', payload.id);
-      if (task) {
-        task.status = payload.status;
-        task.output_values_json = payload.outputValuesJson;
-        task.output_urls_json = payload.outputUrlsJson;
-        task.actual_consume_coins = payload.actualConsumeCoins;
-        task.charged_credits = payload.chargedCredits;
-        task.error_code = '';
-        task.error_message = '';
-        task.completed_at = payload.completedAt;
-        task.updated_at = payload.updatedAt;
-        this.database.persist();
-      }
-      return { changes: task ? 1 : 0 };
-    }
-
-    if (this.normalizedSql.startsWith('UPDATE execution_tasks SET status')) {
-      const task = this.findRecord('execution_tasks', payload.id);
-      if (task) {
-        task.status = payload.status;
-        task.error_code = payload.errorCode;
-        task.error_message = payload.errorMessage;
-        task.completed_at = payload.completedAt;
-        task.updated_at = payload.updatedAt;
-        this.database.persist();
-      }
-      return { changes: task ? 1 : 0 };
-    }
-
-    if (this.normalizedSql.startsWith('INSERT OR IGNORE INTO app_users')) {
-      if (!this.database.state.app_users.some((user) => user.id === payload.id || user.email === payload.email)) {
-        this.database.state.app_users.push(toUserRecord(payload));
-        this.database.persist();
-      }
-      return { changes: 1 };
-    }
-
-    if (this.normalizedSql.startsWith('INSERT INTO app_users')) {
-      this.ensureUniqueUser(payload);
-      this.database.state.app_users.push(toUserRecord(payload));
-      this.database.persist();
-      return { changes: 1 };
-    }
-
-    if (this.normalizedSql.startsWith('UPDATE app_users SET last_login_credit_date')) {
-      const user = this.findRecord('app_users', payload.id);
-      if (user) {
-        user.last_login_credit_date = payload.lastLoginCreditDate;
-        user.updated_at = payload.updatedAt;
-        this.database.persist();
-      }
-      return { changes: user ? 1 : 0 };
-    }
-
-    if (this.normalizedSql.startsWith('UPDATE app_users')) {
-      this.ensureUniqueUser(payload);
-      const existingUser = this.findRecord('app_users', payload.id);
-      const nextUser = toUserRecord(payload);
-      if (existingUser && !nextUser.password_hash) {
-        nextUser.password_hash = existingUser.password_hash || '';
-      }
-      this.updateRecord('app_users', payload.id, nextUser);
-      return { changes: 1 };
-    }
-
-    if (this.normalizedSql.startsWith('INSERT INTO credit_ledger')) {
-      const hasDuplicatePositiveRelatedRecord = Number(payload.amount) > 0
-        && payload.relatedTaskId
-        && this.database.state.credit_ledger.some((record) => (
-          record.user_id === payload.userId
-          && record.related_task_id === payload.relatedTaskId
-          && Number(record.amount) > 0
-        ));
-      if (hasDuplicatePositiveRelatedRecord) {
-        throwSqliteUniqueError();
-      }
-
-      this.database.state.credit_ledger.push(toCreditLedgerRecord(payload));
-      this.database.persist();
-      return { changes: 1 };
-    }
-
-    if (this.normalizedSql.startsWith('UPDATE credit_ledger SET remaining_amount')) {
-      if (!payload || typeof payload !== 'object') {
-        let changes = 0;
-        this.database.state.credit_ledger.forEach((record) => {
-          if (record.amount > 0 && record.remaining_amount === 0) {
-            record.remaining_amount = record.amount;
-            changes += 1;
-          }
-        });
-        if (changes) this.database.persist();
-        return { changes };
-      }
-
-      const record = this.findRecord('credit_ledger', payload.id);
-      if (record) {
-        record.remaining_amount = payload.remainingAmount;
-        this.database.persist();
-      }
-      return { changes: record ? 1 : 0 };
-    }
-
-    if (this.normalizedSql.startsWith('INSERT INTO app_user_sessions')) {
-      this.database.state.app_user_sessions.push(toUserSessionRecord(payload));
-      this.database.persist();
-      return { changes: 1 };
-    }
-
-    if (this.normalizedSql.startsWith('INSERT INTO payment_orders')) {
-      this.database.state.payment_orders.push(toPaymentOrderRecord(payload));
-      this.database.persist();
-      return { changes: 1 };
-    }
-
-    if (this.normalizedSql.startsWith('UPDATE payment_orders SET provider_order_id')) {
-      const order = this.findRecord('payment_orders', payload.id);
-      if (order) {
-        order.provider_order_id = payload.providerOrderId;
-        order.status = payload.status;
-        order.raw_response_json = payload.rawResponseJson;
-        order.updated_at = payload.updatedAt;
-        this.database.persist();
-      }
-      return { changes: order ? 1 : 0 };
-    }
-
-    if (this.normalizedSql.startsWith('UPDATE payment_orders SET status')) {
-      const order = this.findRecord('payment_orders', payload.id);
-      if (order) {
-        order.status = payload.status;
-        order.payment_status = payload.paymentStatus;
-        order.raw_response_json = payload.rawResponseJson;
-        order.captured_at = payload.capturedAt;
-        order.updated_at = payload.updatedAt;
-        this.database.persist();
-      }
-      return { changes: order ? 1 : 0 };
-    }
-
-    if (this.normalizedSql.startsWith('UPDATE payment_orders SET credits_granted')) {
-      const order = this.findRecord('payment_orders', payload.id);
-      if (order) {
-        order.credits_granted = payload.creditsGranted;
-        order.membership_group = payload.membershipGroup || '';
-        order.credited_at = payload.creditedAt;
-        order.updated_at = payload.updatedAt;
-        this.database.persist();
-      }
-      return { changes: order ? 1 : 0 };
-    }
-
-    if (this.normalizedSql.startsWith('DELETE FROM app_user_sessions WHERE id')) {
-      const beforeCount = this.database.state.app_user_sessions.length;
-      this.database.state.app_user_sessions = this.database.state.app_user_sessions.filter((session) => session.id !== payload);
-      this.database.persist();
-      return { changes: beforeCount - this.database.state.app_user_sessions.length };
-    }
-
-    if (this.normalizedSql.startsWith('DELETE FROM app_user_sessions WHERE expires_at')) {
-      const beforeCount = this.database.state.app_user_sessions.length;
-      this.database.state.app_user_sessions = this.database.state.app_user_sessions.filter((session) => session.expires_at > payload);
-      this.database.persist();
-      return { changes: beforeCount - this.database.state.app_user_sessions.length };
-    }
-
-    return { changes: 0 };
-  }
-
-  queryTools(params) {
-    let tools = this.database.state.tools.map((tool) => withCategoryFields(tool, this.database.state.tool_categories));
-
-    if (this.normalizedSql.includes('WHERE tools.id = ? OR tools.slug = ?')) {
-      tools = tools.filter((tool) => tool.id === params[0] || tool.slug === params[1]);
-    } else if (this.normalizedSql.includes('WHERE tools.last_test_task_id = ?')) {
-      tools = tools.filter((tool) => tool.last_test_task_id === params[0]);
-    } else if (this.normalizedSql.includes('WHERE tools.slug = ?')) {
-      tools = tools.filter((tool) => tool.slug === params[0]);
-    } else if (this.normalizedSql.includes('WHERE tools.id = ?')) {
-      tools = tools.filter((tool) => tool.id === params[0]);
-    } else if (this.normalizedSql.includes('WHERE tools.status =')) {
-      tools = tools.filter((tool) => tool.status === 'active');
-    } else if (this.normalizedSql.includes('WHERE tool_key = ?')) {
-      tools = tools.filter((tool) => tool.tool_key === params[0]);
-    }
-
-    return tools.sort(compareToolRecords);
-  }
-
-  queryTasks(params) {
-    let tasks = this.database.state.execution_tasks.map((task) => withUserFields(task, this.database.state.app_users));
-
-    if (this.normalizedSql.includes('WHERE id = ?') || this.normalizedSql.includes('WHERE execution_tasks.id = ?')) {
-      tasks = tasks.filter((task) => task.id === params[0]);
-    } else if (this.normalizedSql.includes('WHERE execution_tasks.user_id = ?')) {
-      tasks = tasks.filter((task) => task.user_id === params[0]);
-    }
-
-    return tasks.sort(compareCreatedAtDesc);
-  }
-
-  queryUsers(params) {
-    let users = [...this.database.state.app_users];
-
-    if (this.normalizedSql.includes('WHERE id = ?')) {
-      users = users.filter((user) => user.id === params[0]);
-    } else if (this.normalizedSql.includes('WHERE email = ?')) {
-      users = users.filter((user) => user.email === params[0]);
-    }
-
-    return users.sort(compareCreatedAtDesc);
-  }
-
-  queryCreditLedger(params) {
-    let records = [...this.database.state.credit_ledger];
-
-    if (this.normalizedSql.includes('WHERE user_id = ?')) {
-      records = records.filter((record) => record.user_id === params[0]);
-    }
-
-    if (this.normalizedSql.includes('AND related_task_id = ?')) {
-      records = records.filter((record) => record.related_task_id === params[1]);
-    }
-
-    if (this.normalizedSql.includes('AND amount > 0')) {
-      records = records.filter((record) => Number(record.amount) > 0);
-    }
-
-    return records.sort(compareCreatedAtDesc);
-  }
-
-  queryUserSessions(params) {
-    let sessions = this.database.state.app_user_sessions.map((session) => withSessionUserFields(session, this.database.state.app_users));
-
-    if (this.normalizedSql.includes('WHERE app_user_sessions.id = ?')) {
-      sessions = sessions.filter((session) => session.id === params[0]);
-    }
-
-    return sessions.sort(compareCreatedAtDesc);
-  }
-
-  queryPaymentOrders(params) {
-    let orders = [...this.database.state.payment_orders];
-
-    if (this.normalizedSql.includes('WHERE id = ?')) {
-      orders = orders.filter((order) => order.id === params[0]);
-    } else if (this.normalizedSql.includes('WHERE provider_order_id = ?')) {
-      orders = orders.filter((order) => order.provider_order_id === params[0]);
-    } else if (this.normalizedSql.includes('WHERE user_id = ?')) {
-      orders = orders.filter((order) => order.user_id === params[0]);
-    }
-
-    return orders.sort(compareCreatedAtDesc);
-  }
-
-  findRecord(collectionName, id) {
-    return this.database.state[collectionName].find((record) => record.id === id);
-  }
-
-  updateRecord(collectionName, id, nextRecord) {
-    const index = this.database.state[collectionName].findIndex((record) => record.id === id);
-    if (index !== -1) {
-      this.database.state[collectionName][index] = {
-        ...this.database.state[collectionName][index],
-        ...nextRecord
-      };
-      this.database.persist();
-    }
-  }
-
-  ensureUniqueCategory(payload) {
-    const exists = this.database.state.tool_categories.some((category) => (
-      category.id !== payload.id && category.category_key === payload.categoryKey
-    ));
-    if (exists) throwSqliteUniqueError();
-  }
-
-  ensureUniqueMenu(payload) {
-    const exists = this.database.state.admin_menus.some((menu) => (
-      menu.id !== payload.id && menu.menu_key === payload.menuKey
-    ));
-    if (exists) throwSqliteUniqueError();
-  }
-
-  ensureUniqueTool(payload) {
-    const exists = this.database.state.tools.some((tool) => (
-      tool.id !== payload.id && tool.tool_key === payload.toolKey
-    ));
-    if (exists) throwSqliteUniqueError();
-  }
-
-  ensureUniqueUser(payload) {
-    const exists = this.database.state.app_users.some((user) => (
-      user.id !== payload.id && user.email === payload.email
-    ));
-    if (exists) throwSqliteUniqueError();
+  } else {
+    // SQLite supports IF NOT EXISTS
+    await adapter.exec(`CREATE INDEX IF NOT EXISTS ${indexName} ON ${tableName} (${columns})`);
   }
 }
 
-function createEmptyState() {
-  return {
-    tool_categories: [],
-    tools: [],
-    execution_tasks: [],
-    app_users: [],
-    credit_ledger: [],
-    app_user_sessions: [],
-    payment_orders: [],
-    admin_menus: []
-  };
+async function ensureColumn(adapter, tableName, columnName, columnDefinition) {
+  let hasColumn = false;
+
+  if (adapter.type === 'mysql') {
+    try {
+      const dbName = process.env.MYSQL_DATABASE || '';
+      const stmt = adapter.prepare(`
+        SELECT COLUMN_NAME
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?
+      `);
+      const rows = await stmt.all([dbName, tableName, columnName]);
+      hasColumn = rows.length > 0;
+    } catch (error) {
+      // If INFORMATION_SCHEMA fails, try a simpler approach
+      try {
+        await adapter.exec(`SELECT \`${columnName}\` FROM ${tableName} LIMIT 1`);
+        hasColumn = true;
+      } catch (selectError) {
+        hasColumn = false;
+      }
+    }
+  } else {
+    // SQLite: use PRAGMA table_info
+    try {
+      const rows = await adapter.pragma(`table_info(${tableName})`);
+      hasColumn = Array.isArray(rows) && rows.some((col) => col.name === columnName);
+    } catch (error) {
+      hasColumn = false;
+    }
+  }
+
+  if (!hasColumn) {
+    await adapter.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDefinition}`);
+  }
 }
 
-function getJsonTableColumns(tableName) {
-  const columns = {
-    tool_categories: ['id', 'category_key', 'name', 'sort_order', 'status', 'created_at', 'updated_at'],
-    admin_menus: [
-      'id',
-      'parent_id',
-      'menu_key',
-      'label',
-      'mark',
-      'path',
-      'target_type',
-      'sort_order',
-      'status',
-      'created_at',
-      'updated_at'
-    ],
-    tools: [
-      'id',
-      'tool_key',
-      'name',
-      'slug',
-      'category_id',
-      'short_description',
-      'top_detail_html',
-      'detail_html',
-      'preview_image_url',
-      'credit_cost',
-      'workflow_id',
-      'instance_type',
-      'status',
-      'last_test_status',
-      'last_test_task_id',
-      'last_test_error',
-      'last_tested_at',
-      'sort_order',
-      'input_nodes_json',
-      'output_config_json',
-      'created_at',
-      'updated_at'
-    ],
-    execution_tasks: [
-      'id',
-      'user_id',
-      'tool_id',
-      'tool_key',
-      'tool_name',
-      'runninghub_task_id',
-      'status',
-      'input_values_json',
-      'node_info_list_json',
-      'output_values_json',
-      'output_urls_json',
-      'actual_consume_coins',
-      'charged_credits',
-      'error_code',
-      'error_message',
-      'started_at',
-      'completed_at',
-      'created_at',
-      'updated_at'
-    ],
-    app_users: [
-      'id',
-      'email',
-      'display_name',
-      'role',
-      'membership_group',
-      'password_hash',
-      'credit_balance',
-      'last_login_credit_date',
-      'status',
-      'notes',
-      'created_at',
-      'updated_at'
-    ],
-    credit_ledger: [
-      'id',
-      'user_id',
-      'amount',
-      'remaining_amount',
-      'balance_after',
-      'reason',
-      'related_task_id',
-      'expires_at',
-      'created_at'
-    ],
-    app_user_sessions: [
-      'id',
-      'user_id',
-      'provider',
-      'provider_subject',
-      'expires_at',
-      'created_at',
-      'updated_at'
-    ],
-    payment_orders: [
-      'id',
-      'user_id',
-      'provider',
-      'provider_order_id',
-      'plan_key',
-      'billing_cycle',
-      'amount_value',
-      'currency_code',
-      'credit_amount',
-      'status',
-      'payment_status',
-      'credits_granted',
-      'membership_group',
-      'raw_response_json',
-      'captured_at',
-      'credited_at',
-      'created_at',
-      'updated_at'
-    ]
-  };
-
-  return columns[tableName] || [];
-}
-
-function toCategoryRecord(payload) {
-  return {
-    id: payload.id,
-    category_key: payload.categoryKey,
-    name: payload.name,
-    sort_order: payload.sortOrder,
-    status: payload.status || 'active',
-    created_at: payload.createdAt,
-    updated_at: payload.updatedAt
-  };
-}
-
-function toMenuRecord(payload) {
-  return {
-    id: payload.id,
-    parent_id: payload.parentId || '',
-    menu_key: payload.menuKey,
-    label: payload.label,
-    mark: payload.mark || '',
-    path: payload.path,
-    target_type: payload.targetType,
-    sort_order: payload.sortOrder,
-    status: payload.status || 'active',
-    created_at: payload.createdAt,
-    updated_at: payload.updatedAt
-  };
-}
-
-function toToolRecord(payload) {
-  return {
-    id: payload.id,
-    tool_key: payload.toolKey,
-    name: payload.name,
-    slug: payload.slug,
-    category_id: payload.categoryId,
-    short_description: payload.shortDescription,
-    top_detail_html: payload.topDetailHtml || '',
-    detail_html: payload.detailHtml || '',
-    preview_image_url: payload.previewImageUrl,
-    credit_cost: payload.creditCost ?? 1,
-    workflow_id: payload.workflowId,
-    instance_type: payload.instanceType,
-    status: payload.status,
-    last_test_status: payload.lastTestStatus || 'untested',
-    last_test_task_id: payload.lastTestTaskId || '',
-    last_test_error: payload.lastTestError || '',
-    last_tested_at: payload.lastTestedAt || null,
-    sort_order: payload.sortOrder,
-    input_nodes_json: payload.inputNodesJson,
-    output_config_json: payload.outputConfigJson,
-    created_at: payload.createdAt,
-    updated_at: payload.updatedAt
-  };
-}
-
-function toTaskRecord(payload) {
-  return {
-    id: payload.id,
-    user_id: payload.userId || '',
-    tool_id: payload.toolId,
-    tool_key: payload.toolKey,
-    tool_name: payload.toolName,
-    runninghub_task_id: payload.runningHubTaskId,
-    status: payload.status,
-    input_values_json: payload.inputValuesJson,
-    node_info_list_json: payload.nodeInfoListJson,
-    output_values_json: payload.outputValuesJson,
-    output_urls_json: payload.outputUrlsJson,
-    actual_consume_coins: payload.actualConsumeCoins || 0,
-    charged_credits: payload.chargedCredits || 0,
-    error_code: payload.errorCode,
-    error_message: payload.errorMessage,
-    started_at: payload.startedAt,
-    completed_at: payload.completedAt,
-    created_at: payload.createdAt,
-    updated_at: payload.updatedAt
-  };
-}
-
-function toUserRecord(payload) {
-  return {
-    id: payload.id,
-    email: payload.email,
-    display_name: payload.displayName,
-    role: payload.role,
-    membership_group: payload.membershipGroup,
-    password_hash: payload.passwordHash || '',
-    credit_balance: payload.creditBalance,
-    last_login_credit_date: payload.lastLoginCreditDate || '',
-    status: payload.status,
-    notes: payload.notes || '',
-    created_at: payload.createdAt,
-    updated_at: payload.updatedAt
-  };
-}
-
-function toCreditLedgerRecord(payload) {
-  return {
-    id: payload.id,
-    user_id: payload.userId,
-    amount: payload.amount,
-    remaining_amount: payload.remainingAmount ?? Math.max(0, payload.amount),
-    balance_after: payload.balanceAfter,
-    reason: payload.reason,
-    related_task_id: payload.relatedTaskId || '',
-    expires_at: payload.expiresAt || null,
-    created_at: payload.createdAt
-  };
-}
-
-function toUserSessionRecord(payload) {
-  return {
-    id: payload.id,
-    user_id: payload.userId,
-    provider: payload.provider,
-    provider_subject: payload.providerSubject || '',
-    expires_at: payload.expiresAt,
-    created_at: payload.createdAt,
-    updated_at: payload.updatedAt
-  };
-}
-
-function toPaymentOrderRecord(payload) {
-  return {
-    id: payload.id,
-    user_id: payload.userId,
-    provider: payload.provider || 'paypal',
-    provider_order_id: payload.providerOrderId || '',
-    plan_key: payload.planKey,
-    billing_cycle: payload.billingCycle || '',
-    amount_value: String(payload.amountValue),
-    currency_code: payload.currencyCode || 'USD',
-    credit_amount: payload.creditAmount || 0,
-    status: payload.status || 'CREATED',
-    payment_status: payload.paymentStatus || '',
-    credits_granted: payload.creditsGranted || 0,
-    membership_group: payload.membershipGroup || '',
-    raw_response_json: payload.rawResponseJson || '{}',
-    captured_at: payload.capturedAt || null,
-    credited_at: payload.creditedAt || null,
-    created_at: payload.createdAt,
-    updated_at: payload.updatedAt
-  };
-}
-
-function withCategoryFields(tool, categories) {
-  const category = categories.find((item) => item.id === tool.category_id);
-  return {
-    ...tool,
-    category_name: category?.name || '',
-    category_key: category?.category_key || tool.category_id
-  };
-}
-
-function withSessionUserFields(session, users) {
-  const user = users.find((item) => item.id === session.user_id) || {};
-  return {
-    ...session,
-    user_email: user.email || '',
-    user_display_name: user.display_name || '',
-    user_role: user.role || '',
-    user_membership_group: user.membership_group || '',
-    user_credit_balance: user.credit_balance || 0,
-    user_status: user.status || ''
-  };
-}
-
-function compareCategoryRecords(left, right) {
-  return (left.sort_order - right.sort_order) || String(left.created_at).localeCompare(String(right.created_at));
-}
-
-function compareMenuRecords(left, right) {
-  return String(left.parent_id || '').localeCompare(String(right.parent_id || ''))
-    || (left.sort_order - right.sort_order)
-    || String(left.created_at).localeCompare(String(right.created_at));
-}
-
-function compareToolRecords(left, right) {
-  return (left.sort_order - right.sort_order) || String(right.created_at).localeCompare(String(left.created_at));
-}
-
-function compareCreatedAtDesc(left, right) {
-  return String(right.created_at).localeCompare(String(left.created_at));
-}
-
-function withUserFields(task, users) {
-  const user = users.find((item) => item.id === task.user_id);
-  return {
-    ...task,
-    user_email: user?.email || '',
-    user_display_name: user?.display_name || ''
-  };
-}
-
-function throwSqliteUniqueError() {
-  const error = new Error('UNIQUE constraint failed');
-  error.code = 'SQLITE_CONSTRAINT_UNIQUE';
-  throw error;
-}
-
-function seedDefaultCategories(database) {
+async function seedDefaultCategories(adapter) {
   const now = new Date().toISOString();
-  const insertCategory = database.prepare(`
-    INSERT OR IGNORE INTO tool_categories (
+  const stmt = adapter.prepare(`
+    INSERT INTO tool_categories (
       id,
       category_key,
       name,
@@ -1228,27 +311,40 @@ function seedDefaultCategories(database) {
     )
   `);
 
-  [
+  const categories = [
     { id: 'image', categoryKey: 'image', name: '圖像', sortOrder: 10 },
     { id: 'video', categoryKey: 'video', name: '視頻', sortOrder: 20 },
     { id: 'audio', categoryKey: 'audio', name: '音頻', sortOrder: 30 },
     { id: 'text', categoryKey: 'text', name: '文本', sortOrder: 40 }
-  ].forEach((category) => {
-    insertCategory.run({
-      ...category,
-      createdAt: now,
-      updatedAt: now
-    });
-  });
+  ];
+
+  for (const category of categories) {
+    try {
+      await stmt.run({
+        ...category,
+        createdAt: now,
+        updatedAt: now
+      });
+    } catch (error) {
+      // Ignore duplicate key errors (category already exists)
+      if (adapter.type === 'mysql') {
+        if (!['ER_DUP_ENTRY', 'ER_DUP_KEY'].includes(error.code)) throw error;
+      } else {
+        // SQLite constraint error
+        if (error.code !== 'SQLITE_CONSTRAINT') throw error;
+      }
+    }
+  }
 }
 
-function seedDefaultUsers(database) {
-  const { count } = database.prepare('SELECT COUNT(*) AS count FROM app_users').get();
-  if (count > 0) return;
+async function seedDefaultUsers(adapter) {
+  const countStmt = adapter.prepare('SELECT COUNT(*) AS count FROM app_users');
+  const countRow = await countStmt.get([]);
+  if (countRow && countRow.count > 0) return;
 
   const now = new Date().toISOString();
-  const insertUser = database.prepare(`
-    INSERT OR IGNORE INTO app_users (
+  const insertStmt = adapter.prepare(`
+    INSERT INTO app_users (
       id,
       email,
       display_name,
@@ -1274,7 +370,7 @@ function seedDefaultUsers(database) {
     )
   `);
 
-  [
+  const users = [
     {
       id: 'admin-user',
       email: 'admin@example.com',
@@ -1315,21 +411,23 @@ function seedDefaultUsers(database) {
       status: 'active',
       notes: '會員分組示例'
     }
-  ].forEach((user) => {
-    insertUser.run({
-      ...user,
-      createdAt: now,
-      updatedAt: now
-    });
-  });
-}
+  ];
 
-function ensureColumn(database, tableName, columnName, columnDefinition) {
-  const columns = database.prepare(`PRAGMA table_info(${tableName})`).all();
-  const hasColumn = columns.some((column) => column.name === columnName);
-
-  if (!hasColumn) {
-    database.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDefinition}`);
+  for (const user of users) {
+    try {
+      await insertStmt.run({
+        ...user,
+        createdAt: now,
+        updatedAt: now
+      });
+    } catch (error) {
+      // Ignore duplicate key errors
+      if (adapter.type === 'mysql') {
+        if (!['ER_DUP_ENTRY', 'ER_DUP_KEY'].includes(error.code)) throw error;
+      } else {
+        if (error.code !== 'SQLITE_CONSTRAINT') throw error;
+      }
+    }
   }
 }
 

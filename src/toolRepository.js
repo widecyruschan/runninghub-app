@@ -155,40 +155,42 @@ function createToolRepository(database) {
     count: database.prepare('SELECT COUNT(*) AS count FROM tools')
   };
 
-  function listTools() {
-    return statements.list.all().map(mapToolRecord);
+  async function listTools() {
+    const rows = await statements.list.all([]);
+    return (rows || []).map(mapToolRecord);
   }
 
-  function listActiveTools() {
-    return statements.listActive.all().map(mapPublicToolRecord);
+  async function listActiveTools() {
+    const rows = await statements.listActive.all([]);
+    return (rows || []).map(mapPublicToolRecord);
   }
 
-  function getToolById(id) {
-    const record = statements.findById.get(id);
+  async function getToolById(id) {
+    const record = await statements.findById.get(id);
     return record ? mapToolRecord(record) : null;
   }
 
-  function getActiveToolBySlug(slug) {
-    const record = statements.findBySlug.get(slug);
+  async function getActiveToolBySlug(slug) {
+    const record = await statements.findBySlug.get(slug);
     if (!record || record.status !== 'active') return null;
     return mapPublicToolRecord(record);
   }
 
-  function getActiveToolByIdOrSlug(idOrSlug) {
-    const record = statements.findByIdOrSlug.get(idOrSlug, idOrSlug);
+  async function getActiveToolByIdOrSlug(idOrSlug) {
+    const record = await statements.findByIdOrSlug.get(idOrSlug, idOrSlug);
     if (!record || record.status !== 'active') return null;
     return mapPublicToolRecord(record);
   }
 
-  function getToolByLastTestTaskId(taskId) {
-    const record = statements.findByLastTestTaskId.get(taskId);
+  async function getToolByLastTestTaskId(taskId) {
+    const record = await statements.findByLastTestTaskId.get(taskId);
     return record ? mapToolRecord(record) : null;
   }
 
-  function saveTool(rawTool) {
+  async function saveTool(rawTool) {
     const normalizedTool = normalizeToolPayload(rawTool);
     const now = new Date().toISOString();
-    const existingTool = normalizedTool.id ? getToolById(normalizedTool.id) : null;
+    const existingTool = normalizedTool.id ? await getToolById(normalizedTool.id) : null;
     const id = existingTool ? existingTool.id : crypto.randomUUID();
 
     const databasePayload = {
@@ -202,12 +204,12 @@ function createToolRepository(database) {
 
     try {
       if (existingTool) {
-        statements.update.run(databasePayload);
+        await statements.update.run(databasePayload);
       } else {
-        statements.insert.run(databasePayload);
+        await statements.insert.run(databasePayload);
       }
     } catch (error) {
-      if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+      if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.code === 'ER_DUP_ENTRY') {
         const conflictError = new Error('工具識別碼已存在');
         conflictError.statusCode = 409;
         conflictError.code = 'TOOL_KEY_EXISTS';
@@ -217,13 +219,13 @@ function createToolRepository(database) {
       throw error;
     }
 
-    return getToolById(id);
+    return await getToolById(id);
   }
 
-  function saveToolTestResult(id, testResult) {
+  async function saveToolTestResult(id, testResult) {
     const now = new Date().toISOString();
 
-    statements.updateTestResult.run({
+    await statements.updateTestResult.run({
       id,
       lastTestStatus: testResult.status,
       lastTestTaskId: testResult.taskId || '',
@@ -232,15 +234,15 @@ function createToolRepository(database) {
       updatedAt: now
     });
 
-    return getToolById(id);
+    return await getToolById(id);
   }
 
-  function updateToolStatus(id, status) {
+  async function updateToolStatus(id, status) {
     if (!VALID_TOOL_STATUS.has(status)) {
       throwValidationError('工具狀態不正確', 'TOOL_STATUS_INVALID');
     }
 
-    const tool = getToolById(id);
+    const tool = await getToolById(id);
     if (!tool) {
       const error = new Error('工具不存在');
       error.statusCode = 404;
@@ -255,19 +257,19 @@ function createToolRepository(database) {
       throw error;
     }
 
-    statements.updateStatus.run({
+    await statements.updateStatus.run({
       id,
       status,
       updatedAt: new Date().toISOString()
     });
 
-    return getToolById(id);
+    return await getToolById(id);
   }
 
-  function seedDefaultTools() {
-    const { count } = statements.count.get();
+  async function seedDefaultTools() {
+    const { count } = await statements.count.get();
     if (count === 0) {
-      saveTool({
+      await saveTool({
         toolKey: 'remove-background',
         name: '圖片背景移除',
         slug: 'remove-background',
@@ -398,7 +400,7 @@ function createToolRepository(database) {
         fallbackPaths: ['url', 'fileUrl', 'file_url', 'download_url', 'resultUrls']
       }
     });
-    upgradeNanoBananaTool();
+    await upgradeNanoBananaTool();
 
     seedToolIfMissing({
       toolKey: 'google-veo-3-1',
@@ -614,7 +616,7 @@ function createToolRepository(database) {
       }
     });
 
-    upgradeSeedanceTool();
+    await upgradeSeedanceTool();
 
     seedToolIfMissing({
       toolKey: 'kie-seedance-2-0',
@@ -775,13 +777,13 @@ function createToolRepository(database) {
     });
   }
 
-  function seedToolIfMissing(tool) {
-    if (statements.findByToolKey.get(tool.toolKey)) return;
-    saveTool(tool);
+  async function seedToolIfMissing(tool) {
+    if (await statements.findByToolKey.get(tool.toolKey)) return;
+    await saveTool(tool);
   }
 
-  function upgradeNanoBananaTool() {
-    const existingRecord = statements.findByToolKey.get('google-nano-banana-pro');
+  async function upgradeNanoBananaTool() {
+    const existingRecord = await statements.findByToolKey.get('google-nano-banana-pro');
     if (!existingRecord) return;
 
     const existingTool = mapToolRecord(existingRecord);
@@ -809,11 +811,11 @@ function createToolRepository(database) {
       inputNodes: hasModelNode ? inputNodes : [createNanoBananaModelNode(), ...inputNodes]
     };
 
-    saveTool(nextTool);
+    await saveTool(nextTool);
   }
 
-  function upgradeSeedanceTool() {
-    const existingRecord = statements.findByToolKey.get('kie-seedance-2-0');
+  async function upgradeSeedanceTool() {
+    const existingRecord = await statements.findByToolKey.get('kie-seedance-2-0');
     if (!existingRecord) return;
     if (existingRecord.status === 'active') return;
 
@@ -824,7 +826,7 @@ function createToolRepository(database) {
       sortOrder: existingTool.sortOrder || 50
     };
 
-    saveTool(nextTool);
+    await saveTool(nextTool);
   }
 
   return {

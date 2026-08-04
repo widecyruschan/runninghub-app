@@ -49,24 +49,25 @@ function createCategoryRepository(database) {
     `)
   };
 
-  function listCategories() {
-    return statements.list.all().map(mapCategoryRecord);
+  async function listCategories() {
+    const rows = await statements.list.all([]);
+    return (rows || []).map(mapCategoryRecord);
   }
 
-  function getCategoryById(id) {
-    const record = statements.findById.get(id);
+  async function getCategoryById(id) {
+    const record = await statements.findById.get([id]);
     return record ? mapCategoryRecord(record) : null;
   }
 
-  function getCategoryByKey(categoryKey) {
-    const record = statements.findByKey.get(categoryKey);
+  async function getCategoryByKey(categoryKey) {
+    const record = await statements.findByKey.get([categoryKey]);
     return record ? mapCategoryRecord(record) : null;
   }
 
-  function saveCategory(rawCategory) {
+  async function saveCategory(rawCategory) {
     const normalizedCategory = normalizeCategoryPayload(rawCategory);
     const now = new Date().toISOString();
-    const existingCategory = normalizedCategory.id ? getCategoryById(normalizedCategory.id) : null;
+    const existingCategory = normalizedCategory.id ? await getCategoryById(normalizedCategory.id) : null;
     const id = existingCategory ? existingCategory.id : normalizedCategory.categoryKey;
     const databasePayload = {
       ...normalizedCategory,
@@ -77,12 +78,12 @@ function createCategoryRepository(database) {
 
     try {
       if (existingCategory) {
-        statements.update.run(databasePayload);
+        await statements.update.run(databasePayload);
       } else {
-        statements.insert.run(databasePayload);
+        await statements.insert.run(databasePayload);
       }
     } catch (error) {
-      if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+      if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.code === 'ER_DUP_ENTRY') {
         throwValidationError('分類識別碼已存在', 'CATEGORY_KEY_EXISTS', 409);
       }
 

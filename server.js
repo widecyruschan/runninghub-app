@@ -101,20 +101,31 @@ const publicAppBaseUrl = normalizePublicBaseUrl(process.env.PUBLIC_APP_BASE_URL 
 const publicApiBaseUrl = normalizePublicBaseUrl(process.env.PUBLIC_API_BASE_URL || 'https://api.imgkit.io');
 const allowedApiOrigins = createAllowedApiOrigins(process.env.API_CORS_ALLOWED_ORIGINS || '', publicAppBaseUrl, publicApiBaseUrl);
 const listenTarget = createListenTarget(process.env.PORT, process.env.HOST);
-const database = createDatabase();
-const toolRepository = createToolRepository(database);
-const categoryRepository = createCategoryRepository(database);
-const menuRepository = createMenuRepository(database);
-const taskRepository = createTaskRepository(database);
-const userRepository = createUserRepository(database);
-const memberSessionRepository = createMemberSessionRepository(database);
+let database, toolRepository, categoryRepository, menuRepository, taskRepository,
+    userRepository, memberSessionRepository, paymentRepository;
+
+const dbReady = (async function initDatabase() {
+  database = await createDatabase();
+  toolRepository = createToolRepository(database);
+  categoryRepository = createCategoryRepository(database);
+  menuRepository = createMenuRepository(database);
+  taskRepository = createTaskRepository(database);
+  userRepository = createUserRepository(database);
+  memberSessionRepository = createMemberSessionRepository(database);
+  paymentRepository = createPaymentRepository(database);
+
+  if (typeof toolRepository.seedDefaultTools === 'function') await toolRepository.seedDefaultTools();
+  if (typeof menuRepository.seedDefaultMenus === 'function') await menuRepository.seedDefaultMenus();
+
+  console.log('[database] Initialization complete');
+})().catch((error) => {
+  console.error('[FATAL] Database initialization failed:', error.message);
+  process.exit(1);
+});
+
 const kieClient = createKieClient();
 const paypalClient = createPaypalClient();
 const creemClient = createCreemClient();
-const paymentRepository = createPaymentRepository(database);
-
-toolRepository.seedDefaultTools();
-menuRepository.seedDefaultMenus();
 
 const mimeTypes = {
   '.html': 'text/html; charset=utf-8',
@@ -277,13 +288,15 @@ const server = http.createServer(async (request, response) => {
   }
 });
 
-server.listen(...listenTarget.args, () => {
-  console.log(`RunningHub demo server: ${listenTarget.url}`);
-  console.log(`Local access URL: ${listenTarget.localUrl}`);
-  console.log(`RUNNINGHUB_API_KEY: ${runningHubApiKey ? '已配置' : '未配置'}`);
-  console.log(`PAYPAL: ${paypalClient.isConfigured ? '已配置' : '未配置'}`);
-  console.log(`CREEM: ${creemClient.isConfigured ? '已配置' : '未配置'}`);
-  console.log(`ADMIN_USERNAME: ${adminUsername}`);
+dbReady.then(() => {
+  server.listen(...listenTarget.args, () => {
+    console.log(`RunningHub demo server: ${listenTarget.url}`);
+    console.log(`Local access URL: ${listenTarget.localUrl}`);
+    console.log(`RUNNINGHUB_API_KEY: ${runningHubApiKey ? '已配置' : '未配置'}`);
+    console.log(`PAYPAL: ${paypalClient.isConfigured ? '已配置' : '未配置'}`);
+    console.log(`CREEM: ${creemClient.isConfigured ? '已配置' : '未配置'}`);
+    console.log(`ADMIN_USERNAME: ${adminUsername}`);
+  });
 });
 
 function createListenTarget(portValue, hostValue) {
@@ -660,14 +673,14 @@ async function handleAdminApi(request, response) {
     sendJson(response, 200, {
       success: true,
       message: '操作成功',
-      data: toolRepository.listTools()
+      data: await toolRepository.listTools()
     });
     return;
   }
 
   if (url.pathname === '/api/admin/tools' && request.method === 'POST') {
     const requestBody = await readJsonBody(request);
-    const savedTool = toolRepository.saveTool(requestBody);
+    const savedTool = await toolRepository.saveTool(requestBody);
 
     sendJson(response, requestBody.id ? 200 : 201, {
       success: true,
@@ -695,7 +708,7 @@ async function handleAdminApi(request, response) {
   if (toolStatusMatch && request.method === 'PATCH') {
     const toolId = decodeURIComponent(toolStatusMatch[1]);
     const requestBody = await readJsonBody(request);
-    const savedTool = toolRepository.updateToolStatus(toolId, String(requestBody.status || '').trim());
+    const savedTool = await toolRepository.updateToolStatus(toolId, String(requestBody.status || '').trim());
 
     sendJson(response, 200, {
       success: true,
@@ -709,14 +722,14 @@ async function handleAdminApi(request, response) {
     sendJson(response, 200, {
       success: true,
       message: '操作成功',
-      data: categoryRepository.listCategories()
+      data: await categoryRepository.listCategories()
     });
     return;
   }
 
   if (url.pathname === '/api/admin/categories' && request.method === 'POST') {
     const requestBody = await readJsonBody(request);
-    const savedCategory = categoryRepository.saveCategory(requestBody);
+    const savedCategory = await categoryRepository.saveCategory(requestBody);
 
     sendJson(response, requestBody.id ? 200 : 201, {
       success: true,
@@ -730,14 +743,14 @@ async function handleAdminApi(request, response) {
     sendJson(response, 200, {
       success: true,
       message: '操作成功',
-      data: menuRepository.listMenus()
+      data: await menuRepository.listMenus()
     });
     return;
   }
 
   if (url.pathname === '/api/admin/menus' && request.method === 'POST') {
     const requestBody = await readJsonBody(request);
-    const savedMenu = menuRepository.saveMenu(requestBody);
+    const savedMenu = await menuRepository.saveMenu(requestBody);
 
     sendJson(response, requestBody.id ? 200 : 201, {
       success: true,
@@ -751,7 +764,7 @@ async function handleAdminApi(request, response) {
     sendJson(response, 200, {
       success: true,
       message: '操作成功',
-      data: userRepository.listUsers()
+      data: await userRepository.listUsers()
     });
     return;
   }
@@ -770,9 +783,9 @@ async function handleAdminApi(request, response) {
       return;
     }
 
-    const savedUser = userRepository.saveUser(requestBody);
+    const savedUser = await userRepository.saveUser(requestBody);
     const responseUser = !requestBody.id && canSetInitialCredits && initialCreditBalance > 0
-      ? userRepository.adjustCredits(savedUser.id, initialCreditBalance, '初始積分')
+      ? await userRepository.adjustCredits(savedUser.id, initialCreditBalance, '初始積分')
       : savedUser;
 
     sendJson(response, requestBody.id ? 200 : 201, {
@@ -792,7 +805,7 @@ async function handleAdminApi(request, response) {
 
     const userId = decodeURIComponent(userCreditsMatch[1]);
     const requestBody = await readJsonBody(request);
-    const savedUser = userRepository.adjustCredits(
+    const savedUser = await userRepository.adjustCredits(
       userId,
       requestBody.amount,
       requestBody.reason || '後台調整',
@@ -813,7 +826,7 @@ async function handleAdminApi(request, response) {
     sendJson(response, 200, {
       success: true,
       message: '操作成功',
-      data: userRepository.listCreditLedgerByUser(userId)
+      data: await userRepository.listCreditLedgerByUser(userId)
     });
     return;
   }
@@ -824,7 +837,7 @@ async function handleAdminApi(request, response) {
     sendJson(response, 200, {
       success: true,
       message: '操作成功',
-      data: taskRepository.listTasksByUser(userId)
+      data: await taskRepository.listTasksByUser(userId)
     });
     return;
   }
@@ -833,7 +846,7 @@ async function handleAdminApi(request, response) {
     sendJson(response, 200, {
       success: true,
       message: '操作成功',
-      data: taskRepository.listTasks()
+      data: await taskRepository.listTasks()
     });
     return;
   }
@@ -852,7 +865,7 @@ async function handlePublicApi(request, response) {
     sendJson(response, 200, {
       success: true,
       message: '操作成功',
-      data: toolRepository.listActiveTools()
+      data: await toolRepository.listActiveTools()
     }, getNoStoreHeaders());
     return;
   }
@@ -874,7 +887,7 @@ async function handlePublicApi(request, response) {
   const toolMatch = url.pathname.match(/^\/api\/tools\/([^/]+)$/);
   if (toolMatch && request.method === 'GET') {
     const slug = decodeURIComponent(toolMatch[1]);
-    const tool = toolRepository.getActiveToolBySlug(slug);
+    const tool = await toolRepository.getActiveToolBySlug(slug);
 
     if (!tool) {
       sendJson(response, 404, {
@@ -897,7 +910,7 @@ async function handlePublicApi(request, response) {
     sendJson(response, 200, {
       success: true,
       message: '操作成功',
-      data: categoryRepository.listCategories().filter((category) => category.status === 'active')
+      data: (await categoryRepository.listCategories()).filter((category) => category.status === 'active')
     }, getNoStoreHeaders());
     return;
   }
@@ -975,9 +988,9 @@ async function handleAuthApi(request, response) {
   }
 
   if (url.pathname === '/api/auth/logout' && request.method === 'POST') {
-    getCookieValues(request, MEMBER_SESSION_COOKIE).forEach((sessionId) => {
-      memberSessionRepository.deleteSession(sessionId);
-    });
+    for (const sessionId of getCookieValues(request, MEMBER_SESSION_COOKIE)) {
+      await memberSessionRepository.deleteSession(sessionId);
+    }
 
     sendJson(response, 200, {
       success: true,
@@ -1045,7 +1058,7 @@ async function handleMeApi(request, response) {
   // 每日签到
   if (url.pathname === '/api/me/check-in' && request.method === 'POST') {
     const todayKey = getHongKongDateKey();
-    const user = userRepository.getUserById(userId);
+    const user = await userRepository.getUserById(userId);
     if (user.lastLoginCreditDate === todayKey) {
       sendJson(response, 409, {
         success: false,
@@ -1054,7 +1067,7 @@ async function handleMeApi(request, response) {
       });
       return;
     }
-    const updatedUser = userRepository.grantDailyLoginBonus(userId, todayKey);
+    const updatedUser = await userRepository.grantDailyLoginBonus(userId, todayKey);
     sendJson(response, 200, {
       success: true,
       message: '签到成功！获得 ' + userRepository.DAILY_LOGIN_BONUS_CREDITS + ' 积分',
@@ -1068,11 +1081,11 @@ async function handleMeApi(request, response) {
   }
 
   if (url.pathname === '/api/me/stats' && request.method === 'GET') {
-    const user = userRepository.getUserById(userId);
+    const user = await userRepository.getUserById(userId);
     const now = new Date();
     const todayKey = getHongKongDateKey();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-    const allTasks = taskRepository.listTasksByUser(userId);
+    const allTasks = await taskRepository.listTasksByUser(userId);
 
     const monthlyTasks = allTasks.filter((t) => t.createdAt && t.createdAt >= monthStart);
     const monthlyUsage = monthlyTasks.reduce((sum, t) => sum + (t.actualConsumeCoins || 0), 0);
@@ -1096,7 +1109,7 @@ async function handleMeApi(request, response) {
       }
     });
 
-    const orders = paymentRepository.listOrdersByUser(userId);
+    const orders = await paymentRepository.listOrdersByUser(userId);
     const paymentOrders = orders.filter((o) => o.status === 'CAPTURED');
     const totalOrders = paymentOrders.length;
 
@@ -1127,7 +1140,7 @@ async function handleMeApi(request, response) {
 
   // 订单列表（仅返回已付款成功的订单）
   if (url.pathname === '/api/me/orders' && request.method === 'GET') {
-    const orders = paymentRepository.listOrdersByUser(userId)
+    const orders = (await paymentRepository.listOrdersByUser(userId))
       .filter((o) => o.status === 'CAPTURED')
       .map((o) => ({
         id: o.id,
@@ -1155,14 +1168,14 @@ async function handleMeApi(request, response) {
     sendJson(response, 200, {
       success: true,
       message: '操作成功',
-      data: taskRepository.listTasksByUser(memberSession.user.id)
+      data: await taskRepository.listTasksByUser(memberSession.user.id)
     });
     return;
   }
 
   if (url.pathname === '/api/me/ledger' && request.method === 'GET') {
-    const ledger = userRepository
-      .listCreditLedgerByUser(memberSession.user.id)
+    const ledger = (await userRepository
+      .listCreditLedgerByUser(memberSession.user.id))
       .map((record) => ({
         ...record,
         displayReason: formatFrontendLedgerReason(record.reason)
@@ -1270,7 +1283,7 @@ async function handlePaymentApi(request, response) {
 }
 
 async function executeConfiguredTool(idOrSlug, requestBody, request) {
-  const tool = toolRepository.getActiveToolByIdOrSlug(idOrSlug);
+  const tool = await toolRepository.getActiveToolByIdOrSlug(idOrSlug);
   if (!tool) {
     throwHttpError('工具不存在或未上線', 'TOOL_NOT_FOUND', 404);
   }
@@ -1295,14 +1308,14 @@ async function executeConfiguredTool(idOrSlug, requestBody, request) {
 }
 
 async function testAdminTool(toolId, requestBody) {
-  const tool = toolRepository.getToolById(toolId);
+  const tool = await toolRepository.getToolById(toolId);
   if (!tool) {
     throwHttpError('工具不存在', 'TOOL_NOT_FOUND', 404);
   }
 
   ensureToolProviderConfigured(tool);
 
-  toolRepository.saveToolTestResult(tool.id, {
+  await toolRepository.saveToolTestResult(tool.id, {
     status: 'running',
     taskId: '',
     error: ''
@@ -1310,7 +1323,7 @@ async function testAdminTool(toolId, requestBody) {
 
   try {
     const result = await executeToolWithConfig(tool, requestBody);
-    const savedTool = toolRepository.saveToolTestResult(tool.id, {
+    const savedTool = await toolRepository.saveToolTestResult(tool.id, {
       status: 'running',
       taskId: result.taskId,
       error: ''
@@ -1323,7 +1336,7 @@ async function testAdminTool(toolId, requestBody) {
       tool: savedTool
     };
   } catch (error) {
-    const savedTool = toolRepository.saveToolTestResult(tool.id, {
+    const savedTool = await toolRepository.saveToolTestResult(tool.id, {
       status: 'failed',
       taskId: '',
       error: error.message || '工具測試失敗'
@@ -1339,7 +1352,7 @@ async function executeToolWithConfig(tool, requestBody, options = {}) {
     ? requestBody.inputValues
     : {};
   const normalizedInputValues = {};
-  const task = taskRepository.createTask({
+  const task = await taskRepository.createTask({
     userId: options.userId || '',
     tool,
     inputValues: sanitizeInputValues(tool, rawInputValues),
@@ -1348,7 +1361,7 @@ async function executeToolWithConfig(tool, requestBody, options = {}) {
 
   try {
     const nodeInfoList = await buildNodeInfoList(tool, rawInputValues, normalizedInputValues);
-    taskRepository.updateTaskPayload(task.id, normalizedInputValues, nodeInfoList);
+    await taskRepository.updateTaskPayload(task.id, normalizedInputValues, nodeInfoList);
 
     if (isKieTool(tool)) {
       return await createKieToolTask(tool, task, normalizedInputValues);
@@ -1373,7 +1386,7 @@ async function executeToolWithConfig(tool, requestBody, options = {}) {
       );
     }
 
-    const savedTask = taskRepository.attachRunningHubTask(task.id, runningHubTaskId, 'QUEUED');
+    const savedTask = await taskRepository.attachRunningHubTask(task.id, runningHubTaskId, 'QUEUED');
 
     return {
       taskId: savedTask.id,
@@ -1386,7 +1399,7 @@ async function executeToolWithConfig(tool, requestBody, options = {}) {
       }
     };
   } catch (error) {
-    taskRepository.markTaskStatus(task.id, 'FAILED', {
+    await taskRepository.markTaskStatus(task.id, 'FAILED', {
       code: error.code || 'TASK_CREATE_FAILED',
       message: error.message || '任務建立失敗'
     });
@@ -1419,7 +1432,7 @@ async function createKieToolTask(tool, task, inputValues) {
     throwHttpError('任務建立失敗，未返回 KIE 任務 ID', 'KIE_TASK_ID_MISSING', 502);
   }
 
-  const savedTask = taskRepository.attachRunningHubTask(task.id, kieTaskId, 'QUEUED');
+  const savedTask = await taskRepository.attachRunningHubTask(task.id, kieTaskId, 'QUEUED');
 
   return {
     taskId: savedTask.id,
@@ -1441,7 +1454,7 @@ async function createKieVeoToolTask(tool, task, inputValues) {
     throwHttpError('任務建立失敗，未返回 KIE 任務 ID', 'KIE_TASK_ID_MISSING', 502);
   }
 
-  const savedTask = taskRepository.attachRunningHubTask(task.id, kieTaskId, 'QUEUED');
+  const savedTask = await taskRepository.attachRunningHubTask(task.id, kieTaskId, 'QUEUED');
 
   return {
     taskId: savedTask.id,
@@ -1464,7 +1477,7 @@ async function createKieSunoToolTask(tool, task, inputValues) {
     throwHttpError('Suno 任務建立失敗，未返回 KIE 任務 ID', 'KIE_TASK_ID_MISSING', 502);
   }
 
-  const savedTask = taskRepository.attachRunningHubTask(task.id, kieTaskId, 'QUEUED');
+  const savedTask = await taskRepository.attachRunningHubTask(task.id, kieTaskId, 'QUEUED');
 
   return {
     taskId: savedTask.id,
@@ -1791,7 +1804,7 @@ function normalizeOptionalNumberBoundary(value) {
 
 async function syncTaskStatus(taskId) {
   const task = getExistingTask(taskId);
-  const tool = toolRepository.getToolById(task.toolId);
+  const tool = await toolRepository.getToolById(task.toolId);
   if (isKieTool(tool)) {
     return syncKieTaskStatus(task, tool);
   }
@@ -1808,7 +1821,7 @@ async function syncTaskStatus(taskId) {
   const runningHubStatus = extractRunningHubStatus(statusResponse);
 
   if (runningHubStatus === 'FAILED') {
-    const failedTask = taskRepository.markTaskStatus(task.id, 'FAILED', {
+    const failedTask = await taskRepository.markTaskStatus(task.id, 'FAILED', {
       code: 'RUNNINGHUB_TASK_FAILED',
       message: statusResponse.msg || statusResponse.errorMessage || 'RunningHub 任務執行失敗'
     });
@@ -1817,17 +1830,17 @@ async function syncTaskStatus(taskId) {
   }
 
   if (runningHubStatus === 'SUCCESS') {
-    const successTask = taskRepository.markTaskStatus(task.id, 'SUCCESS');
+    const successTask = await taskRepository.markTaskStatus(task.id, 'SUCCESS');
     syncToolTestResult(successTask);
     return successTask;
   }
 
-  return taskRepository.markTaskStatus(task.id, normalizeRunningStatus(runningHubStatus));
+  return await taskRepository.markTaskStatus(task.id, normalizeRunningStatus(runningHubStatus));
 }
 
 async function getTaskOutputs(taskId) {
   const task = await syncTaskStatus(taskId);
-  const tool = toolRepository.getToolById(task.toolId);
+  const tool = await toolRepository.getToolById(task.toolId);
   if (isKieTool(tool)) {
     return getKieTaskOutputs(task, tool);
   }
@@ -1842,7 +1855,7 @@ async function getTaskOutputs(taskId) {
       const usage = extractCompletedTaskUsage(task);
       const chargedCredits = chargeTaskCredits(task, usage, tool);
       if (chargedCredits > 0 || usage.consumeCoins > 0) {
-        return taskRepository.completeTask(task.id, task.outputValues, task.outputUrls, usage, chargedCredits);
+        return await taskRepository.completeTask(task.id, task.outputValues, task.outputUrls, usage, chargedCredits);
       }
     }
 
@@ -1859,10 +1872,10 @@ async function getTaskOutputs(taskId) {
   });
   const outputs = extractRunningHubResults(outputsResponse);
   const usage = extractRunningHubUsage(outputsResponse);
-  const chargedCredits = chargeTaskCredits(task, usage, tool);
+  const chargedCredits = await chargeTaskCredits(task, usage, tool);
   const outputUrls = extractOutputUrls(outputs, tool?.outputConfig);
 
-  const completedTask = taskRepository.completeTask(task.id, outputs, outputUrls, usage, chargedCredits);
+  const completedTask = await taskRepository.completeTask(task.id, outputs, outputUrls, usage, chargedCredits);
   syncToolTestResult(completedTask);
 
   return completedTask;
@@ -1879,7 +1892,7 @@ async function syncKieTaskStatus(task, tool) {
   const kieStatus = extractKieToolStatus(tool, kieResponse);
 
   if (kieStatus === 'FAILED') {
-    const failedTask = taskRepository.markTaskStatus(task.id, 'FAILED', {
+    const failedTask = await taskRepository.markTaskStatus(task.id, 'FAILED', {
       code: extractKieToolFailureCode(tool, kieResponse),
       message: extractKieToolFailureMessage(tool, kieResponse) || 'KIE 任務執行失敗'
     });
@@ -1888,12 +1901,12 @@ async function syncKieTaskStatus(task, tool) {
   }
 
   if (kieStatus === 'SUCCESS') {
-    const successTask = taskRepository.markTaskStatus(task.id, 'SUCCESS');
+    const successTask = await taskRepository.markTaskStatus(task.id, 'SUCCESS');
     syncToolTestResult(successTask);
     return successTask;
   }
 
-  return taskRepository.markTaskStatus(task.id, normalizeRunningStatus(kieStatus));
+  return await taskRepository.markTaskStatus(task.id, normalizeRunningStatus(kieStatus));
 }
 
 async function getKieTaskOutputs(task, tool) {
@@ -1906,9 +1919,9 @@ async function getKieTaskOutputs(task, tool) {
   if (task.outputUrls.length || task.outputValues.length) {
     if (task.status === 'SUCCESS' && task.userId && task.chargedCredits <= 0) {
       const usage = extractCompletedTaskUsage(task);
-      const chargedCredits = chargeTaskCredits(task, usage, tool);
+      const chargedCredits = await chargeTaskCredits(task, usage, tool);
       if (chargedCredits > 0 || usage.consumeCoins > 0) {
-        return taskRepository.completeTask(task.id, task.outputValues, task.outputUrls, usage, chargedCredits);
+        return await taskRepository.completeTask(task.id, task.outputValues, task.outputUrls, usage, chargedCredits);
       }
     }
 
@@ -1923,8 +1936,8 @@ async function getKieTaskOutputs(task, tool) {
   const outputs = extractKieToolResults(tool, kieResponse);
   const outputUrls = extractOutputUrls(outputs, tool?.outputConfig);
   const usage = extractKieToolUsage(tool, kieResponse);
-  const chargedCredits = chargeTaskCredits(task, usage, tool);
-  const completedTask = taskRepository.completeTask(task.id, outputs, outputUrls, usage, chargedCredits);
+  const chargedCredits = await chargeTaskCredits(task, usage, tool);
+  const completedTask = await taskRepository.completeTask(task.id, outputs, outputUrls, usage, chargedCredits);
   syncToolTestResult(completedTask);
 
   return completedTask;
@@ -1972,18 +1985,21 @@ function extractKieToolUsage(tool, responseData) {
   return extractKieUsage(responseData);
 }
 
-function chargeTaskCredits(task, usage, tool = null) {
+async function chargeTaskCredits(task, usage, tool = null) {
   if (!task.userId || task.chargedCredits > 0) return task.chargedCredits || 0;
 
-  const existingCharge = userRepository
-    .listCreditLedgerByUser(task.userId)
-    .find((record) => record.relatedTaskId === task.id && record.amount < 0);
+  const ledger = await userRepository.listCreditLedgerByUser(task.userId);
+  const existingCharge = ledger.find((record) => record.relatedTaskId === task.id && record.amount < 0);
   if (existingCharge) return Math.abs(existingCharge.amount);
 
+  return doChargeCredits(task, usage, tool);
+}
+
+async function doChargeCredits(task, usage, tool) {
   const chargedCredits = calculateTaskChargedCredits(usage, tool);
   if (chargedCredits <= 0) return 0;
 
-  userRepository.spendCredits(
+  await userRepository.spendCredits(
     task.userId,
     chargedCredits,
     `使用工具：${task.toolName}`,
@@ -2023,7 +2039,7 @@ async function createPaypalPaymentOrder(request, user, payload) {
     throwHttpError('Payment plan is not available', 'PAYMENT_PLAN_INVALID', 422);
   }
 
-  const localOrder = paymentRepository.createOrder({
+  const localOrder = await paymentRepository.createOrder({
     userId: user.id,
     provider: 'paypal',
     planKey: plan.key,
@@ -2048,7 +2064,7 @@ async function createPaypalPaymentOrder(request, user, payload) {
     throwHttpError('PayPal order was not returned', 'PAYPAL_ORDER_ID_MISSING', 502);
   }
 
-  paymentRepository.saveProviderOrder(localOrder.id, paypalOrder.id, paypalOrder);
+  await paymentRepository.saveProviderOrder(localOrder.id, paypalOrder.id, paypalOrder);
 
   return {
     paymentOrderId: localOrder.id,
@@ -2062,7 +2078,7 @@ async function createPaypalPaymentOrder(request, user, payload) {
 }
 
 async function capturePaypalPaymentOrder(providerOrderId, user) {
-  const existingOrder = paymentRepository.getOrderByProviderOrderId(providerOrderId);
+  const existingOrder = await paymentRepository.getOrderByProviderOrderId(providerOrderId);
   if (!existingOrder) {
     throwHttpError('Payment order was not found', 'PAYMENT_ORDER_NOT_FOUND', 404);
   }
@@ -2074,7 +2090,7 @@ async function capturePaypalPaymentOrder(providerOrderId, user) {
   if (existingOrder.creditedAt) {
     return {
       order: existingOrder,
-      user: userRepository.getUserById(user.id)
+      user: await userRepository.getUserById(user.id)
     };
   }
 
@@ -2082,7 +2098,7 @@ async function capturePaypalPaymentOrder(providerOrderId, user) {
     ? existingOrder.rawResponse
     : await capturePaypalProviderOrder(providerOrderId);
   const paymentStatus = extractPaypalPaymentStatus(captureResponse);
-  const capturedOrder = paymentRepository.saveCapturedOrder(existingOrder.id, paymentStatus, captureResponse);
+  const capturedOrder = await paymentRepository.saveCapturedOrder(existingOrder.id, paymentStatus, captureResponse);
 
   if (paymentStatus !== 'COMPLETED') {
     throwHttpError('PayPal payment was not completed', 'PAYPAL_PAYMENT_NOT_COMPLETED', 409);
@@ -2111,7 +2127,7 @@ async function handlePaypalWebhook(request) {
   const eventType = String(event?.event_type || '');
   const providerOrderId = extractPaypalWebhookOrderId(event);
   const paymentOrder = providerOrderId
-    ? paymentRepository.getOrderByProviderOrderId(providerOrderId)
+    ? await paymentRepository.getOrderByProviderOrderId(providerOrderId)
     : null;
 
   if (!paymentOrder) {
@@ -2124,7 +2140,7 @@ async function handlePaypalWebhook(request) {
   if (eventType === 'CHECKOUT.ORDER.APPROVED') {
     const captureResponse = await capturePaypalProviderOrder(providerOrderId);
     const paymentStatus = extractPaypalPaymentStatus(captureResponse);
-    const capturedOrder = paymentRepository.saveCapturedOrder(paymentOrder.id, paymentStatus, captureResponse);
+    const capturedOrder = await paymentRepository.saveCapturedOrder(paymentOrder.id, paymentStatus, captureResponse);
 
     if (paymentStatus !== 'COMPLETED') {
       return {
@@ -2136,8 +2152,8 @@ async function handlePaypalWebhook(request) {
 
     assertPaypalPaymentMatches(capturedOrder, captureResponse);
     const fulfilled = capturedOrder.creditedAt
-      ? { order: capturedOrder, user: userRepository.getUserById(capturedOrder.userId) }
-      : fulfillPaidOrder(capturedOrder);
+      ? { order: capturedOrder, user: await userRepository.getUserById(capturedOrder.userId) }
+      : await fulfillPaidOrder(capturedOrder);
 
     return {
       eventType,
@@ -2150,10 +2166,10 @@ async function handlePaypalWebhook(request) {
     assertPaypalPaymentMatches(paymentOrder, event);
     const capturedOrder = paymentOrder.status === 'CAPTURED'
       ? paymentOrder
-      : paymentRepository.saveCapturedOrder(paymentOrder.id, 'COMPLETED', event);
+      : await paymentRepository.saveCapturedOrder(paymentOrder.id, 'COMPLETED', event);
     const fulfilled = capturedOrder.creditedAt
-      ? { order: capturedOrder, user: userRepository.getUserById(capturedOrder.userId) }
-      : fulfillPaidOrder(capturedOrder);
+      ? { order: capturedOrder, user: await userRepository.getUserById(capturedOrder.userId) }
+      : await fulfillPaidOrder(capturedOrder);
 
     return {
       eventType,
@@ -2163,7 +2179,7 @@ async function handlePaypalWebhook(request) {
   }
 
   if (eventType === 'PAYMENT.CAPTURE.DENIED') {
-    paymentRepository.saveCapturedOrder(paymentOrder.id, 'DENIED', event);
+    await paymentRepository.saveCapturedOrder(paymentOrder.id, 'DENIED', event);
     return {
       eventType,
       handled: true,
@@ -2178,11 +2194,11 @@ async function handlePaypalWebhook(request) {
   };
 }
 
-function fulfillPaidOrder(paymentOrder) {
+async function fulfillPaidOrder(paymentOrder) {
   if (paymentOrder.creditedAt) {
     return {
       order: paymentOrder,
-      user: userRepository.getUserById(paymentOrder.userId)
+      user: await userRepository.getUserById(paymentOrder.userId)
     };
   }
 
@@ -2192,26 +2208,26 @@ function fulfillPaidOrder(paymentOrder) {
     throwHttpError('Payment plan is not available', 'PAYMENT_PLAN_INVALID', 422);
   }
 
-  const user = userRepository.getUserById(paymentOrder.userId);
+  const user = await userRepository.getUserById(paymentOrder.userId);
   if (!user) {
     throwHttpError('Payment user was not found', 'PAYMENT_USER_NOT_FOUND', 404);
   }
 
   if (paymentOrder.membershipGroup) {
-    userRepository.saveUser({
+    await userRepository.saveUser({
       ...user,
       role: 'member',
       membershipGroup: paymentOrder.membershipGroup
     });
   }
 
-  const creditedUser = userRepository.grantCreditsOnce(
+  const creditedUser = await userRepository.grantCreditsOnce(
     user.id,
     creditAmount,
     `PayPal purchase: ${fallbackPlan?.name || paymentOrder.planKey}`,
     paymentOrder.id
   );
-  const updatedOrder = paymentRepository.markOrderCredited(
+  const updatedOrder = await paymentRepository.markOrderCredited(
     paymentOrder.id,
     creditAmount,
     paymentOrder.membershipGroup
@@ -2323,7 +2339,7 @@ async function createCreemCheckoutSession(request, user, requestBody) {
     throwHttpError('No Creem product configured for this plan', 'CREEM_PRODUCT_NOT_FOUND', 500);
   }
 
-  const paymentOrder = paymentRepository.createOrder({
+  const paymentOrder = await paymentRepository.createOrder({
     userId: user.id,
     provider: 'creem',
     planKey: resolveCreemPlanKey(planType, String(lineItem.duration || 'once')),
@@ -2358,21 +2374,21 @@ async function createCreemCheckoutSession(request, user, requestBody) {
 async function finalizeCreemCheckoutSession(user, requestBody) {
   const orderId = requestBody?.order_id || '';
 
-  const paymentOrder = paymentRepository.getOrderById(orderId);
+  const paymentOrder = await paymentRepository.getOrderById(orderId);
   if (!paymentOrder) {
     throwHttpError('Order not found', 'ORDER_NOT_FOUND', 404);
   }
 
   if (paymentOrder.status === 'CAPTURED' && paymentOrder.creditedAt) {
-    const userRecord = userRepository.findById(paymentOrder.userId);
+    const userRecord = await userRepository.findById(paymentOrder.userId);
     return { message: 'Order already completed', user: userRecord || user };
   }
 
   const capturedOrder = paymentOrder.status === 'CAPTURED'
     ? paymentOrder
-    : paymentRepository.saveCapturedOrder(paymentOrder.id, 'COMPLETED', { session_id: requestBody?.session_id || '' });
+    : await paymentRepository.saveCapturedOrder(paymentOrder.id, 'COMPLETED', { session_id: requestBody?.session_id || '' });
 
-  const result = fulfillPaidOrder(capturedOrder);
+  const result = await fulfillPaidOrder(capturedOrder);
 
   return {
     message: result.creditedAt ? 'Credits granted' : 'Credits not granted',
@@ -2415,8 +2431,8 @@ async function handleCreemWebhook(request, response) {
   console.log(`[Creem Webhook] ${eventType} - checkoutId: ${providerOrderId}, orderId: ${orderId}`);
 
   const paymentOrder = orderId
-    ? paymentRepository.getOrderById(orderId)
-    : paymentRepository.getOrderByProviderOrderId(providerOrderId);
+    ? await paymentRepository.getOrderById(orderId)
+    : await paymentRepository.getOrderByProviderOrderId(providerOrderId);
 
   if (!paymentOrder) {
     console.warn(`[Creem Webhook] Order not found: ${orderId || providerOrderId}`);
@@ -2428,10 +2444,10 @@ async function handleCreemWebhook(request, response) {
     try {
       const capturedOrder = paymentOrder.status === 'CAPTURED'
         ? paymentOrder
-        : paymentRepository.saveCapturedOrder(paymentOrder.id, 'COMPLETED', resource);
+        : await paymentRepository.saveCapturedOrder(paymentOrder.id, 'COMPLETED', resource);
 
       if (!capturedOrder.creditedAt) {
-        fulfillPaidOrder(capturedOrder);
+        await fulfillPaidOrder(capturedOrder);
       }
 
       console.log(`[Creem Webhook] Order fulfilled: ${paymentOrder.id}, user: ${paymentOrder.userId}`);
@@ -2520,24 +2536,28 @@ function formatFrontendLedgerReason(reason) {
 
 function syncToolTestResult(task) {
   const tool = toolRepository.getToolByLastTestTaskId(task.id);
-  if (!tool) return;
+  Promise.resolve(tool).then((resolvedTool) => {
+    if (!resolvedTool) return;
 
-  if (task.status === 'SUCCESS') {
-    toolRepository.saveToolTestResult(tool.id, {
-      status: 'success',
-      taskId: task.id,
-      error: ''
-    });
-    return;
-  }
+    if (task.status === 'SUCCESS') {
+      toolRepository.saveToolTestResult(resolvedTool.id, {
+        status: 'success',
+        taskId: task.id,
+        error: ''
+      });
+      return;
+    }
 
-  if (task.status === 'FAILED') {
-    toolRepository.saveToolTestResult(tool.id, {
-      status: 'failed',
-      taskId: task.id,
-      error: task.errorMessage || '工具測試失敗'
-    });
-  }
+    if (task.status === 'FAILED') {
+      toolRepository.saveToolTestResult(resolvedTool.id, {
+        status: 'failed',
+        taskId: task.id,
+        error: task.errorMessage || '工具測試失敗'
+      });
+    }
+  }).catch(() => {
+    // Silent ignore for fire-and-forget tool test status sync
+  });
 }
 
 async function proxyUploadImage(request, response) {
@@ -2925,7 +2945,7 @@ async function createKieSeedanceToolTask(tool, task, inputValues) {
     throwHttpError('Seedance 任務建立失敗，未返回 KIE 任務 ID', 'KIE_TASK_ID_MISSING', 502);
   }
 
-  const savedTask = taskRepository.attachRunningHubTask(task.id, kieTaskId, 'QUEUED');
+  const savedTask = await taskRepository.attachRunningHubTask(task.id, kieTaskId, 'QUEUED');
 
   return {
     taskId: savedTask.id,

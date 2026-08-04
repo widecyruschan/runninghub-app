@@ -64,23 +64,25 @@ function createMenuRepository(database) {
     `)
   };
 
-  function listMenus() {
-    return statements.list.all().map(mapMenuRecord);
+  async function listMenus() {
+    const rows = await statements.list.all([]);
+    return (rows || []).map(mapMenuRecord);
   }
 
-  function listActiveMenus() {
-    return buildMenuTree(listMenus().filter((menu) => menu.status === 'active'));
+  async function listActiveMenus() {
+    const menus = await listMenus();
+    return buildMenuTree(menus.filter((menu) => menu.status === 'active'));
   }
 
-  function getMenuById(id) {
-    const record = statements.findById.get(id);
+  async function getMenuById(id) {
+    const record = await statements.findById.get([id]);
     return record ? mapMenuRecord(record) : null;
   }
 
-  function saveMenu(rawMenu) {
+  async function saveMenu(rawMenu) {
     const normalizedMenu = normalizeMenuPayload(rawMenu);
     const now = new Date().toISOString();
-    const existingMenu = normalizedMenu.id ? getMenuById(normalizedMenu.id) : null;
+    const existingMenu = normalizedMenu.id ? await getMenuById(normalizedMenu.id) : null;
     const id = existingMenu ? existingMenu.id : crypto.randomUUID();
 
     if (normalizedMenu.parentId && normalizedMenu.parentId === id) {
@@ -96,12 +98,12 @@ function createMenuRepository(database) {
 
     try {
       if (existingMenu) {
-        statements.update.run(databasePayload);
+        await statements.update.run(databasePayload);
       } else {
-        statements.insert.run(databasePayload);
+        await statements.insert.run(databasePayload);
       }
     } catch (error) {
-      if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+      if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.code === 'ER_DUP_ENTRY') {
         throwValidationError('菜單識別碼已存在', 'MENU_KEY_EXISTS', 409);
       }
 
@@ -111,10 +113,11 @@ function createMenuRepository(database) {
     return getMenuById(id);
   }
 
-  function seedDefaultMenus() {
-    if (statements.findByKey.get('kie-api')) return;
+  async function seedDefaultMenus() {
+    const existing = await statements.findByKey.get(['kie-api']);
+    if (existing) return;
 
-    saveMenu({
+    await saveMenu({
       menuKey: 'kie-api',
       label: 'Kie API',
       mark: 'K',
