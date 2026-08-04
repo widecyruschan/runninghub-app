@@ -4392,6 +4392,13 @@
               lastCheckInDate: statsData.lastCheckInDate || ''
             };
 
+            // 同步积分余额到 memberProfile，避免 Dashboard 与 Settings 显示不一致
+            memberProfile.value = {
+              ...memberProfile.value,
+              credits: memberStats.value.creditBalance
+            };
+            persistMemberProfile();
+
             memberOrders.value = Array.isArray(ordersResponse.data?.data) ? ordersResponse.data.data : [];
 
             memberFiles.value = tasks
@@ -4425,6 +4432,11 @@
               memberStats.value.creditBalance = data.creditBalance || 0;
               memberStats.value.checkedInToday = true;
               memberStats.value.lastCheckInDate = data.lastCheckInDate || '';
+              memberProfile.value = {
+                ...memberProfile.value,
+                credits: memberStats.value.creditBalance
+              };
+              persistMemberProfile();
               ElementPlus.ElMessage.success('Check-in successful! +20 credits');
             }
           } catch (error) {

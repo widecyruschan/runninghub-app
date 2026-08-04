@@ -1057,7 +1057,7 @@ async function handleMeApi(request, response) {
       success: true,
       message: '签到成功！获得 ' + userRepository.DAILY_LOGIN_BONUS_CREDITS + ' 积分',
       data: {
-        creditBalance: updatedUser.credits || updatedUser.creditBalance || 0,
+        creditBalance: updatedUser.creditBalance || 0,
         checkedInToday: true,
         lastCheckInDate: todayKey
       }
@@ -1106,7 +1106,7 @@ async function handleMeApi(request, response) {
       success: true,
       message: '操作成功',
       data: {
-        creditBalance: user.credits || 0,
+        creditBalance: user.creditBalance || 0,
         monthlyUsage,
         totalUsage,
         totalTasks: allTasks.length,
