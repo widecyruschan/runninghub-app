@@ -1040,9 +1040,35 @@ async function handleMeApi(request, response) {
   const userId = memberSession.user.id;
 
   // 账户概览统计 + 每日用量明细
+  // 每日签到
+  if (url.pathname === '/api/me/check-in' && request.method === 'POST') {
+    const todayKey = getHongKongDateKey();
+    const user = userRepository.getUserById(userId);
+    if (user.lastLoginCreditDate === todayKey) {
+      sendJson(response, 409, {
+        success: false,
+        message: '今日已签到，明天再来吧！',
+        error: { code: 'ALREADY_CHECKED_IN' }
+      });
+      return;
+    }
+    const updatedUser = userRepository.grantDailyLoginBonus(userId, todayKey);
+    sendJson(response, 200, {
+      success: true,
+      message: '签到成功！获得 ' + userRepository.DAILY_LOGIN_BONUS_CREDITS + ' 积分',
+      data: {
+        creditBalance: updatedUser.credits || updatedUser.creditBalance || 0,
+        checkedInToday: true,
+        lastCheckInDate: todayKey
+      }
+    });
+    return;
+  }
+
   if (url.pathname === '/api/me/stats' && request.method === 'GET') {
     const user = userRepository.getUserById(userId);
     const now = new Date();
+    const todayKey = getHongKongDateKey();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const allTasks = taskRepository.listTasksByUser(userId);
 
@@ -1089,7 +1115,9 @@ async function handleMeApi(request, response) {
         planName,
         email: user.email || '',
         membershipGroup: user.membershipGroup || 'free',
-        dailyUsage: Object.values(dailyUsageMap).reverse()
+        dailyUsage: Object.values(dailyUsageMap).reverse(),
+        lastCheckInDate: user.lastLoginCreditDate || '',
+        checkedInToday: user.lastLoginCreditDate === todayKey
       }
     });
     return;

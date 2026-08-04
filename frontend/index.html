@@ -741,6 +741,71 @@
       font-weight: 500;
     }
 
+    .dashboard-checkin-card {
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+      border-radius: 14px;
+      padding: 18px 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      color: #fff;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .dashboard-checkin-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+    .dashboard-checkin-emoji {
+      font-size: 28px;
+      flex-shrink: 0;
+    }
+    .dashboard-checkin-text {
+      min-width: 0;
+    }
+    .dashboard-checkin-title {
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .dashboard-checkin-desc {
+      font-size: 13px;
+      opacity: 0.85;
+      margin-top: 2px;
+    }
+    .dashboard-checkin-btn {
+      padding: 10px 22px;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .dashboard-checkin-btn:active { transform: scale(0.96); }
+    .dashboard-checkin-btn.claim {
+      background: #fff;
+      color: #4f46e5;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.18);
+    }
+    .dashboard-checkin-btn.claim:hover {
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    }
+    .dashboard-checkin-btn.claimed {
+      background: rgba(255,255,255,0.18);
+      color: #fff;
+      cursor: default;
+      box-shadow: none;
+    }
+    .dashboard-checkin-btn:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+
     .dashboard-chart {
       min-height: 120px;
     }
@@ -2509,6 +2574,29 @@
 
         <div v-else-if="currentMemberPath === '/member/dashboard'" class="member-panel">
           <h2 class="member-panel-title">Account Overview</h2>
+
+          <!-- 每日签到卡片 -->
+          <div class="dashboard-checkin-card">
+            <div class="dashboard-checkin-info">
+              <span class="dashboard-checkin-emoji">🎁</span>
+              <div class="dashboard-checkin-text">
+                <div class="dashboard-checkin-title">Daily Check-in</div>
+                <div class="dashboard-checkin-desc" v-if="memberStats.checkedInToday">You've already checked in today!</div>
+                <div class="dashboard-checkin-desc" v-else>Claim your daily credits reward</div>
+              </div>
+            </div>
+            <button
+              class="dashboard-checkin-btn"
+              :class="memberStats.checkedInToday ? 'claimed' : 'claim'"
+              :disabled="checkInLoading || memberStats.checkedInToday"
+              @click="handleCheckIn"
+            >
+              <template v-if="checkInLoading">⏳ Claiming...</template>
+              <template v-else-if="memberStats.checkedInToday">✅ Claimed</template>
+              <template v-else>🎁 +20 Credits</template>
+            </button>
+          </div>
+
           <div class="dashboard-stats-grid">
             <article class="dashboard-stat-card">
               <div class="dashboard-stat-icon" style="background:#eef2ff;color:#4f46e5;">$</div>
@@ -3345,6 +3433,7 @@
         const selectedPaymentProvider = ref('paypal');
         const subscriptionGrid = ref(null);
         const isLoadingMarketplace = ref(false);
+        const checkInLoading = ref(false);
         const memberLoggedIn = ref(false);
         const memberForm = ref({
           displayName: '',
@@ -3368,7 +3457,9 @@
           planName: 'Free',
           membershipGroup: 'free',
           dailyUsage: [],
-          maxDailyCoins: 0
+          maxDailyCoins: 0,
+          checkedInToday: false,
+          lastCheckInDate: ''
         });
         const memberOrders = ref([]);
 
@@ -3910,6 +4001,7 @@
           resetTool();
           toolConfig.value = null;
           document.title = memberPageTitle.value + ' - ';
+          loadMemberRecords();
         };
 
         const openLegalPage = (path) => {
@@ -4269,7 +4361,7 @@
           if (!memberLoggedIn.value) {
             memberFiles.value = [];
             memberTransactions.value = [];
-            memberStats.value = { creditBalance: 0, monthlyUsage: 0, totalUsage: 0, monthlyTasks: 0, totalTasks: 0, totalOrders: 0, planName: 'Free', membershipGroup: 'free', dailyUsage: [], maxDailyCoins: 0 };
+            memberStats.value = { creditBalance: 0, monthlyUsage: 0, totalUsage: 0, monthlyTasks: 0, totalTasks: 0, totalOrders: 0, planName: 'Free', membershipGroup: 'free', dailyUsage: [], maxDailyCoins: 0, checkedInToday: false, lastCheckInDate: '' };
             memberOrders.value = [];
             return;
           }
@@ -4295,7 +4387,9 @@
               planName: statsData.planName || 'Free',
               membershipGroup: statsData.membershipGroup || 'free',
               dailyUsage: statsData.dailyUsage || [],
-              maxDailyCoins: Math.max(1, ...(statsData.dailyUsage || []).map((d) => d.coins || 0))
+              maxDailyCoins: Math.max(1, ...(statsData.dailyUsage || []).map((d) => d.coins || 0)),
+              checkedInToday: statsData.checkedInToday || false,
+              lastCheckInDate: statsData.lastCheckInDate || ''
             };
 
             memberOrders.value = Array.isArray(ordersResponse.data?.data) ? ordersResponse.data.data : [];
@@ -4318,6 +4412,30 @@
             }));
           } catch (error) {
             console.warn('Member records failed to load:', error.message);
+          }
+        };
+
+        const handleCheckIn = async () => {
+          if (!memberLoggedIn.value || memberStats.value.checkedInToday || checkInLoading.value) return;
+          checkInLoading.value = true;
+          try {
+            const response = await axios.post('/api/me/check-in');
+            if (response.data?.success) {
+              const data = response.data.data || response.data;
+              memberStats.value.creditBalance = data.creditBalance || 0;
+              memberStats.value.checkedInToday = true;
+              memberStats.value.lastCheckInDate = data.lastCheckInDate || '';
+              ElementPlus.ElMessage.success('Check-in successful! +20 credits');
+            }
+          } catch (error) {
+            if (error.response?.status === 409) {
+              memberStats.value.checkedInToday = true;
+              ElementPlus.ElMessage.info('You have already checked in today!');
+            } else {
+              ElementPlus.ElMessage.error(getApiErrorMessage(error));
+            }
+          } finally {
+            checkInLoading.value = false;
           }
         };
 
@@ -4815,6 +4933,7 @@
             if (isMemberPage.value) {
               toolConfig.value = null;
               document.title = memberPageTitle.value + ' - ';
+              loadMemberRecords();
               return;
             }
 
@@ -4899,6 +5018,9 @@
           memberTransactions,
           memberStats,
           memberOrders,
+          checkInLoading,
+          handleCheckIn,
+          loadMemberRecords,
           getBarHeight,
           formatOrderDate,
           formatOrderStatus,

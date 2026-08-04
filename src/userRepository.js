@@ -331,6 +331,7 @@ function createUserRepository(database) {
   }
 
   return {
+    DAILY_LOGIN_BONUS_CREDITS,
     adjustCredits,
     grantCreditsOnce,
     grantDailyLoginBonus,
