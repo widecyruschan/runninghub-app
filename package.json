@@ -11,14 +11,9 @@
   "author": "",
   "license": "ISC",
   "type": "commonjs",
-  "optionalDependencies": {
-    "better-sqlite3": "^12.11.1"
-  },
   "dependencies": {
+    "better-sqlite3": "^13.0.2",
     "dotenv": "^17.4.2",
     "mysql2": "^3.23.2"
-  },
-  "devDependencies": {
-    "better-sqlite3": "^13.0.2"
   }
 }
