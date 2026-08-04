@@ -126,8 +126,18 @@ function createMysqlAdapter() {
 
   async function execute(sql, params) {
     const { sql: normalizedSql, params: normalizedParams } = normalizeNamedParameters(sql, params);
-    const [rows] = await pool.execute(normalizedSql, normalizedParams);
-    return rows;
+    try {
+      const [rows] = await pool.execute(normalizedSql, normalizedParams);
+      return rows;
+    } catch (error) {
+      console.error('[MySQL execute error]', {
+        sql: normalizedSql,
+        params: JSON.stringify(normalizedParams),
+        paramTypes: normalizedParams.map((p) => typeof p),
+        message: error.message
+      });
+      throw error;
+    }
   }
 
   function createStatement(sql) {
