@@ -36,12 +36,15 @@ function resolveWritableDatabasePath(databasePath) {
  */
 function normalizeNamedParameters(sql, params) {
   if (!params || Array.isArray(params)) {
-    return { sql, params: params || [] };
+    // Replace undefined values with null for MySQL compatibility
+    const safeParams = (params || []).map((v) => (v === undefined ? null : v));
+    return { sql, params: safeParams };
   }
 
   // If params is a single scalar value (not an object), wrap it in an array
   if (typeof params !== 'object' || params === null) {
-    return { sql, params: [params] };
+    const value = params === undefined ? null : params;
+    return { sql, params: [value] };
   }
 
   // Named parameters (@name) → positional (?)
@@ -55,7 +58,8 @@ function normalizeNamedParameters(sql, params) {
   });
 
   names.forEach((name) => {
-    orderedParams.push(params[name]);
+    const value = params[name];
+    orderedParams.push(value === undefined ? null : value);
   });
 
   return { sql: normalizedSql, params: orderedParams };
