@@ -82,7 +82,10 @@ function createSqliteStatement(db, sql, statements) {
     }),
     get: (params) => new Promise((resolve, reject) => {
       const { params: safeParams } = normalizeNamedParameters(sql, params);
-      stmt.get(safeParams, (error, row) => {
+      // sqlite3's Statement.get does not auto-reset when there are no
+      // parameters, so a second get() on the same prepared statement would
+      // return undefined. Explicitly reset before each get().
+      stmt.reset().get(safeParams, (error, row) => {
         if (error) return reject(error);
         resolve(row);
       });
