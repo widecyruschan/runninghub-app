@@ -110,6 +110,7 @@ function createMysqlAdapter() {
     connectionLimit: 10,
     queueLimit: 0,
     namedPlaceholders: false,
+    multipleStatements: true,
     timezone: '+00:00'
   });
 
@@ -146,7 +147,7 @@ function createMysqlAdapter() {
     exec: async (sql) => {
       const conn = await pool.getConnection();
       try {
-        await conn.query(sql);
+        await conn.query({ sql, multipleStatements: true });
       } finally {
         conn.release();
       }
