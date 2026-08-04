@@ -30,6 +30,9 @@ function createDatabase(databasePath = process.env.DATABASE_PATH || DEFAULT_DATA
 
   migrateDatabase(database);
 
+  const backendType = typeof database.pragma === 'function' ? 'sqlite' : 'json';
+  console.log(`[database] Backend: ${backendType}, path: ${resolvedPath}`);
+
   return database;
 }
 
@@ -59,8 +62,9 @@ function createDatabaseAdapter(resolvedPath) {
 
   const BetterSqliteDatabase = loadBetterSqlite();
   if (!BetterSqliteDatabase) {
-    console.warn('better-sqlite3 無法載入，已自動切換到 JSON 檔案資料庫。');
-    return new JsonFileDatabase(getJsonDatabasePath(resolvedPath));
+    const jsonPath = getJsonDatabasePath(resolvedPath);
+    console.warn(`better-sqlite3 無法載入，已自動切換到 JSON 檔案資料庫。JSON 路徑：${jsonPath}`);
+    return new JsonFileDatabase(jsonPath);
   }
 
   const database = new BetterSqliteDatabase(resolvedPath);

@@ -7,7 +7,7 @@ services:
       PORT: 3000
       HOST: 0.0.0.0
       NODE_ENV: production
-      DATABASE_PATH: ./data/app.sqlite
+      DATABASE_PATH: /app/data/app.sqlite
       RUNNINGHUB_API_KEY: ae079bdc75d6461ba2905fbebd47ef3a
       RUNNINGHUB_API_BASE_URL: https://www.runninghub.cn/openapi/v2
       RUNNINGHUB_TASK_API_BASE_URL: https://www.runninghub.cn/task/openapi

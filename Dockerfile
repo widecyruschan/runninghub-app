@@ -2,10 +2,13 @@ FROM node:22-alpine
 
 WORKDIR /app
 
+# Install build dependencies required for native modules (better-sqlite3)
+RUN apk add --no-cache python3 make g++ libc6-compat
+
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOST=0.0.0.0
-ENV DATABASE_PATH=./data/app.sqlite
+ENV DATABASE_PATH=/data/app.sqlite
 ENV RUNNINGHUB_API_KEY=ae079bdc75d6461ba2905fbebd47ef3a
 ENV RUNNINGHUB_API_BASE_URL=https://www.runninghub.cn/openapi/v2
 ENV RUNNINGHUB_TASK_API_BASE_URL=https://www.runninghub.cn/task/openapi
