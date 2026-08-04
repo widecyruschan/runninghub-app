@@ -65,8 +65,9 @@ function normalizeNamedParameters(sql, params) {
   return { sql: normalizedSql, params: orderedParams };
 }
 
-function createSqliteStatement(db, sql) {
+function createSqliteStatement(db, sql, statements) {
   const stmt = db.prepare(sql);
+  statements.add(stmt);
 
   return {
     run: (params) => new Promise((resolve, reject) => {
@@ -109,6 +110,7 @@ function createSqliteAdapter(databasePath) {
     );
   }
   const db = new sqlite3.Database(resolvedPath);
+  const statements = new Set();
 
   // sqlite3 queues operations until the database is open;
   // run PRAGMAs immediately so they apply before any user queries.
@@ -175,13 +177,25 @@ function createSqliteAdapter(databasePath) {
         resolve();
       });
     }),
-    prepare: (sql) => createSqliteStatement(db, sql),
+    prepare: (sql) => createSqliteStatement(db, sql, statements),
     transaction: (fn) => runTransaction(fn),
     close: () => new Promise((resolve, reject) => {
-      db.close((error) => {
-        if (error) return reject(error);
-        resolve();
-      });
+      // Finalize all prepared statements before closing the database,
+      // otherwise sqlite3 throws SQLITE_BUSY.
+      const pending = Array.from(statements).map((stmt) => new Promise((res, rej) => {
+        stmt.finalize((error) => {
+          if (error) return rej(error);
+          res();
+        });
+      }));
+      Promise.all(pending)
+        .then(() => {
+          db.close((error) => {
+            if (error) return reject(error);
+            resolve();
+          });
+        })
+        .catch(reject);
     })
   };
 }
