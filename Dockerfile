@@ -8,7 +8,7 @@ ENV HOST=0.0.0.0
 
 COPY package.json ./
 COPY package-lock.json ./
-RUN rm -rf node_modules && npm ci --omit=dev
+RUN npm install --omit=dev --prefer-offline --no-audit --no-fund
 
 COPY server.js ./
 COPY app.js ./
