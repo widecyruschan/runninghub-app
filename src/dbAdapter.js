@@ -70,7 +70,7 @@ function createSqliteStatement(db, sql) {
 
   return {
     run: (params) => new Promise((resolve, reject) => {
-      const safeParams = params || [];
+      const { params: safeParams } = normalizeNamedParameters(sql, params);
       stmt.run(safeParams, function (error) {
         if (error) return reject(error);
         resolve({
@@ -80,13 +80,15 @@ function createSqliteStatement(db, sql) {
       });
     }),
     get: (params) => new Promise((resolve, reject) => {
-      stmt.get(params || [], (error, row) => {
+      const { params: safeParams } = normalizeNamedParameters(sql, params);
+      stmt.get(safeParams, (error, row) => {
         if (error) return reject(error);
         resolve(row);
       });
     }),
     all: (params) => new Promise((resolve, reject) => {
-      stmt.all(params || [], (error, rows) => {
+      const { params: safeParams } = normalizeNamedParameters(sql, params);
+      stmt.all(safeParams, (error, rows) => {
         if (error) return reject(error);
         resolve(rows || []);
       });
