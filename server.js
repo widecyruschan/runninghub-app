@@ -930,7 +930,7 @@ async function handleAuthApi(request, response) {
 
   if (url.pathname === '/api/auth/register' && request.method === 'POST') {
     const requestBody = await readJsonBody(request);
-    const result = registerMemberAccount(requestBody, 'email');
+    const result = await registerMemberAccount(requestBody, 'email');
 
     sendJson(response, 201, {
       success: true,
@@ -944,7 +944,7 @@ async function handleAuthApi(request, response) {
 
   if (url.pathname === '/api/auth/login' && request.method === 'POST') {
     const requestBody = await readJsonBody(request);
-    const result = loginMemberAccount(requestBody, 'email');
+    const result = await loginMemberAccount(requestBody, 'email');
 
     sendJson(response, 200, {
       success: true,
@@ -3332,10 +3332,14 @@ async function handleGoogleOAuthCallback(request, response, url) {
   }
 
   try {
+    console.log('[oauth:callback] host=%s, publicApiBaseUrl=%s', getRequestHost(request), publicApiBaseUrl);
     const tokenPayload = await exchangeGoogleCodeForToken(request, code);
     const googleProfile = await fetchGoogleUserProfile(tokenPayload.access_token);
-    const googleMember = saveGoogleMemberUser(googleProfile);
-    const memberUser = applyMemberAuthCredits(googleMember.user.id, googleMember.isNewUser);
+    console.log('[oauth:callback] profile email=%s, sub=%s', googleProfile.email, googleProfile.sub);
+    const googleMember = await saveGoogleMemberUser(googleProfile);
+    console.log('[oauth:callback] googleMember userId=%s, isNewUser=%s', googleMember.user.id, googleMember.isNewUser);
+    const memberUser = await applyMemberAuthCredits(googleMember.user.id, googleMember.isNewUser);
+    console.log('[oauth:callback] memberUser id=%s', memberUser.id);
     const memberSession = await memberSessionRepository.createSession({
       userId: memberUser.id,
       provider: 'google',
@@ -3367,6 +3371,8 @@ function getGoogleOAuthErrorParam(error) {
 }
 
 async function exchangeGoogleCodeForToken(request, code) {
+  const redirectUri = getGoogleRedirectUri(request);
+  console.log('[oauth:token] code=%s..., redirect_uri=%s', String(code).slice(0, 12), redirectUri);
   const response = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: {
@@ -3376,13 +3382,14 @@ async function exchangeGoogleCodeForToken(request, code) {
       code,
       client_id: googleClientId,
       client_secret: googleClientSecret,
-      redirect_uri: getGoogleRedirectUri(request),
+      redirect_uri: redirectUri,
       grant_type: 'authorization_code'
     })
   });
 
   const payload = await response.json().catch(() => ({}));
   if (!response.ok || !payload.access_token) {
+    console.error('[oauth:token] Google response error=%j status=%s', payload, response.status);
     const message = payload.error_description || payload.error || 'Google token 換取失敗';
     throwHttpError(message, 'GOOGLE_TOKEN_EXCHANGE_FAILED', 502);
   }
@@ -3405,9 +3412,9 @@ async function fetchGoogleUserProfile(accessToken) {
   return profile;
 }
 
-function saveGoogleMemberUser(profile) {
+async function saveGoogleMemberUser(profile) {
   const email = String(profile.email || '').trim().toLowerCase();
-  const existingUser = userRepository.getUserByEmail(email);
+  const existingUser = await userRepository.getUserByEmail(email);
   const displayName = String(profile.name || profile.given_name || email.split('@')[0] || 'Member').trim();
   const userPayload = {
     id: existingUser?.id || '',
@@ -3420,12 +3427,12 @@ function saveGoogleMemberUser(profile) {
     notes: existingUser?.notes || 'Google 登入'
   };
 
-  const savedUser = userRepository.saveUser(userPayload, {
+  const savedUser = await userRepository.saveUser(userPayload, {
     allowInitialCreditBalance: true
   });
   let memberUser = savedUser;
   if (!existingUser) {
-    memberUser = userRepository.grantRegisterBonus(savedUser.id);
+    memberUser = await userRepository.grantRegisterBonus(savedUser.id);
   }
 
   return {
@@ -3434,7 +3441,7 @@ function saveGoogleMemberUser(profile) {
   };
 }
 
-function registerMemberAccount(payload, provider) {
+async function registerMemberAccount(payload, provider) {
   const email = String(payload?.email || '').trim().toLowerCase();
   const displayName = String(payload?.displayName || payload?.name || email.split('@')[0] || 'Member').trim();
   const password = String(payload?.password || '');
@@ -3447,12 +3454,12 @@ function registerMemberAccount(payload, provider) {
     throwHttpError('密碼至少需要 6 個字元', 'MEMBER_PASSWORD_TOO_SHORT', 422);
   }
 
-  const existingUser = userRepository.getUserByEmail(email);
+  const existingUser = await userRepository.getUserByEmail(email);
   if (existingUser) {
     throwHttpError('此 Email 已註冊，請直接登入', 'MEMBER_EMAIL_EXISTS', 409);
   }
 
-  let memberUser = userRepository.saveUser({
+  let memberUser = await userRepository.saveUser({
     email,
     displayName,
     role: 'free_user',
@@ -3465,12 +3472,12 @@ function registerMemberAccount(payload, provider) {
     allowInitialCreditBalance: true
   });
 
-  memberUser = userRepository.grantRegisterBonus(memberUser.id);
-  memberUser = applyMemberAuthCredits(memberUser.id, true);
+  memberUser = await userRepository.grantRegisterBonus(memberUser.id);
+  memberUser = await applyMemberAuthCredits(memberUser.id, true);
   return createMemberLoginResult(memberUser, provider || 'email', email);
 }
 
-function loginMemberAccount(payload, provider) {
+async function loginMemberAccount(payload, provider) {
   const email = String(payload?.email || '').trim().toLowerCase();
   const password = String(payload?.password || '');
 
@@ -3478,14 +3485,14 @@ function loginMemberAccount(payload, provider) {
     throwHttpError('請輸入正確 Email', 'MEMBER_EMAIL_INVALID', 422);
   }
 
-  const existingUser = userRepository.getUserByEmail(email);
-  const userAuth = userRepository.getUserAuthByEmail(email);
+  const existingUser = await userRepository.getUserByEmail(email);
+  const userAuth = await userRepository.getUserAuthByEmail(email);
   if (!existingUser || !userAuth || existingUser.accountType !== 'frontend') {
     throwHttpError('帳號不存在，請先註冊', 'MEMBER_NOT_FOUND', 404);
   }
 
   if (!userAuth.passwordHash) {
-    userRepository.saveUser({
+    await userRepository.saveUser({
       ...existingUser,
       passwordHash: hashMemberPassword(password)
     });
@@ -3493,12 +3500,12 @@ function loginMemberAccount(payload, provider) {
     throwHttpError('Email 或密碼不正確', 'MEMBER_LOGIN_INVALID', 401);
   }
 
-  const memberUser = applyMemberAuthCredits(existingUser.id, false);
+  const memberUser = await applyMemberAuthCredits(existingUser.id, false);
   return createMemberLoginResult(memberUser, provider || 'email', email);
 }
 
-function createMemberLoginResult(memberUser, provider, providerSubject) {
-  const memberSession = memberSessionRepository.createSession({
+async function createMemberLoginResult(memberUser, provider, providerSubject) {
+  const memberSession = await memberSessionRepository.createSession({
     userId: memberUser.id,
     provider: provider || 'email',
     providerSubject,
@@ -3511,13 +3518,13 @@ function createMemberLoginResult(memberUser, provider, providerSubject) {
   };
 }
 
-function applyMemberAuthCredits(userId, isNewUser) {
+async function applyMemberAuthCredits(userId, isNewUser) {
   const todayKey = getHongKongDateKey();
   if (isNewUser) {
-    return userRepository.markDailyLoginBonusClaimed(userId, todayKey);
+    return await userRepository.markDailyLoginBonusClaimed(userId, todayKey);
   }
 
-  return userRepository.grantDailyLoginBonus(userId, todayKey);
+  return await userRepository.grantDailyLoginBonus(userId, todayKey);
 }
 
 function hashMemberPassword(password) {
