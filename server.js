@@ -98,7 +98,7 @@ const googleClientId = process.env.GOOGLE_CLIENT_ID || '';
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET || '';
 const googleOauthRedirectUri = process.env.GOOGLE_OAUTH_REDIRECT_URI || '';
 const publicAppBaseUrl = normalizePublicBaseUrl(process.env.PUBLIC_APP_BASE_URL || '');
-const publicApiBaseUrl = normalizePublicBaseUrl(process.env.PUBLIC_API_BASE_URL || 'https://api.imgkit.io');
+const publicApiBaseUrl = normalizePublicBaseUrl(process.env.PUBLIC_API_BASE_URL || '');
 const allowedApiOrigins = createAllowedApiOrigins(process.env.API_CORS_ALLOWED_ORIGINS || '', publicAppBaseUrl, publicApiBaseUrl);
 const listenTarget = createListenTarget(process.env.PORT, process.env.HOST);
 let database, toolRepository, categoryRepository, menuRepository, taskRepository,
