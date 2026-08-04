@@ -39,6 +39,12 @@ function normalizeNamedParameters(sql, params) {
     return { sql, params: params || [] };
   }
 
+  // If params is a single scalar value (not an object), wrap it in an array
+  if (typeof params !== 'object' || params === null) {
+    return { sql, params: [params] };
+  }
+
+  // Named parameters (@name) → positional (?)
   const names = [];
   const orderedParams = [];
   const normalizedSql = sql.replace(/@(\w+)/g, (match, name) => {
