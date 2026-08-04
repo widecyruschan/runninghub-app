@@ -9,7 +9,7 @@ services:
       NODE_ENV: production
       # MySQL 配置 (Hostinger: u963014207_runninghub)
       DB_TYPE: mysql
-      MYSQL_HOST: sdb-1329.hostinger.io
+      MYSQL_HOST: auth-db1329.hstgr.io
       MYSQL_PORT: 3306
       MYSQL_USER: u963014207_runninghub
       MYSQL_PASSWORD: Runn1ngHub_MySqL_2026!
