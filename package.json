@@ -14,5 +14,8 @@
   "dependencies": {
     "dotenv": "^17.4.2",
     "mysql2": "^3.23.2"
+  },
+  "optionalDependencies": {
+    "sqlite3": "^5.1.7"
   }
 }

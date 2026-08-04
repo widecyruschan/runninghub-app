@@ -68,7 +68,7 @@ docker compose logs -f runninghub-app
 
 - 前端：Vue 3 CDN、Element Plus CDN、Axios、CSS3。
 - 后端：Node.js 原生 HTTP 服务。
-- 数据：SQLite、better-sqlite3、JSON fallback。
+- 数据：SQLite、sqlite3、JSON fallback。
 - 编辑器：TinyMCE。
 - 本地运行：Docker Desktop、Docker Compose。
 

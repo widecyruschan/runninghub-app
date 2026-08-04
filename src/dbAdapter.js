@@ -1,7 +1,7 @@
 /**
- * Unified database adapter for SQLite (better-sqlite3) and MySQL (mysql2).
+ * Unified database adapter for SQLite (sqlite3) and MySQL (mysql2).
  *
- * Exposes a better-sqlite3-like API where statement methods return Promises,
+ * Exposes a sqlite3-like API where statement methods return Promises,
  * so repository code can be updated to async/await while keeping the same
  * prepare/run/get/all shape.
  */
@@ -69,31 +69,118 @@ function createSqliteStatement(db, sql) {
   const stmt = db.prepare(sql);
 
   return {
-    run: (params) => Promise.resolve(stmt.run(params || [])).then((r) => ({
-      lastInsertRowid: r.lastInsertRowid,
-      changes: r.changes
-    })),
-    get: (params) => Promise.resolve(stmt.get(params || [])),
-    all: (params) => Promise.resolve(stmt.all(params || []))
+    run: (params) => new Promise((resolve, reject) => {
+      const safeParams = params || [];
+      stmt.run(safeParams, function (error) {
+        if (error) return reject(error);
+        resolve({
+          lastInsertRowid: this.lastID != null ? this.lastID : 0,
+          changes: this.changes != null ? this.changes : 0
+        });
+      });
+    }),
+    get: (params) => new Promise((resolve, reject) => {
+      stmt.get(params || [], (error, row) => {
+        if (error) return reject(error);
+        resolve(row);
+      });
+    }),
+    all: (params) => new Promise((resolve, reject) => {
+      stmt.all(params || [], (error, rows) => {
+        if (error) return reject(error);
+        resolve(rows || []);
+      });
+    })
   };
 }
 
 function createSqliteAdapter(databasePath) {
   const resolvedPath = resolveWritableDatabasePath(databasePath);
-  const BetterSqliteDatabase = require('better-sqlite3');
-  const db = new BetterSqliteDatabase(resolvedPath);
+  let sqlite3;
+  try {
+    sqlite3 = require('sqlite3');
+  } catch (error) {
+    throw new Error(
+      'SQLite adapter requires the optional dependency "sqlite3". ' +
+      'Install build tools and run "npm install", or switch to MySQL by setting DB_TYPE=mysql. ' +
+      `Original error: ${error.message}`
+    );
+  }
+  const db = new sqlite3.Database(resolvedPath);
 
-  db.pragma('journal_mode = WAL');
-  db.pragma('foreign_keys = ON');
+  // sqlite3 queues operations until the database is open;
+  // run PRAGMAs immediately so they apply before any user queries.
+  db.run('PRAGMA journal_mode = WAL');
+  db.run('PRAGMA foreign_keys = ON');
+
+  async function runTransaction(fn) {
+    return new Promise((resolve, reject) => {
+      db.run('BEGIN', async (beginError) => {
+        if (beginError) return reject(beginError);
+
+        const tx = {
+          run: (sql, params) => new Promise((res, rej) => {
+            const { sql: normalizedSql, params: normalizedParams } = normalizeNamedParameters(sql, params);
+            db.run(normalizedSql, normalizedParams, function (error) {
+              if (error) return rej(error);
+              res({
+                lastInsertRowid: this.lastID != null ? this.lastID : 0,
+                changes: this.changes != null ? this.changes : 0
+              });
+            });
+          }),
+          get: (sql, params) => new Promise((res, rej) => {
+            const { sql: normalizedSql, params: normalizedParams } = normalizeNamedParameters(sql, params);
+            db.get(normalizedSql, normalizedParams, (error, row) => {
+              if (error) return rej(error);
+              res(row);
+            });
+          }),
+          all: (sql, params) => new Promise((res, rej) => {
+            const { sql: normalizedSql, params: normalizedParams } = normalizeNamedParameters(sql, params);
+            db.all(normalizedSql, normalizedParams, (error, rows) => {
+              if (error) return rej(error);
+              res(rows || []);
+            });
+          })
+        };
+
+        try {
+          const result = await fn(tx);
+          db.run('COMMIT', (commitError) => {
+            if (commitError) return reject(commitError);
+            resolve(result);
+          });
+        } catch (error) {
+          db.run('ROLLBACK', () => reject(error));
+        }
+      });
+    });
+  }
 
   return {
     type: 'sqlite',
     raw: db,
-    pragma: (sql) => Promise.resolve(db.pragma(sql)),
-    exec: (sql) => Promise.resolve(db.exec(sql)),
+    pragma: (sql) => new Promise((resolve, reject) => {
+      db.all(`PRAGMA ${sql.replace(/^PRAGMA\s+/i, '')}`, (error, rows) => {
+        if (error) return reject(error);
+        resolve(rows || []);
+      });
+    }),
+    exec: (sql) => new Promise((resolve, reject) => {
+      db.exec(sql, (error) => {
+        if (error) return reject(error);
+        resolve();
+      });
+    }),
     prepare: (sql) => createSqliteStatement(db, sql),
-    transaction: (fn) => db.transaction(fn),
-    close: () => Promise.resolve(db.close())
+    transaction: (fn) => runTransaction(fn),
+    close: () => new Promise((resolve, reject) => {
+      db.close((error) => {
+        if (error) return reject(error);
+        resolve();
+      });
+    })
   };
 }
 
