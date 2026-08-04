@@ -31,8 +31,8 @@ services:
       CREEM_WEBHOOK_SECRET: whsec_3Io7NTpye3JxczQVxME7rL
       CREEM_API_BASE_URL: https://api.creem.io/v1
       PUBLIC_APP_BASE_URL: https://imgkit.io
-      PUBLIC_API_BASE_URL: https://api.imgkit.io
-      API_CORS_ALLOWED_ORIGINS: https://imgkit.io,https://www.imgkit.io,https://api.imgkit.io
+      PUBLIC_API_BASE_URL: https://imgkit.io
+      API_CORS_ALLOWED_ORIGINS: https://imgkit.io,https://www.imgkit.io
       SESSION_COOKIE_DOMAIN: .imgkit.io
       TRANSLATION_PROVIDER: deepl
       DEEPL_API_KEY: bf059940-55ad-440c-93eb-63a34aaf9062:fx

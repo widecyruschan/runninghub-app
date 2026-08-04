@@ -3356,8 +3356,13 @@ async function handleGoogleOAuthCallback(request, response, url) {
     });
     response.end();
   } catch (error) {
-    console.error('Google 登入失敗:', error);
+    console.error('[oauth:callback] Google 登入失敗:');
+    console.error('[oauth:callback]   code=%s', error.code || '(no code)');
+    console.error('[oauth:callback]   message=%s', error.message || '(no message)');
+    console.error('[oauth:callback]   status=%s', error.status);
+    console.error('[oauth:callback]   stack=%s', (error.stack || '').split('\n').slice(0, 4).join(' -> '));
     const oauthError = getGoogleOAuthErrorParam(error);
+    console.error('[oauth:callback]   oauth_param=%s', oauthError);
     redirectWithExpiredOAuthState(request, response, `${getFrontendReturnOrigin(request)}/login?oauth=${oauthError}`);
   }
 }
