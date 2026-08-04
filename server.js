@@ -104,6 +104,8 @@ const listenTarget = createListenTarget(process.env.PORT, process.env.HOST);
 let database, toolRepository, categoryRepository, menuRepository, taskRepository,
     userRepository, memberSessionRepository, paymentRepository;
 
+console.log('[startup] PORT=%s, HOST=%s, DB_TYPE=%s', process.env.PORT, process.env.HOST, process.env.DB_TYPE);
+
 const dbReady = (async function initDatabase() {
   database = await createDatabase();
   toolRepository = createToolRepository(database);
@@ -120,6 +122,7 @@ const dbReady = (async function initDatabase() {
   console.log('[database] Initialization complete');
 })().catch((error) => {
   console.error('[FATAL] Database initialization failed:', error.message);
+  console.error(error.stack);
   process.exit(1);
 });
 
