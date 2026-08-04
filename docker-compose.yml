@@ -7,6 +7,14 @@ services:
       PORT: 3000
       HOST: 0.0.0.0
       NODE_ENV: production
+      # MySQL 配置 (Hostinger: u963014207_runninghub)
+      DB_TYPE: mysql
+      MYSQL_HOST: 132-145-55-214.mysql.hosting.tools
+      MYSQL_PORT: 3306
+      MYSQL_USER: u963014207_runninghub
+      MYSQL_PASSWORD: Runn1ngHub_MySqL_2026!
+      MYSQL_DATABASE: u963014207_runninghub
+      # SQLite fallback path (未使用 DB_TYPE=mysql 時生效)
       DATABASE_PATH: /app/data/app.sqlite
       RUNNINGHUB_API_KEY: ae079bdc75d6461ba2905fbebd47ef3a
       RUNNINGHUB_API_BASE_URL: https://www.runninghub.cn/openapi/v2
@@ -31,12 +39,4 @@ services:
       DEEPL_API_BASE_URL: https://api-free.deepl.com/v2
     ports:
       - "3000:3000"
-    volumes:
-      # 源碼已打包在 Docker 鏡像中，無需掛載
-      # 使用命名卷保存 SQLite 數據，重新部署時數據不會丟失
-      - runninghub-data:/app/data
     restart: unless-stopped
-
-# 命名卷獨立於項目目錄，重新部署不會被覆蓋
-volumes:
-  runninghub-data:
