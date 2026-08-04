@@ -144,9 +144,21 @@ function createUserRepository(database) {
       WHERE id = @id
     `)
   };
-  const runGrantCreditsOnce = typeof database.transaction === 'function'
-    ? database.transaction(grantCreditsOnceInternal)
-    : grantCreditsOnceInternal;
+  // MySQL transaction is async (immediate), SQLite transaction returns a wrapper function.
+  // For MySQL, use the direct approach; for SQLite, use the transaction-wrapped function.
+  function runGrantCreditsOnce(userId, amount, reason, relatedTaskId, options) {
+    if (database.type === 'mysql') {
+      return database.transaction(async (tx) => {
+        const rows = await tx.get(
+          'SELECT * FROM credit_ledger WHERE user_id = ? AND related_task_id = ? AND amount > 0 LIMIT 1',
+          [userId, relatedTaskId]
+        );
+        if (rows) return getUserById(userId);
+        return adjustCredits(userId, amount, reason, relatedTaskId, options);
+      });
+    }
+    return grantCreditsOnceInternal(userId, amount, reason, relatedTaskId, options);
+  }
 
   async function listUsers() {
     const rows = await statements.list.all([]);
