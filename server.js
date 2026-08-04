@@ -3336,7 +3336,7 @@ async function handleGoogleOAuthCallback(request, response, url) {
     const googleProfile = await fetchGoogleUserProfile(tokenPayload.access_token);
     const googleMember = saveGoogleMemberUser(googleProfile);
     const memberUser = applyMemberAuthCredits(googleMember.user.id, googleMember.isNewUser);
-    const memberSession = memberSessionRepository.createSession({
+    const memberSession = await memberSessionRepository.createSession({
       userId: memberUser.id,
       provider: 'google',
       providerSubject: googleProfile.sub,
