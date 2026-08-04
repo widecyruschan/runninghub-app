@@ -3547,13 +3547,8 @@
     axios.defaults.withCredentials = true;
 
     function getApiBaseUrl() {
-      const hostname = window.location.hostname.toLowerCase();
-      if (hostname === 'imgkit.io') {
-        return 'https://api.imgkit.io';
-      }
-      if (hostname === 'www.imgkit.io') {
-        return 'https://api.imgkit.io';
-      }
+      // 目前前後端部署在同一域名，使用 same-origin API 即可，避免跨域問題。
+      // 若未來 API 移到獨立子域名，再改回對應的 baseURL。
       return '';
     }
 
