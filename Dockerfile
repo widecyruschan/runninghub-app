@@ -33,7 +33,6 @@ ENV DEEPL_API_BASE_URL=https://api-free.deepl.com/v2
 
 COPY package.json ./
 COPY package-lock.json ./
-COPY .env ./
 RUN npm ci --omit=dev
 
 COPY server.js ./
