@@ -12,23 +12,23 @@ services:
       MYSQL_HOST: auth-db1329.hstgr.io
       MYSQL_PORT: 3306
       MYSQL_USER: u963014207_runninghub
-      MYSQL_PASSWORD: Runn1ngHub_MySqL_2026!
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       MYSQL_DATABASE: u963014207_runninghub
       # SQLite fallback path (未使用 DB_TYPE=mysql 時生效)
       DATABASE_PATH: /app/data/app.sqlite
-      RUNNINGHUB_API_KEY: ae079bdc75d6461ba2905fbebd47ef3a
+      RUNNINGHUB_API_KEY: ${RUNNINGHUB_API_KEY}
       RUNNINGHUB_API_BASE_URL: https://www.runninghub.cn/openapi/v2
       RUNNINGHUB_TASK_API_BASE_URL: https://www.runninghub.cn/task/openapi
-      KIE_API_KEY: 6fa9d9d07fff547ffa2361756df5dbe9
+      KIE_API_KEY: ${KIE_API_KEY}
       KIE_API_BASE_URL: https://api.kie.ai
       KIE_FILE_API_BASE_URL: https://kieai.redpandaai.co
       PAYPAL_MODE: live
       PAYPAL_CLIENT_ID: BAAWrJCI0ULGzPDfYne7fRLiX6r9T5-dCcfDnL2apHyg0GhawS-6nk23wTqhmlGVnywczj-opGvqpbrOoM
-      PAYPAL_CLIENT_SECRET: ENmGS7ucT62kGzIOdBgXfx-0c55cTeqoi9lhXzwSXDe3Vz_R5PPh-eoD4THDvyuyBThrs4YVEZ6sSu3I
+      PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET}
       PAYPAL_API_BASE_URL: https://api-m.paypal.com
       PAYPAL_WEBHOOK_ID: 64K6657558033082R
-      CREEM_API_KEY: creem_4IKBFK2TdVnkHCBXJhqsVh
-      CREEM_WEBHOOK_SECRET: whsec_3Io7NTpye3JxczQVxME7rL
+      CREEM_API_KEY: ${CREEM_API_KEY}
+      CREEM_WEBHOOK_SECRET: ${CREEM_WEBHOOK_SECRET}
       CREEM_API_BASE_URL: https://api.creem.io/v1
       PUBLIC_APP_BASE_URL: https://imgkit.io
       PUBLIC_API_BASE_URL: https://imgkit.io
@@ -42,7 +42,7 @@ services:
       GOOGLE_OAUTH_REDIRECT_URI: ${GOOGLE_OAUTH_REDIRECT_URI}
       GOOGLE_OAUTH_REDIRECT_URI_LOCKED: ${GOOGLE_OAUTH_REDIRECT_URI_LOCKED:-false}
       TRANSLATION_PROVIDER: deepl
-      DEEPL_API_KEY: bf059940-55ad-440c-93eb-63a34aaf9062:fx
+      DEEPL_API_KEY: ${DEEPL_API_KEY}
       DEEPL_API_BASE_URL: https://api-free.deepl.com/v2
     ports:
       - "3000:3000"
