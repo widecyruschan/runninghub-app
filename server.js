@@ -103,13 +103,14 @@ const allowedApiOrigins = createAllowedApiOrigins(process.env.API_CORS_ALLOWED_O
 const listenTarget = createListenTarget(process.env.PORT, process.env.HOST);
 const smtpConfig = {
   host: process.env.SMTP_HOST || '',
-  port: parseInt(process.env.SMTP_PORT || '587', 10),
+  port: parseInt(process.env.SMTP_PORT || '25', 10),
   secure: process.env.SMTP_SECURE === 'true',
   user: process.env.SMTP_USER || '',
   pass: process.env.SMTP_PASS || '',
-  from: process.env.SMTP_FROM || process.env.SMTP_USER || '',
+  from: process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@imgkit.io',
 };
-const isSmtpConfigured = Boolean(smtpConfig.host && smtpConfig.user && smtpConfig.pass);
+// 內部 Postfix relay 不需要認證，有 host 即可；外部 SMTP 需要 host + user + pass
+const isSmtpConfigured = Boolean(smtpConfig.host);
 const passwordResetTokenTtlMinutes = parseInt(process.env.PASSWORD_RESET_TOKEN_TTL_MINUTES || '60', 10);
 let nodemailer = null;
 if (isSmtpConfigured) {
@@ -3689,15 +3690,19 @@ async function saveGoogleMemberUser(profile) {
 // --- 郵件發送 ---
 function createSmtpTransporter() {
   if (!nodemailer) return null;
-  return nodemailer.createTransport({
+  const transportOptions = {
     host: smtpConfig.host,
     port: smtpConfig.port,
     secure: smtpConfig.secure,
-    auth: {
+  };
+  // 內部 Postfix relay 無需認證
+  if (smtpConfig.user && smtpConfig.pass) {
+    transportOptions.auth = {
       user: smtpConfig.user,
       pass: smtpConfig.pass,
-    },
-  });
+    };
+  }
+  return nodemailer.createTransport(transportOptions);
 }
 
 async function sendPasswordResetEmail(toEmail, displayName, resetLink) {
@@ -3763,6 +3768,70 @@ async function sendPasswordResetEmail(toEmail, displayName, resetLink) {
   }
 }
 
+async function sendWelcomeEmail(toEmail, displayName) {
+  if (!isSmtpConfigured) {
+    console.warn('[smtp] SMTP not configured, skipping welcome email');
+    return;
+  }
+
+  const transporter = createSmtpTransporter();
+  if (!transporter) {
+    console.warn('[smtp] Transporter unavailable, skipping welcome email');
+    return;
+  }
+
+  const htmlBody = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <h2 style="color: #333;">歡迎加入 ImgKit！</h2>
+      <p>Hi ${escapeHtml(displayName)}，</p>
+      <p>感謝你註冊 ImgKit 帳號！你現在可以開始使用我們的 AI 圖片生成工具。</p>
+      <p>我們已為你準備了 <strong>100 積分</strong> 作為註冊獎勵，快來試試吧！</p>
+      <div style="margin: 30px 0;">
+        <a href="${publicAppBaseUrl || 'https://imgkit.io'}/tools"
+           style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-size: 16px;">
+          開始使用
+        </a>
+      </div>
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;" />
+      <p style="color: #6b7280; font-size: 13px;">
+        如有任何問題，請隨時聯繫我們。<br />
+        &copy; ${new Date().getFullYear()} ImgKit. All rights reserved.
+      </p>
+    </div>
+  `;
+
+  const textBody = `
+歡迎加入 ImgKit！
+
+Hi ${displayName}，
+
+感謝你註冊 ImgKit 帳號！你現在可以開始使用我們的 AI 圖片生成工具。
+
+我們已為你準備了 100 積分作為註冊獎勵，快來試試吧！
+
+開始使用：${publicAppBaseUrl || 'https://imgkit.io'}/tools
+  `;
+
+  try {
+    await transporter.sendMail({
+      from: smtpConfig.from,
+      to: toEmail,
+      subject: '歡迎加入 ImgKit！',
+      text: textBody,
+      html: htmlBody,
+    });
+    console.log('[smtp] Welcome email sent to %s', toEmail);
+  } catch (error) {
+    console.error('[smtp] Failed to send welcome email:', error.message);
+    // 歡迎郵件失敗不影響註冊流程
+  }
+}
+
+function escapeHtml(text) {
+  const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+  return String(text).replace(/[&<>"']/g, (ch) => map[ch] || ch);
+}
+
 // --- 密碼重置 Token ---
 function generateResetToken() {
   return crypto.randomBytes(32).toString('hex');
@@ -3816,6 +3885,12 @@ async function registerMemberAccount(payload, provider) {
   const afterCreditsLength = memberUser.passwordHash ? memberUser.passwordHash.length : 0;
   const result = createMemberLoginResult(memberUser, provider || 'email', email);
   result._debug = { afterSaveLength, afterBonusLength, afterCreditsLength };
+
+  // 非同步發送歡迎郵件，不阻塞註冊回應
+  sendWelcomeEmail(email, displayName).catch((err) => {
+    console.error('[smtp] Welcome email background send failed:', err.message);
+  });
+
   return result;
 }
 
