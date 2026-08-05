@@ -3824,14 +3824,13 @@ async function loginMemberAccount(payload, provider) {
     throwHttpError('帳號不存在，請先註冊', 'MEMBER_NOT_FOUND', 404);
   }
 
-  if (!userAuth.passwordHash) {
-    await userRepository.saveUser({
-      ...existingUser,
-      passwordHash: hashMemberPassword(password)
-    });
-  } else if (!verifyMemberPassword(password, userAuth.passwordHash)) {
-    throwHttpError('Email 或密碼不正確', 'MEMBER_LOGIN_INVALID', 401);
-  }
+    if (!userAuth.passwordHash) {
+      throwHttpError('此帳號尚未設定密碼，請使用 Google 登入或透過忘記密碼設定密碼', 'MEMBER_PASSWORD_NOT_SET', 403);
+    }
+
+    if (!verifyMemberPassword(password, userAuth.passwordHash)) {
+      throwHttpError('Email 或密碼不正確', 'MEMBER_LOGIN_INVALID', 401);
+    }
 
   const memberUser = await applyMemberAuthCredits(existingUser.id, false);
   return createMemberLoginResult(memberUser, provider || 'email', email);

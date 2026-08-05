@@ -238,8 +238,6 @@ function createUserRepository(database) {
         await statements.insert.run(payload);
       }
     } catch (error) {
-      console.error('[saveUser] Database error:', error.code, error.message);
-      console.error('[saveUser] Payload keys:', Object.keys(payload));
       if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.code === 'ER_DUP_ENTRY') {
         throwValidationError('用戶 Email 已存在', 'USER_EMAIL_EXISTS', 409);
       }
