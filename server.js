@@ -955,7 +955,10 @@ async function handleAuthApi(request, response) {
     sendJson(response, 201, {
       success: true,
       message: '註冊並登入成功',
-      data: result.user
+      data: {
+        ...result.user,
+        _debugPasswordHashLength: result.user.passwordHash ? result.user.passwordHash.length : 0
+      }
     }, {
       'Set-Cookie': createMemberSessionCookie(request, result.session.id)
     });
