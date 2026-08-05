@@ -61,13 +61,26 @@ function normalizeNamedParameters(sql, params) {
 }
 
 function createSqliteStatement(db, sql, statements) {
-  const stmt = db.prepare(sql);
+  // sqlite3 v6 on Linux treats named placeholders differently when binding
+  // an array to a statement prepared with @name parameters. Convert the SQL
+  // to positional (?) placeholders once at prepare time and continue using
+  // normalizeNamedParameters() at runtime so scalar positional binds still work.
+  const positionalSql = sql.replace(/@(\w+)/g, '?');
+  const placeholderCount = (positionalSql.match(/\?/g) || []).length;
+  const stmt = db.prepare(positionalSql);
   statements.add(stmt);
+
+  function bindParams(params) {
+    if (placeholderCount === 0) {
+      return [];
+    }
+    const { params: safeParams } = normalizeNamedParameters(sql, params);
+    return safeParams;
+  }
 
   return {
     run: (params) => new Promise((resolve, reject) => {
-      const { params: safeParams } = normalizeNamedParameters(sql, params);
-      stmt.run(safeParams, function (error) {
+      stmt.run(bindParams(params), function (error) {
         if (error) return reject(error);
         resolve({
           lastInsertRowid: this.lastID != null ? this.lastID : 0,
@@ -76,18 +89,16 @@ function createSqliteStatement(db, sql, statements) {
       });
     }),
     get: (params) => new Promise((resolve, reject) => {
-      const { params: safeParams } = normalizeNamedParameters(sql, params);
       // sqlite3's Statement.get does not auto-reset when there are no
       // parameters, so a second get() on the same prepared statement would
       // return undefined. Explicitly reset before each get().
-      stmt.reset().get(safeParams, (error, row) => {
+      stmt.reset().get(bindParams(params), (error, row) => {
         if (error) return reject(error);
         resolve(row);
       });
     }),
     all: (params) => new Promise((resolve, reject) => {
-      const { params: safeParams } = normalizeNamedParameters(sql, params);
-      stmt.all(safeParams, (error, rows) => {
+      stmt.all(bindParams(params), (error, rows) => {
         if (error) return reject(error);
         resolve(rows || []);
       });
