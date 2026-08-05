@@ -73,11 +73,8 @@ function createUserRepository(database) {
         display_name = @displayName,
         role = @role,
         membership_group = @membershipGroup,
-        password_hash = CASE
-          WHEN @passwordHash = '' THEN password_hash
-          ELSE @passwordHash
-        END,
-        credit_balance = @creditBalance,
+      password_hash = @passwordHash,
+      credit_balance = @creditBalance,
         last_login_credit_date = @lastLoginCreditDate,
         status = @status,
         notes = @notes,
@@ -221,9 +218,13 @@ function createUserRepository(database) {
     const now = new Date().toISOString();
     const id = existingUser ? existingUser.id : crypto.randomUUID();
     const creditBalance = getSaveUserCreditBalance(normalizedUser, existingUser, options);
+    // Preserve existing password hash when the payload does not intend to change it.
+    // This avoids a MySQL collation mismatch in CASE expressions mixing column and parameter collations.
+    const passwordHash = normalizedUser.passwordHash || existingUser?.passwordHash || '';
     const payload = {
       ...normalizedUser,
       id,
+      passwordHash,
       creditBalance,
       lastLoginCreditDate: existingUser?.lastLoginCreditDate || normalizedUser.lastLoginCreditDate || '',
       createdAt: existingUser?.createdAt || now,
