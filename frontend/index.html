@@ -483,6 +483,73 @@
       outline: none;
     }
 
+    .google-login-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      min-height: 46px;
+      border: 1px solid #dadce0;
+      border-radius: 7px;
+      background: #ffffff;
+      color: #3c4043;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, box-shadow 0.2s;
+    }
+
+    .google-login-button:hover {
+      background: #f8f9fa;
+      box-shadow: 0 1px 3px rgba(60, 64, 67, 0.12);
+    }
+
+    .google-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #4285f4;
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .member-divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #9aa0a6;
+      font-size: 13px;
+    }
+
+    .member-divider::before,
+    .member-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #e8eaed;
+    }
+
+    .member-switch-link {
+      text-align: center;
+      color: #5f6368;
+      font-size: 14px;
+      margin: 0;
+    }
+
+    .member-switch-link a {
+      color: #1a73e8;
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    .member-switch-link a:hover {
+      text-decoration: underline;
+    }
+
     .member-stat-grid,
     .member-card-grid {
       display: grid;
@@ -2516,9 +2583,9 @@
             <span class="nav-chevron" aria-hidden="true">⌄</span>
             <div class="member-dropdown" aria-label="Member menu">
               <div class="member-dropdown-header">
-                <span class="member-provider-mark">G</span>
+                <span class="member-provider-mark">👤</span>
                 <div>
-                  <div>{{ memberLoggedIn ? 'Logged in with Google' : 'Create your account' }}</div>
+                  <div>{{ memberLoggedIn ? 'Logged In' : 'Create your account' }}</div>
                   <div class="member-dropdown-email">{{ memberEmail }}</div>
                 </div>
               </div>
@@ -2555,30 +2622,75 @@
           </button>
         </div>
 
-        <div v-if="currentMemberPath === '/register' || currentMemberPath === '/login'" class="member-grid">
+        <!-- Login Page -->
+        <div v-if="currentMemberPath === '/login'" class="member-grid">
           <section class="member-panel">
-            <h2 class="member-panel-title">{{ currentMemberPath === '/login' ? 'Log In' : 'Create Member Account' }}</h2>
+            <h2 class="member-panel-title">Log In</h2>
             <div class="member-form">
               <div class="member-field">
-                <label for="member-name">Display Name</label>
-                <input id="member-name" v-model="memberForm.displayName" type="text" placeholder="Enter your display name">
-              </div>
-              <div class="member-field">
                 <label for="member-email">Email</label>
-                <input id="member-email" v-model="memberForm.email" type="email" placeholder="name@example.com">
+                <input id="member-email" v-model="memberForm.email" type="email" placeholder="name@example.com" autocomplete="email">
               </div>
               <div class="member-field">
                 <label for="member-password">Password</label>
-                <input id="member-password" v-model="memberForm.password" type="password" placeholder="At least 6 characters">
+                <input id="member-password" v-model="memberForm.password" type="password" placeholder="Enter your password" autocomplete="current-password">
               </div>
-              <button
-                class="primary-button"
-                type="button"
-                @click="currentMemberPath === '/login' ? loginMember() : registerMember()"
-              >
-                {{ currentMemberPath === '/login' ? 'Log In' : 'Register and Log In' }}
+              <button class="primary-button" type="button" @click="loginMember">Log In</button>
+              <div class="member-divider"><span>or</span></div>
+              <button class="google-login-button" type="button" @click="loginWithGoogle">
+                <span class="google-icon">G</span>
+                Continue with Google
               </button>
-              <button class="secondary-button" type="button" @click="loginWithGoogle">Continue with Google</button>
+              <p class="member-switch-link">Don't have an account? <a href="#" @click.prevent="switchMemberForm('/register')">Create one</a></p>
+            </div>
+          </section>
+          <aside class="member-panel">
+            <h2 class="member-panel-title">Member Benefits</h2>
+            <div class="member-stat-grid">
+              <div class="member-stat">
+                <div class="member-stat-value">20</div>
+                <div class="member-stat-label">Free Trial Credits</div>
+              </div>
+              <div class="member-stat">
+                <div class="member-stat-value">HD</div>
+                <div class="member-stat-label">HD Result Downloads</div>
+              </div>
+              <div class="member-stat">
+                <div class="member-stat-value">History</div>
+                <div class="member-stat-label">Saved Execution History</div>
+              </div>
+            </div>
+          </aside>
+        </div>
+
+        <!-- Register Page -->
+        <div v-if="currentMemberPath === '/register'" class="member-grid">
+          <section class="member-panel">
+            <h2 class="member-panel-title">Create Account</h2>
+            <div class="member-form">
+              <div class="member-field">
+                <label for="member-name">Display Name</label>
+                <input id="member-name" v-model="memberForm.displayName" type="text" placeholder="How should we call you?" autocomplete="name">
+              </div>
+              <div class="member-field">
+                <label for="member-email">Email</label>
+                <input id="member-email" v-model="memberForm.email" type="email" placeholder="name@example.com" autocomplete="email">
+              </div>
+              <div class="member-field">
+                <label for="member-password">Password</label>
+                <input id="member-password" v-model="memberForm.password" type="password" placeholder="At least 6 characters" autocomplete="new-password">
+              </div>
+              <div class="member-field">
+                <label for="member-confirm-password">Confirm Password</label>
+                <input id="member-confirm-password" v-model="memberForm.confirmPassword" type="password" placeholder="Re-enter your password" autocomplete="new-password">
+              </div>
+              <button class="primary-button" type="button" @click="registerMember">Create Account</button>
+              <div class="member-divider"><span>or</span></div>
+              <button class="google-login-button" type="button" @click="loginWithGoogle">
+                <span class="google-icon">G</span>
+                Continue with Google
+              </button>
+              <p class="member-switch-link">Already have an account? <a href="#" @click.prevent="switchMemberForm('/login')">Log in</a></p>
             </div>
           </section>
           <aside class="member-panel">
@@ -3649,7 +3761,8 @@
         const memberForm = ref({
           displayName: '',
           email: '',
-          password: ''
+          password: '',
+          confirmPassword: ''
         });
         const memberProfile = ref(loadMemberProfile());
         const memberFiles = ref([]);
@@ -4250,6 +4363,11 @@
             return;
           }
 
+          if (memberForm.value.password !== memberForm.value.confirmPassword) {
+            ElementPlus.ElMessage.error('Passwords do not match');
+            return;
+          }
+
           try {
             const response = await axios.post('/api/auth/register', {
               displayName,
@@ -4314,6 +4432,11 @@
 
         const loginWithGoogle = () => {
           window.location.href = apiUrl('/api/auth/google');
+        };
+
+        const switchMemberForm = (path) => {
+          memberForm.value = { displayName: '', email: '', password: '', confirmPassword: '' };
+          openMemberPage(path);
         };
 
         const saveMemberSettings = () => {
@@ -5324,6 +5447,7 @@
           goToMarketplace,
           getDisplayText,
           registerMember,
+          switchMemberForm,
           resetTool,
           generateSeedValue,
           getSeedInitialValue,
