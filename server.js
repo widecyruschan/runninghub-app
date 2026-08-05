@@ -104,6 +104,8 @@ const listenTarget = createListenTarget(process.env.PORT, process.env.HOST);
 let database, toolRepository, categoryRepository, menuRepository, taskRepository,
     userRepository, memberSessionRepository, paymentRepository;
 
+const oauthDiagnostics = { entries: [] };
+
 console.log('[startup] PORT=%s, HOST=%s, DB_TYPE=%s', process.env.PORT, process.env.HOST, process.env.DB_TYPE);
 
 const dbReady = (async function initDatabase() {
@@ -992,6 +994,15 @@ async function handleAuthApi(request, response) {
       redirectUri_resolved: debugRedirectUri,
       requestHost: getRequestHost(request),
       requestOrigin: getRequestOrigin(request)
+    });
+    return;
+  }
+
+  if (url.pathname === '/api/auth/google/last-error' && request.method === 'GET') {
+    const entries = oauthDiagnostics.entries.slice(-10);
+    sendJson(response, 200, {
+      total: oauthDiagnostics.entries.length,
+      entries
     });
     return;
   }
@@ -3350,6 +3361,20 @@ async function handleGoogleOAuthCallback(request, response, url) {
     isValidState);
 
   if (!code || !isValidState) {
+    const diagEntry = {
+      ts: new Date().toISOString(),
+      step: 'state_validation',
+      success: false,
+      host: getRequestHost(request),
+      hasCode: Boolean(code),
+      hasState: Boolean(state),
+      hasSavedState: Boolean(savedState),
+      savedStateMatch: savedState === state,
+      pendingStatesCount: pendingOAuthStates.size,
+      error: code ? 'invalid_state' : 'missing_code'
+    };
+    oauthDiagnostics.entries.push(diagEntry);
+    if (oauthDiagnostics.entries.length > 50) oauthDiagnostics.entries.shift();
     console.log('[oauth:callback] state validation FAILED, redirecting to invalid_state');
     redirectWithExpiredOAuthState(request, response, `${getFrontendReturnOrigin(request)}/login?oauth=invalid_state`);
     return;
@@ -3380,6 +3405,24 @@ async function handleGoogleOAuthCallback(request, response, url) {
     });
     response.end();
   } catch (error) {
+    const diagEntry = {
+      ts: new Date().toISOString(),
+      step: 'token_or_profile',
+      success: false,
+      host: getRequestHost(request),
+      resolvedRedirectUri: getGoogleRedirectUri(request),
+      errorCode: error?.code || '(no code)',
+      errorMessage: error?.message || '(no message)',
+      errorStatus: error?.status || '(no status)',
+      errorStack: (error?.stack || '').split('\n').slice(0, 3)
+    };
+    // Also capture what exchangeGoogleCodeForToken might have logged
+    if (globalThis.__oauthTokenDiag) {
+      diagEntry.tokenDiag = globalThis.__oauthTokenDiag;
+    }
+    oauthDiagnostics.entries.push(diagEntry);
+    if (oauthDiagnostics.entries.length > 50) oauthDiagnostics.entries.shift();
+
     console.error('[oauth:callback] Google 登入失敗:');
     console.error('[oauth:callback]   code=%s', error.code || '(no code)');
     console.error('[oauth:callback]   message=%s', error.message || '(no message)');
@@ -3428,6 +3471,18 @@ async function exchangeGoogleCodeForToken(request, code) {
   }
   if (!response.ok || !payload.access_token) {
     console.error('[oauth:token] Google response error=%j status=%s', payload, response.status);
+    // Store diag for oauthDiagnostics
+    globalThis.__oauthTokenDiag = {
+      ts: new Date().toISOString(),
+      redirectUri,
+      googleHttpStatus: response.status,
+      googleError: payload.error || null,
+      googleErrorDescription: payload.error_description || null,
+      googleErrorUri: payload.error_uri || null,
+      hasAccessToken: Boolean(payload.access_token),
+      hasIdToken: Boolean(payload.id_token),
+      responseKeys: Object.keys(payload)
+    };
     const message = payload.error_description || payload.error || 'Google token 換取失敗';
     throwHttpError(message, 'GOOGLE_TOKEN_EXCHANGE_FAILED', 502);
   }
