@@ -447,7 +447,14 @@ function createUserRepository(database) {
     markDailyLoginBonusClaimed,
     saveUser,
     spendCredits,
-    updateUser
+    updateUser,
+    updatePassword: async (id, passwordHash) => {
+      await statements.updatePasswordAndClearResetToken.run({
+        id,
+        passwordHash,
+        updatedAt: new Date().toISOString()
+      });
+    }
   };
 
   async function grantCreditsIfReasonMissing(userId, amount, reason, options = {}) {

@@ -1185,6 +1185,38 @@ async function handleAuthApi(request, response) {
     return;
   }
 
+  if (url.pathname === '/api/auth/change-password' && request.method === 'POST') {
+    const memberSession = requireActiveMemberSession(request);
+    const body = await readJsonBody(request);
+    const oldPassword = String(body?.oldPassword || '');
+    const newPassword = String(body?.newPassword || '');
+
+    if (!oldPassword || !newPassword) {
+      throwHttpError('請提供舊密碼和新密碼', 'MISSING_PASSWORD_FIELDS', 400);
+    }
+    if (newPassword.length < 6) {
+      throwHttpError('新密碼長度至少 6 個字元', 'NEW_PASSWORD_TOO_SHORT', 400);
+    }
+
+    const userAuth = await userRepository.getUserAuthByEmail(memberSession.user.email);
+    if (!userAuth || !userAuth.passwordHash) {
+      throwHttpError('帳號未設定密碼，無法修改', 'NO_PASSWORD_SET', 400);
+    }
+
+    if (!verifyMemberPassword(oldPassword, userAuth.passwordHash)) {
+      throwHttpError('舊密碼不正確', 'INVALID_OLD_PASSWORD', 401);
+    }
+
+    const passwordHash = hashMemberPassword(newPassword);
+    await userRepository.updatePassword(memberSession.user.id, passwordHash);
+
+    sendJson(response, 200, {
+      success: true,
+      message: '密碼已更新'
+    });
+    return;
+  }
+
   sendJson(response, 404, {
     success: false,
     message: '介面不存在',

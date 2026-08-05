@@ -2856,70 +2856,48 @@
             </div>
           </aside>
           <section class="member-panel" style="grid-column: 1 / -1;">
-            <h2 class="member-panel-title">Membership Subscription</h2>
-            <div class="billing-toggle" aria-label="Billing cycle">
-              <button
-                v-for="option in billingCycleOptions"
-                :key="option.value"
-                type="button"
-                :class="{ 'is-active': selectedBillingCycle === option.value }"
-                @click="selectedBillingCycle = option.value"
-              >
-                {{ option.label }}
-              </button>
+            <h2 class="member-panel-title">Change Password</h2>
+            <div class="member-form-row">
+              <label class="member-form-label">Current Password</label>
+              <el-input
+                v-model="changePasswordForm.oldPassword"
+                type="password"
+                show-password
+                placeholder="Enter current password"
+                :disabled="changePasswordLoading"
+              />
             </div>
-            <div style="text-align:center; margin-bottom:16px;">
-              <span style="font-size:13px; color:#64748b; margin-right:10px;">Pay with</span>
-              <label style="cursor:pointer; margin-right:16px;" :style="{ fontWeight: selectedPaymentProvider === 'paypal' ? '600' : '400', color: selectedPaymentProvider === 'paypal' ? '#1e293b' : '#94a3b8' }">
-                <input type="radio" value="paypal" v-model="selectedPaymentProvider" style="vertical-align:middle; margin-right:4px;" /> PayPal
-              </label>
-              <label style="cursor:pointer;" :style="{ fontWeight: selectedPaymentProvider === 'creem' ? '600' : '400', color: selectedPaymentProvider === 'creem' ? '#1e293b' : '#94a3b8' }">
-                <input type="radio" value="creem" v-model="selectedPaymentProvider" style="vertical-align:middle; margin-right:4px;" /> Creem
-              </label>
+            <div class="member-form-row">
+              <label class="member-form-label">New Password</label>
+              <el-input
+                v-model="changePasswordForm.newPassword"
+                type="password"
+                show-password
+                placeholder="Enter new password (min 6 characters)"
+                :disabled="changePasswordLoading"
+              />
             </div>
-            <div class="subscription-carousel">
-              <button
-                type="button"
-                class="carousel-arrow carousel-arrow-left"
-                aria-label="Scroll left"
-                @click="scrollSubscriptionCarousel('left')"
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-              </button>
-              <div ref="subscriptionGrid" class="subscription-grid">
-                <article
-                  v-for="plan in subscriptionPlans"
-                  :key="plan.key"
-                  class="subscription-card"
-                  :class="{ 'is-featured': plan.featured }"
-                >
-                  <span v-if="plan.featured" class="subscription-badge">Most Popular</span>
-                  <div class="subscription-title">{{ plan.name }}</div>
-                  <div class="subscription-price">{{ getSubscriptionPrice(plan) }}</div>
-                  <div class="subscription-period">{{ getSubscriptionPeriodLabel(plan) }}</div>
-                  <p class="subscription-description">{{ plan.description }}</p>
-                  <div class="subscription-feature-list">
-                    <div v-for="feature in plan.features" :key="feature" class="subscription-feature">✓ {{ feature }}</div>
-                  </div>
-                  <button
-                    class="primary-button"
-                    type="button"
-                    :disabled="isPayPalProcessing"
-                    @click="selectSubscriptionPlan(plan)"
-                  >
-                    {{ getSubscriptionActionLabel(plan, selectedPaymentProvider) }}
-                  </button>
-                </article>
-              </div>
-              <button
-                type="button"
-                class="carousel-arrow carousel-arrow-right"
-                aria-label="Scroll right"
-                @click="scrollSubscriptionCarousel('right')"
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-              </button>
+            <div class="member-form-row">
+              <label class="member-form-label">Confirm New Password</label>
+              <el-input
+                v-model="changePasswordForm.confirmPassword"
+                type="password"
+                show-password
+                placeholder="Confirm new password"
+                :disabled="changePasswordLoading"
+              />
             </div>
+            <div v-if="changePasswordSuccess" class="member-success-message">Password updated successfully.</div>
+            <div v-if="changePasswordError" class="member-error-message">{{ changePasswordError }}</div>
+            <button
+              class="member-submit-button"
+              type="button"
+              @click="changeMemberPassword"
+              :disabled="changePasswordLoading"
+            >
+              <span v-if="changePasswordLoading">Saving...</span>
+              <span v-else>Update Password</span>
+            </button>
           </section>
         </div>
 
@@ -3680,35 +3658,68 @@
       <div class="pricing-page-content">
         <h1>Pricing Plans</h1>
         <p class="legal-date">Choose the plan that fits your needs. All prices in USD.</p>
-        <div class="pricing-page-grid">
-          <div class="pricing-page-card" v-for="plan in subscriptionPlans" :key="plan.key" :class="{ 'pricing-page-card-featured': plan.featured }">
-            <div class="pricing-page-badge" v-if="plan.featured">Most Popular</div>
-            <h2 class="pricing-page-plan-name">{{ plan.name }}</h2>
-            <p class="pricing-page-description">{{ plan.description }}</p>
-            <div class="pricing-page-price">
-              <template v-if="plan.key === 'free'">
-                <span class="pricing-page-amount">Free</span>
-              </template>
-              <template v-else-if="plan.key === 'pay_as_you_go'">
-                <span class="pricing-page-currency">$</span>
-                <span class="pricing-page-amount">{{ plan.oneTimePrice }}</span>
-                <span class="pricing-page-period">/ one-time</span>
-              </template>
-              <template v-else>
-                <span class="pricing-page-currency">$</span>
-                <span class="pricing-page-amount">{{ plan.monthlyPrice }}</span>
-                <span class="pricing-page-period">/ month</span>
-                <div class="pricing-page-annual" v-if="plan.annualPrice">
-                  or ${{ plan.annualPrice }}/mo billed annually
-                </div>
-              </template>
-            </div>
-            <ul class="pricing-page-features">
-              <li v-for="feature in plan.features" :key="feature">✓ {{ feature }}</li>
-            </ul>
-            <a class="pricing-page-cta" href="/register" @click.prevent="openMemberPage('/register')" v-if="plan.key !== 'free'">Get Started</a>
-            <a class="pricing-page-cta pricing-page-cta-secondary" href="/register" @click.prevent="openMemberPage('/register')" v-else>Start Free</a>
+        <div class="billing-toggle" aria-label="Billing cycle">
+          <button
+            v-for="option in billingCycleOptions"
+            :key="option.value"
+            type="button"
+            :class="{ 'is-active': selectedBillingCycle === option.value }"
+            @click="selectedBillingCycle = option.value"
+          >
+            {{ option.label }}
+          </button>
+        </div>
+        <div style="text-align:center; margin-bottom:16px;">
+          <span style="font-size:13px; color:#64748b; margin-right:10px;">Pay with</span>
+          <label style="cursor:pointer; margin-right:16px;" :style="{ fontWeight: selectedPaymentProvider === 'paypal' ? '600' : '400', color: selectedPaymentProvider === 'paypal' ? '#1e293b' : '#94a3b8' }">
+            <input type="radio" value="paypal" v-model="selectedPaymentProvider" style="vertical-align:middle; margin-right:4px;" /> PayPal
+          </label>
+          <label style="cursor:pointer;" :style="{ fontWeight: selectedPaymentProvider === 'creem' ? '600' : '400', color: selectedPaymentProvider === 'creem' ? '#1e293b' : '#94a3b8' }">
+            <input type="radio" value="creem" v-model="selectedPaymentProvider" style="vertical-align:middle; margin-right:4px;" /> Creem
+          </label>
+        </div>
+        <div class="subscription-carousel">
+          <button
+            type="button"
+            class="carousel-arrow carousel-arrow-left"
+            aria-label="Scroll left"
+            @click="scrollSubscriptionCarousel('left')"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          </button>
+          <div ref="subscriptionGrid" class="subscription-grid">
+            <article
+              v-for="plan in subscriptionPlans"
+              :key="plan.key"
+              class="subscription-card"
+              :class="{ 'is-featured': plan.featured }"
+            >
+              <span v-if="plan.featured" class="subscription-badge">Most Popular</span>
+              <div class="subscription-title">{{ plan.name }}</div>
+              <div class="subscription-price">{{ getSubscriptionPrice(plan) }}</div>
+              <div class="subscription-period">{{ getSubscriptionPeriodLabel(plan) }}</div>
+              <p class="subscription-description">{{ plan.description }}</p>
+              <div class="subscription-feature-list">
+                <div v-for="feature in plan.features" :key="feature" class="subscription-feature">✓ {{ feature }}</div>
+              </div>
+              <button
+                class="primary-button"
+                type="button"
+                :disabled="isPayPalProcessing"
+                @click="selectSubscriptionPlan(plan)"
+              >
+                {{ getSubscriptionActionLabel(plan, selectedPaymentProvider) }}
+              </button>
+            </article>
           </div>
+          <button
+            type="button"
+            class="carousel-arrow carousel-arrow-right"
+            aria-label="Scroll right"
+            @click="scrollSubscriptionCarousel('right')"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </button>
         </div>
       </div>
     </section>
@@ -3858,6 +3869,14 @@
         const resetTokenEmail = ref('');
         const resetPasswordSending = ref(false);
         const resetPasswordDone = ref(false);
+        const changePasswordForm = ref({
+          oldPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        });
+        const changePasswordLoading = ref(false);
+        const changePasswordSuccess = ref(false);
+        const changePasswordError = ref('');
         const memberProfile = ref(loadMemberProfile());
         const memberFiles = ref([]);
         const memberLikes = ref([
@@ -4636,6 +4655,44 @@
         const saveMemberSettings = () => {
           persistMemberProfile();
           ElementPlus.ElMessage.success('Member settings saved');
+        };
+
+        const changeMemberPassword = async () => {
+          const { oldPassword, newPassword, confirmPassword } = changePasswordForm.value;
+          changePasswordSuccess.value = false;
+          changePasswordError.value = '';
+
+          if (!oldPassword || !newPassword || !confirmPassword) {
+            changePasswordError.value = 'Please fill in all password fields.';
+            return;
+          }
+          if (newPassword.length < 6) {
+            changePasswordError.value = 'New password must be at least 6 characters.';
+            return;
+          }
+          if (newPassword !== confirmPassword) {
+            changePasswordError.value = 'New password and confirmation do not match.';
+            return;
+          }
+
+          changePasswordLoading.value = true;
+          try {
+            const response = await axios.post('/api/auth/change-password', {
+              oldPassword,
+              newPassword
+            }, { headers: createJsonHeaders() });
+            if (response.data && response.data.success) {
+              changePasswordSuccess.value = true;
+              changePasswordForm.value = { oldPassword: '', newPassword: '', confirmPassword: '' };
+              ElementPlus.ElMessage.success('Password updated successfully.');
+            } else {
+              changePasswordError.value = response.data?.message || 'Failed to update password.';
+            }
+          } catch (error) {
+            changePasswordError.value = getApiErrorMessage(error) || 'Failed to update password.';
+          } finally {
+            changePasswordLoading.value = false;
+          }
         };
 
         const getSubscriptionPrice = (plan) => {
