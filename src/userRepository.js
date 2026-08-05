@@ -232,11 +232,14 @@ function createUserRepository(database) {
     };
 
     try {
+      console.error('[saveUser] saving user:', id, 'passwordHash length:', payload.passwordHash?.length, 'passwordHash:', payload.passwordHash?.slice(0, 20));
       if (existingUser) {
         await statements.update.run(payload);
       } else {
         await statements.insert.run(payload);
       }
+      const saved = await getUserById(id);
+      console.error('[saveUser] saved user password_hash length:', saved?.passwordHash?.length);
     } catch (error) {
       if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.code === 'ER_DUP_ENTRY') {
         throwValidationError('用戶 Email 已存在', 'USER_EMAIL_EXISTS', 409);
