@@ -980,6 +980,22 @@ async function handleAuthApi(request, response) {
     return;
   }
 
+  if (url.pathname === '/api/auth/google/debug' && request.method === 'GET') {
+    const debugRedirectUri = getGoogleRedirectUri(request);
+    sendJson(response, 200, {
+      googleClientId_set: Boolean(googleClientId),
+      googleClientId_prefix: googleClientId ? googleClientId.slice(0, 12) + '...' : '(not set)',
+      googleClientSecret_set: Boolean(googleClientSecret),
+      googleOauthRedirectUri: googleOauthRedirectUri || '(not set)',
+      GOOGLE_OAUTH_REDIRECT_URI_LOCKED: process.env.GOOGLE_OAUTH_REDIRECT_URI_LOCKED || '(not set)',
+      publicApiBaseUrl: publicApiBaseUrl || '(not set)',
+      redirectUri_resolved: debugRedirectUri,
+      requestHost: getRequestHost(request),
+      requestOrigin: getRequestOrigin(request)
+    });
+    return;
+  }
+
   if (url.pathname === '/api/auth/me' && request.method === 'GET') {
     const memberSession = getMemberSession(request);
     sendJson(response, 200, {
