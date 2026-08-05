@@ -199,6 +199,8 @@ async function migrateDatabase(adapter) {
   await ensureColumn(adapter, 'payment_orders', 'credit_amount', "INT NOT NULL DEFAULT 0");
   await ensureColumn(adapter, 'payment_orders', 'membership_group', "VARCHAR(32) NOT NULL DEFAULT ''");
   await ensureColumn(adapter, 'payment_orders', 'credited_at', 'VARCHAR(32)');
+  await ensureColumn(adapter, 'app_users', 'reset_token', "VARCHAR(128) NOT NULL DEFAULT ''");
+  await ensureColumn(adapter, 'app_users', 'reset_token_expires_at', 'VARCHAR(32)');
 
   // Staff membership_group fix
   const staffUpdate = adapter.prepare(`

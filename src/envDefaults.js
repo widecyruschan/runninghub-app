@@ -10,6 +10,13 @@
     CREEM_API_KEY: 'creem_test_6bJGOF97qFn3jTWIYxhGL3',
     CREEM_WEBHOOK_SECRET: 'whsec_43xCaU1JLn5PM2n5PDbu5k',
     CREEM_API_BASE_URL: 'https://test-api.creem.io/v1',
+    SMTP_HOST: '',
+    SMTP_PORT: '587',
+    SMTP_SECURE: 'false',
+    SMTP_USER: '',
+    SMTP_PASS: '',
+    SMTP_FROM: '',
+    PASSWORD_RESET_TOKEN_TTL_MINUTES: '60',
   };
 
   for (const [key, value] of Object.entries(defaults)) {

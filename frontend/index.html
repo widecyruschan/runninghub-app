@@ -550,6 +550,36 @@
       text-decoration: underline;
     }
 
+    .member-success-message {
+      background: #e6f4ea;
+      border: 1px solid #a8dab5;
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 16px;
+      color: #1e4620;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .member-success-message p {
+      margin: 4px 0;
+    }
+
+    .member-error-message {
+      background: #fce8e6;
+      border: 1px solid #f5c6cb;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+      color: #8b1a1a;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .member-error-message p {
+      margin: 4px 0;
+    }
+
     .member-stat-grid,
     .member-card-grid {
       display: grid;
@@ -2636,6 +2666,9 @@
                 <input id="member-password" v-model="memberForm.password" type="password" placeholder="Enter your password" autocomplete="current-password">
               </div>
               <button class="primary-button" type="button" @click="loginMember">Log In</button>
+              <p class="member-switch-link">
+                <a href="#" @click.prevent="switchMemberForm('/forgot-password')">Forgot password?</a>
+              </p>
               <div class="member-divider"><span>or</span></div>
               <button class="google-login-button" type="button" @click="loginWithGoogle">
                 <span class="google-icon">G</span>
@@ -2710,6 +2743,61 @@
               </div>
             </div>
           </aside>
+        </div>
+
+        <!-- Forgot Password Page -->
+        <div v-if="currentMemberPath === '/forgot-password'" class="member-grid">
+          <section class="member-panel">
+            <h2 class="member-panel-title">Forgot Password</h2>
+            <p class="member-description" style="margin-bottom: 24px;">Enter your email address and we'll send you a link to reset your password.</p>
+            <div class="member-form">
+              <div class="member-field">
+                <label for="member-email">Email</label>
+                <input id="member-email" v-model="memberForm.email" type="email" placeholder="name@example.com" autocomplete="email">
+              </div>
+              <button class="primary-button" type="button" :disabled="forgotPasswordSending" @click="sendForgotPasswordEmail">
+                {{ forgotPasswordSending ? 'Sending...' : 'Send Reset Link' }}
+              </button>
+              <div v-if="forgotPasswordSent" class="member-success-message">
+                <p>If an account with that email exists, we've sent a password reset link. Please check your inbox (and spam folder).</p>
+              </div>
+              <p class="member-switch-link"><a href="#" @click.prevent="switchMemberForm('/login')">Back to Login</a></p>
+            </div>
+          </section>
+        </div>
+
+        <!-- Reset Password Page -->
+        <div v-if="currentMemberPath === '/reset-password'" class="member-grid">
+          <section class="member-panel">
+            <h2 class="member-panel-title">Reset Password</h2>
+            <div v-if="resetTokenValid === null" class="member-form" style="text-align: center; padding: 40px 0;">
+              <p>Verifying your reset link...</p>
+            </div>
+            <div v-else-if="resetTokenValid === false" class="member-form">
+              <div class="member-error-message">
+                <p>This reset link is invalid or has expired.</p>
+                <p class="member-switch-link"><a href="#" @click.prevent="switchMemberForm('/forgot-password')">Request a new reset link</a></p>
+              </div>
+            </div>
+            <div v-else class="member-form">
+              <p class="member-description" style="margin-bottom: 24px;">Enter a new password for <strong>{{ resetTokenEmail }}</strong></p>
+              <div class="member-field">
+                <label for="member-new-password">New Password</label>
+                <input id="member-new-password" v-model="memberForm.password" type="password" placeholder="At least 6 characters" autocomplete="new-password">
+              </div>
+              <div class="member-field">
+                <label for="member-confirm-password">Confirm Password</label>
+                <input id="member-confirm-password" v-model="memberForm.confirmPassword" type="password" placeholder="Re-enter your password" autocomplete="new-password">
+              </div>
+              <button class="primary-button" type="button" :disabled="resetPasswordSending" @click="resetMemberPassword">
+                {{ resetPasswordSending ? 'Resetting...' : 'Reset Password' }}
+              </button>
+              <div v-if="resetPasswordDone" class="member-success-message">
+                <p>Your password has been reset successfully!</p>
+                <p class="member-switch-link"><a href="#" @click.prevent="switchMemberForm('/login')">Go to Login</a></p>
+              </div>
+            </div>
+          </section>
         </div>
 
         <div v-else-if="currentMemberPath === '/member/files'" class="member-panel">
@@ -3764,6 +3852,12 @@
           password: '',
           confirmPassword: ''
         });
+        const forgotPasswordSending = ref(false);
+        const forgotPasswordSent = ref(false);
+        const resetTokenValid = ref(null);
+        const resetTokenEmail = ref('');
+        const resetPasswordSending = ref(false);
+        const resetPasswordDone = ref(false);
         const memberProfile = ref(loadMemberProfile());
         const memberFiles = ref([]);
         const memberLikes = ref([
@@ -3796,6 +3890,8 @@
           const normalizedPath = normalizePath(currentPath.value);
           return normalizedPath === '/register'
             || normalizedPath === '/login'
+            || normalizedPath === '/forgot-password'
+            || normalizedPath === '/reset-password'
             || normalizedPath.startsWith('/member/');
         });
 
@@ -3803,6 +3899,8 @@
           const normalizedPath = normalizePath(currentPath.value);
           if (normalizedPath === '/login') return '/login';
           if (normalizedPath === '/register') return '/register';
+          if (normalizedPath === '/forgot-password') return '/forgot-password';
+          if (normalizedPath === '/reset-password') return '/reset-password';
           if (normalizedPath.startsWith('/member/')) return normalizedPath;
           return '/member/files';
         });
@@ -3830,6 +3928,8 @@
           const titles = {
             '/register': 'Member Registration',
             '/login': 'Member Login',
+            '/forgot-password': 'Forgot Password',
+            '/reset-password': 'Reset Password',
             '/member/dashboard': 'Dashboard',
             '/member/files': 'My Files',
             '/member/likes': 'My Likes',
@@ -4436,7 +4536,101 @@
 
         const switchMemberForm = (path) => {
           memberForm.value = { displayName: '', email: '', password: '', confirmPassword: '' };
+          forgotPasswordSending.value = false;
+          forgotPasswordSent.value = false;
+          resetTokenValid.value = null;
+          resetTokenEmail.value = '';
+          resetPasswordSending.value = false;
+          resetPasswordDone.value = false;
           openMemberPage(path);
+        };
+
+        const sendForgotPasswordEmail = async () => {
+          const email = memberForm.value.email.trim();
+          if (!email || !email.includes('@')) {
+            ElementPlus.ElMessage.error('Please enter a valid email address.');
+            return;
+          }
+          forgotPasswordSending.value = true;
+          try {
+            const response = await fetch(apiUrl('/api/auth/forgot-password'), {
+              method: 'POST',
+              headers: createJsonHeaders(),
+              body: JSON.stringify({ email }),
+              credentials: 'include'
+            });
+            const result = await response.json();
+            if (response.ok && result.success) {
+              forgotPasswordSent.value = true;
+              ElementPlus.ElMessage.success(result.message || 'Reset link sent. Please check your email.');
+            } else {
+              ElementPlus.ElMessage.error(result.message || 'Failed to send reset link.');
+            }
+          } catch (error) {
+            ElementPlus.ElMessage.error(getApiErrorMessage(error));
+          } finally {
+            forgotPasswordSending.value = false;
+          }
+        };
+
+        const validateResetToken = async (token) => {
+          if (!token) {
+            resetTokenValid.value = false;
+            return;
+          }
+          try {
+            const response = await fetch(apiUrl(`/api/auth/reset-password/validate?token=${encodeURIComponent(token)}`), {
+              credentials: 'include'
+            });
+            const result = await response.json();
+            if (response.ok && result.success) {
+              resetTokenValid.value = true;
+              resetTokenEmail.value = result.data?.email || '';
+            } else {
+              resetTokenValid.value = false;
+            }
+          } catch (error) {
+            resetTokenValid.value = false;
+          }
+        };
+
+        const resetMemberPassword = async () => {
+          const password = memberForm.value.password;
+          const confirmPassword = memberForm.value.confirmPassword;
+
+          if (password.length < 6) {
+            ElementPlus.ElMessage.error('Password must be at least 6 characters.');
+            return;
+          }
+          if (password !== confirmPassword) {
+            ElementPlus.ElMessage.error('Passwords do not match.');
+            return;
+          }
+
+          const urlParams = new URLSearchParams(window.location.search);
+          const token = urlParams.get('token') || '';
+
+          resetPasswordSending.value = true;
+          try {
+            const response = await fetch(apiUrl('/api/auth/reset-password'), {
+              method: 'POST',
+              headers: createJsonHeaders(),
+              body: JSON.stringify({ token, password }),
+              credentials: 'include'
+            });
+            const result = await response.json();
+            if (response.ok && result.success) {
+              resetPasswordDone.value = true;
+              memberForm.value = { displayName: '', email: '', password: '', confirmPassword: '' };
+              ElementPlus.ElMessage.success('Password reset successfully! Please log in with your new password.');
+            } else {
+              ElementPlus.ElMessage.error(result.message || 'Failed to reset password.');
+            }
+          } catch (error) {
+            ElementPlus.ElMessage.error(getApiErrorMessage(error));
+          } finally {
+            resetPasswordSending.value = false;
+          }
         };
 
         const saveMemberSettings = () => {
@@ -5295,6 +5489,11 @@
               toolConfig.value = null;
               document.title = memberPageTitle.value + ' - ';
               loadMemberRecords();
+              if (currentMemberPath.value === '/reset-password') {
+                const urlParams = new URLSearchParams(window.location.search);
+                const token = urlParams.get('token') || '';
+                validateResetToken(token);
+              }
               return;
             }
 
@@ -5327,6 +5526,11 @@
               document.title = memberPageTitle.value + ' - ';
               loadMemberRecords();
             });
+            if (currentMemberPath.value === '/reset-password') {
+              const urlParams = new URLSearchParams(window.location.search);
+              const token = urlParams.get('token') || '';
+              validateResetToken(token);
+            }
             return;
           }
 

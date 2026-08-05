@@ -43,6 +43,10 @@ function createMemberSessionRepository(database) {
     deleteExpired: database.prepare(`
       DELETE FROM app_user_sessions
       WHERE expires_at <= ?
+    `),
+    deleteByUserId: database.prepare(`
+      DELETE FROM app_user_sessions
+      WHERE user_id = ?
     `)
   };
 
@@ -84,10 +88,15 @@ function createMemberSessionRepository(database) {
     await statements.deleteExpired.run([new Date().toISOString()]);
   }
 
+  async function deleteSessionsByUserId(userId) {
+    await statements.deleteByUserId.run([userId]);
+  }
+
   return {
     createSession,
     deleteExpiredSessions,
     deleteSession,
+    deleteSessionsByUserId,
     getSessionById
   };
 }

@@ -142,6 +142,34 @@ function createUserRepository(database) {
         last_login_credit_date = @lastLoginCreditDate,
         updated_at = @updatedAt
       WHERE id = @id
+    `),
+    findAuthByResetToken: database.prepare(`
+      SELECT
+        id,
+        email,
+        display_name,
+        reset_token,
+        reset_token_expires_at,
+        status
+      FROM app_users
+      WHERE reset_token = ?
+    `),
+    updateResetToken: database.prepare(`
+      UPDATE app_users
+      SET
+        reset_token = @resetToken,
+        reset_token_expires_at = @resetTokenExpiresAt,
+        updated_at = @updatedAt
+      WHERE id = @id
+    `),
+    updatePasswordAndClearResetToken: database.prepare(`
+      UPDATE app_users
+      SET
+        password_hash = @passwordHash,
+        reset_token = '',
+        reset_token_expires_at = '',
+        updated_at = @updatedAt
+      WHERE id = @id
     `)
   };
   // MySQL transaction is async (immediate), SQLite transaction returns a wrapper function.
@@ -209,6 +237,8 @@ function createUserRepository(database) {
         await statements.insert.run(payload);
       }
     } catch (error) {
+      console.error('[saveUser] Database error:', error.code, error.message);
+      console.error('[saveUser] Payload keys:', Object.keys(payload));
       if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.code === 'ER_DUP_ENTRY') {
         throwValidationError('用戶 Email 已存在', 'USER_EMAIL_EXISTS', 409);
       }
@@ -325,6 +355,48 @@ function createUserRepository(database) {
     return await getUserById(userId);
   }
 
+  async function updateUser(userId, fields) {
+    const user = await getUserById(userId);
+    if (!user) {
+      throwValidationError('用戶不存在', 'USER_NOT_FOUND', 404);
+    }
+
+    const now = new Date().toISOString();
+
+    if (fields.reset_token !== undefined || fields.reset_token_expires_at !== undefined) {
+      await statements.updateResetToken.run({
+        id: userId,
+        resetToken: fields.reset_token !== undefined ? String(fields.reset_token) : '',
+        resetTokenExpiresAt: fields.reset_token_expires_at !== undefined ? String(fields.reset_token_expires_at) : '',
+        updatedAt: now
+      });
+    }
+
+    if (fields.password_hash !== undefined) {
+      await statements.updatePasswordAndClearResetToken.run({
+        id: userId,
+        passwordHash: String(fields.password_hash),
+        updatedAt: now
+      });
+    }
+
+    return await getUserById(userId);
+  }
+
+  async function getUserByResetToken(token) {
+    const record = await statements.findAuthByResetToken.get(String(token || '').trim());
+    if (!record) return null;
+
+    return {
+      id: record.id,
+      email: record.email,
+      display_name: record.display_name,
+      reset_token: record.reset_token || '',
+      reset_token_expires_at: record.reset_token_expires_at || '',
+      status: record.status
+    };
+  }
+
   async function spendCredits(userId, amount, reason, relatedTaskId = '') {
     const spendAmount = parseInteger(amount, '扣減積分不正確', 'USER_CREDIT_SPEND_AMOUNT_INVALID');
     if (spendAmount <= 0) {
@@ -364,12 +436,14 @@ function createUserRepository(database) {
     grantRegisterBonus,
     getUserByEmail,
     getUserAuthByEmail,
+    getUserByResetToken,
     getUserById,
     listCreditLedgerByUser,
     listUsers,
     markDailyLoginBonusClaimed,
     saveUser,
-    spendCredits
+    spendCredits,
+    updateUser
   };
 
   async function grantCreditsIfReasonMissing(userId, amount, reason, options = {}) {

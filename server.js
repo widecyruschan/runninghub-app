@@ -101,6 +101,24 @@ const publicAppBaseUrl = normalizePublicBaseUrl(process.env.PUBLIC_APP_BASE_URL 
 const publicApiBaseUrl = normalizePublicBaseUrl(process.env.PUBLIC_API_BASE_URL || '');
 const allowedApiOrigins = createAllowedApiOrigins(process.env.API_CORS_ALLOWED_ORIGINS || '', publicAppBaseUrl, publicApiBaseUrl);
 const listenTarget = createListenTarget(process.env.PORT, process.env.HOST);
+const smtpConfig = {
+  host: process.env.SMTP_HOST || '',
+  port: parseInt(process.env.SMTP_PORT || '587', 10),
+  secure: process.env.SMTP_SECURE === 'true',
+  user: process.env.SMTP_USER || '',
+  pass: process.env.SMTP_PASS || '',
+  from: process.env.SMTP_FROM || process.env.SMTP_USER || '',
+};
+const isSmtpConfigured = Boolean(smtpConfig.host && smtpConfig.user && smtpConfig.pass);
+const passwordResetTokenTtlMinutes = parseInt(process.env.PASSWORD_RESET_TOKEN_TTL_MINUTES || '60', 10);
+let nodemailer = null;
+if (isSmtpConfigured) {
+  try {
+    nodemailer = require('nodemailer');
+  } catch (e) {
+    console.warn('[smtp] nodemailer not installed, email sending disabled');
+  }
+}
 let database, toolRepository, categoryRepository, menuRepository, taskRepository,
     userRepository, memberSessionRepository, paymentRepository;
 
@@ -1028,6 +1046,136 @@ async function handleAuthApi(request, response) {
       data: null
     }, {
       'Set-Cookie': createExpiredCookie(request, MEMBER_SESSION_COOKIE)
+    });
+    return;
+  }
+
+  // --- 忘記密碼 ---
+  if (url.pathname === '/api/auth/forgot-password' && request.method === 'POST') {
+    const requestBody = await readJsonBody(request);
+    const email = String(requestBody?.email || '').trim().toLowerCase();
+
+    if (!email || !email.includes('@')) {
+      sendJson(response, 422, {
+        success: false,
+        message: '請輸入正確的 Email 地址',
+        error: { code: 'EMAIL_INVALID' }
+      });
+      return;
+    }
+
+    const user = await userRepository.getUserByEmail(email);
+    // 無論用戶是否存在，都返回成功以避免洩露用戶信息
+    if (user && user.status === 'active') {
+      const resetToken = generateResetToken();
+      const expiresAt = getResetTokenExpiry();
+
+      await userRepository.updateUser(user.id, {
+        reset_token: resetToken,
+        reset_token_expires_at: expiresAt,
+      });
+
+      const resetLink = `${publicAppBaseUrl}/reset-password?token=${resetToken}`;
+      try {
+        await sendPasswordResetEmail(email, user.display_name, resetLink);
+      } catch (e) {
+        // 發送失敗時清除 token
+        await userRepository.updateUser(user.id, {
+          reset_token: '',
+          reset_token_expires_at: '',
+        });
+        throw e;
+      }
+    }
+
+    sendJson(response, 200, {
+      success: true,
+      message: '如果該 Email 已註冊，重置密碼郵件已發送'
+    });
+    return;
+  }
+
+  // --- 驗證重置 Token ---
+  if (url.pathname === '/api/auth/reset-password/validate' && request.method === 'GET') {
+    const token = url.searchParams.get('token') || '';
+
+    if (!token) {
+      sendJson(response, 422, {
+        success: false,
+        message: 'Token 無效或已過期',
+        error: { code: 'TOKEN_INVALID' }
+      });
+      return;
+    }
+
+    const user = await userRepository.getUserByResetToken(token);
+
+    if (!user || isResetTokenExpired(user.reset_token_expires_at)) {
+      sendJson(response, 422, {
+        success: false,
+        message: 'Token 無效或已過期',
+        error: { code: 'TOKEN_INVALID' }
+      });
+      return;
+    }
+
+    sendJson(response, 200, {
+      success: true,
+      message: 'Token 有效',
+      data: { email: user.email }
+    });
+    return;
+  }
+
+  // --- 重置密碼 ---
+  if (url.pathname === '/api/auth/reset-password' && request.method === 'POST') {
+    const requestBody = await readJsonBody(request);
+    const token = String(requestBody?.token || '').trim();
+    const newPassword = String(requestBody?.password || '');
+
+    if (!token) {
+      sendJson(response, 422, {
+        success: false,
+        message: 'Token 無效或已過期',
+        error: { code: 'TOKEN_INVALID' }
+      });
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      sendJson(response, 422, {
+        success: false,
+        message: '密碼至少需要 6 個字元',
+        error: { code: 'PASSWORD_TOO_SHORT' }
+      });
+      return;
+    }
+
+    const user = await userRepository.getUserByResetToken(token);
+
+    if (!user || isResetTokenExpired(user.reset_token_expires_at)) {
+      sendJson(response, 422, {
+        success: false,
+        message: 'Token 無效或已過期',
+        error: { code: 'TOKEN_INVALID' }
+      });
+      return;
+    }
+
+    const passwordHash = hashMemberPassword(newPassword);
+
+    await userRepository.updateUser(user.id, {
+      password_hash: passwordHash,
+      reset_token: '',
+      reset_token_expires_at: '',
+    });
+
+    // 清除該用戶所有現有 session（強制重新登入）
+    await memberSessionRepository.deleteSessionsByUserId(user.id);
+
+    sendJson(response, 200, {
+      success: true,
+      message: '密碼重置成功，請使用新密碼登入'
     });
     return;
   }
@@ -3532,6 +3680,98 @@ async function saveGoogleMemberUser(profile) {
     isNewUser: !existingUser,
     user: memberUser
   };
+}
+
+// --- 郵件發送 ---
+function createSmtpTransporter() {
+  if (!nodemailer) return null;
+  return nodemailer.createTransport({
+    host: smtpConfig.host,
+    port: smtpConfig.port,
+    secure: smtpConfig.secure,
+    auth: {
+      user: smtpConfig.user,
+      pass: smtpConfig.pass,
+    },
+  });
+}
+
+async function sendPasswordResetEmail(toEmail, displayName, resetLink) {
+  if (!isSmtpConfigured) {
+    console.warn('[smtp] SMTP not configured, cannot send reset email');
+    throwHttpError('郵件服務未配置，請聯繫管理員', 'SMTP_NOT_CONFIGURED', 500);
+  }
+
+  const transporter = createSmtpTransporter();
+  if (!transporter) {
+    throwHttpError('郵件服務不可用', 'SMTP_UNAVAILABLE', 500);
+  }
+
+  const htmlBody = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <h2 style="color: #333;">密碼重置請求</h2>
+      <p>您好 ${displayName}，</p>
+      <p>我們收到了您的密碼重置請求。請點擊下方按鈕重置您的密碼：</p>
+      <p style="text-align: center; margin: 30px 0;">
+        <a href="${resetLink}"
+           style="background-color: #409EFF; color: white; padding: 12px 30px;
+                  text-decoration: none; border-radius: 6px; font-size: 16px;
+                  display: inline-block;">
+          重置密碼
+        </a>
+      </p>
+      <p>或者複製以下鏈接到瀏覽器中打開：</p>
+      <p style="word-break: break-all; color: #666;">${resetLink}</p>
+      <p style="color: #999; margin-top: 30px;">
+        此鏈接將在 ${passwordResetTokenTtlMinutes} 分鐘後失效。<br/>
+        如果您沒有請求重置密碼，請忽略此郵件。
+      </p>
+      <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;" />
+      <p style="color: #999; font-size: 12px;">此郵件由系統自動發送，請勿回覆。</p>
+    </div>
+  `;
+
+  const textBody = `
+    密碼重置請求
+    --------------------------------
+    您好 ${displayName}，
+
+    我們收到了您的密碼重置請求。請使用以下鏈接重置密碼：
+
+    ${resetLink}
+
+    此鏈接將在 ${passwordResetTokenTtlMinutes} 分鐘後失效。
+    如果您沒有請求重置密碼，請忽略此郵件。
+  `;
+
+  try {
+    await transporter.sendMail({
+      from: smtpConfig.from,
+      to: toEmail,
+      subject: '密碼重置請求',
+      text: textBody,
+      html: htmlBody,
+    });
+    console.log('[smtp] Password reset email sent to %s', toEmail);
+  } catch (error) {
+    console.error('[smtp] Failed to send reset email:', error.message);
+    throwHttpError('郵件發送失敗，請稍後再試', 'SMTP_SEND_FAILED', 500);
+  }
+}
+
+// --- 密碼重置 Token ---
+function generateResetToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+function getResetTokenExpiry() {
+  const expiresAt = new Date(Date.now() + passwordResetTokenTtlMinutes * 60 * 1000);
+  return expiresAt.toISOString();
+}
+
+function isResetTokenExpired(expiresAt) {
+  if (!expiresAt) return true;
+  return new Date(expiresAt).getTime() < Date.now();
 }
 
 async function registerMemberAccount(payload, provider) {

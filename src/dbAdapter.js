@@ -48,18 +48,13 @@ function normalizeNamedParameters(sql, params) {
   }
 
   // Named parameters (@name) → positional (?)
-  const names = [];
+  // Each placeholder occurrence must receive its own value, even when the
+  // same name is used multiple times (e.g. CASE ... THEN col ELSE @name END).
   const orderedParams = [];
   const normalizedSql = sql.replace(/@(\w+)/g, (match, name) => {
-    if (!names.includes(name)) {
-      names.push(name);
-    }
-    return '?';
-  });
-
-  names.forEach((name) => {
     const value = params[name];
     orderedParams.push(value === undefined ? null : value);
+    return '?';
   });
 
   return { sql: normalizedSql, params: orderedParams };
