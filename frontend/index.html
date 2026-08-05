@@ -4530,7 +4530,7 @@
           window.history.replaceState({}, '', cleanUrl);
         };
 
-        const getOAuthErrorMessage = (status) => {
+        const getOAuthErrorMessage = (status, rawMsg) => {
           const messages = {
             failed: 'Google login failed. Please try again later.',
             invalid_state: 'Google login session expired. Please try again.',
@@ -4539,7 +4539,9 @@
             profile_email_missing: 'Google account email could not be verified.'
           };
 
-          return messages[status] || '';
+          const base = messages[status] || '';
+          if (rawMsg) return base + ' [Debug: ' + decodeURIComponent(rawMsg) + ']';
+          return base;
         };
 
         const handleMemberLogout = async () => {
@@ -5150,7 +5152,8 @@
             processCreemReturn();
           });
           const oauthStatus = new URLSearchParams(window.location.search).get('oauth');
-          const oauthErrorMessage = getOAuthErrorMessage(oauthStatus);
+          const oauthMsg = new URLSearchParams(window.location.search).get('oauth_msg');
+          const oauthErrorMessage = getOAuthErrorMessage(oauthStatus, oauthMsg);
           if (oauthErrorMessage) {
             ElementPlus.ElMessage.error(oauthErrorMessage);
             clearOAuthQuery();

@@ -3342,7 +3342,15 @@ async function handleGoogleOAuthCallback(request, response, url) {
   const savedState = getCookieValue(request, 'runninghub_google_oauth_state');
   const isValidState = Boolean(state) && (savedState === state || consumePendingOAuthState(state));
 
+  console.log('[oauth:callback] host=%s, code=%s, state=%s, savedState=%s, valid=%s',
+    getRequestHost(request),
+    code ? String(code).slice(0, 12) + '...' : 'null',
+    state ? String(state).slice(0, 12) + '...' : 'null',
+    savedState ? String(savedState).slice(0, 12) + '...' : 'null',
+    isValidState);
+
   if (!code || !isValidState) {
+    console.log('[oauth:callback] state validation FAILED, redirecting to invalid_state');
     redirectWithExpiredOAuthState(request, response, `${getFrontendReturnOrigin(request)}/login?oauth=invalid_state`);
     return;
   }
@@ -3378,8 +3386,11 @@ async function handleGoogleOAuthCallback(request, response, url) {
     console.error('[oauth:callback]   status=%s', error.status);
     console.error('[oauth:callback]   stack=%s', (error.stack || '').split('\n').slice(0, 4).join(' -> '));
     const oauthError = getGoogleOAuthErrorParam(error);
+    const rawMsg = encodeURIComponent(String(error?.message || '').slice(0, 200));
+    const redirectUrl = `${getFrontendReturnOrigin(request)}/login?oauth=${oauthError}&oauth_msg=${rawMsg}`;
     console.error('[oauth:callback]   oauth_param=%s', oauthError);
-    redirectWithExpiredOAuthState(request, response, `${getFrontendReturnOrigin(request)}/login?oauth=${oauthError}`);
+    console.error('[oauth:callback]   redirect_url=%s', redirectUrl);
+    redirectWithExpiredOAuthState(request, response, redirectUrl);
   }
 }
 
@@ -3394,6 +3405,7 @@ function getGoogleOAuthErrorParam(error) {
 async function exchangeGoogleCodeForToken(request, code) {
   const redirectUri = getGoogleRedirectUri(request);
   console.log('[oauth:token] code=%s..., redirect_uri=%s', String(code).slice(0, 12), redirectUri);
+  console.log('[oauth:token] client_id=%s..., client_secret_len=%s', googleClientId.slice(0, 20), (googleClientSecret || '').length);
   const response = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: {
@@ -3409,6 +3421,11 @@ async function exchangeGoogleCodeForToken(request, code) {
   });
 
   const payload = await response.json().catch(() => ({}));
+  console.log('[oauth:token] Google HTTP status=%s', response.status);
+  console.log('[oauth:token] Google response keys=%j', Object.keys(payload));
+  if (payload.error) {
+    console.error('[oauth:token] Google error=%s description=%s uri=%s', payload.error, payload.error_description, payload.error_uri);
+  }
   if (!response.ok || !payload.access_token) {
     console.error('[oauth:token] Google response error=%j status=%s', payload, response.status);
     const message = payload.error_description || payload.error || 'Google token 換取失敗';
