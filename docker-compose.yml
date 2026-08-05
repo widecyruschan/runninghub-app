@@ -1,22 +1,4 @@
 services:
-  # SMTP 郵件發送服務（Postfix relay）
-  smtp:
-    image: boky/postfix:latest
-    container_name: runninghub-smtp
-    environment:
-      ALLOWED_SENDER_DOMAINS: imgkit.io
-      ALLOW_EMPTY_SENDER_DOMAINS: "true"
-      RELAYHOST: ${SMTP_RELAY_HOST:-}
-      RELAYHOST_USERNAME: ${SMTP_RELAY_USER:-}
-      RELAYHOST_PASSWORD: ${SMTP_RELAY_PASS:-}
-      RELAYHOST_TLS_LEVEL: ${SMTP_RELAY_TLS_LEVEL:-may}
-      MASQUERADED_DOMAINS: imgkit.io
-      SMTP_HEADER_CHECKS: "true"
-      INBOUND_TLS_ENFORCE: "false"
-    restart: unless-stopped
-    networks:
-      - app-network
-
   runninghub-app:
     build:
       context: .
@@ -62,8 +44,8 @@ services:
       TRANSLATION_PROVIDER: deepl
       DEEPL_API_KEY: ${DEEPL_API_KEY}
       DEEPL_API_BASE_URL: https://api-free.deepl.com/v2
-      # SMTP 邮件配置（通過內部 Postfix relay 發送）
-      SMTP_HOST: smtp
+      # SMTP 郵件配置（容器內置 Postfix，本地發送）
+      SMTP_HOST: 127.0.0.1
       SMTP_PORT: 25
       SMTP_SECURE: false
       SMTP_USER: ""
@@ -73,11 +55,3 @@ services:
     ports:
       - "3000:3000"
     restart: unless-stopped
-    networks:
-      - app-network
-    depends_on:
-      - smtp
-
-networks:
-  app-network:
-    driver: bridge
