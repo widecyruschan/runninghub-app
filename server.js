@@ -957,7 +957,8 @@ async function handleAuthApi(request, response) {
       message: '註冊並登入成功',
       data: {
         ...result.user,
-        _debugPasswordHashLength: result.user.passwordHash ? result.user.passwordHash.length : 0
+        _debugPasswordHashLength: result.user.passwordHash ? result.user.passwordHash.length : 0,
+        _debug: result._debug
       }
     }, {
       'Set-Cookie': createMemberSessionCookie(request, result.session.id)
@@ -3808,9 +3809,14 @@ async function registerMemberAccount(payload, provider) {
     allowInitialCreditBalance: true
   });
 
+  const afterSaveLength = memberUser.passwordHash ? memberUser.passwordHash.length : 0;
   memberUser = await userRepository.grantRegisterBonus(memberUser.id);
+  const afterBonusLength = memberUser.passwordHash ? memberUser.passwordHash.length : 0;
   memberUser = await applyMemberAuthCredits(memberUser.id, true);
-  return createMemberLoginResult(memberUser, provider || 'email', email);
+  const afterCreditsLength = memberUser.passwordHash ? memberUser.passwordHash.length : 0;
+  const result = createMemberLoginResult(memberUser, provider || 'email', email);
+  result._debug = { afterSaveLength, afterBonusLength, afterCreditsLength };
+  return result;
 }
 
 async function loginMemberAccount(payload, provider) {
