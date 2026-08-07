@@ -3648,39 +3648,21 @@
 
     <!-- Pricing Page -->
     <section v-if="isPricingPage" class="legal-page" aria-label="Pricing plans">
-      <div class="pricing-page-content">
-        <h1>Pricing Plans</h1>
-        <p class="legal-date">Choose the plan that fits your needs. All prices in USD.</p>
-        <div class="billing-toggle" aria-label="Billing cycle">
-          <button
-            v-for="option in billingCycleOptions"
-            :key="option.value"
-            type="button"
-            :class="{ 'is-active': selectedBillingCycle === option.value }"
-            @click="selectedBillingCycle = option.value"
-          >
-            {{ option.label }}
-          </button>
-        </div>
-        <div style="text-align:center; margin-bottom:16px;">
-          <span style="font-size:13px; color:#64748b; margin-right:10px;">Pay with</span>
-          <label style="cursor:pointer; margin-right:16px;" :style="{ fontWeight: selectedPaymentProvider === 'paypal' ? '600' : '400', color: selectedPaymentProvider === 'paypal' ? '#1e293b' : '#94a3b8' }">
-            <input type="radio" value="paypal" v-model="selectedPaymentProvider" style="vertical-align:middle; margin-right:4px;" /> PayPal
-          </label>
-          <label style="cursor:pointer;" :style="{ fontWeight: selectedPaymentProvider === 'creem' ? '600' : '400', color: selectedPaymentProvider === 'creem' ? '#1e293b' : '#94a3b8' }">
-            <input type="radio" value="creem" v-model="selectedPaymentProvider" style="vertical-align:middle; margin-right:4px;" /> Creem
-          </label>
-        </div>
-        <div class="subscription-carousel">
-          <button
-            type="button"
-            class="carousel-arrow carousel-arrow-left"
-            aria-label="Scroll left"
-            @click="scrollSubscriptionCarousel('left')"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-          </button>
-          <div ref="subscriptionGrid" class="subscription-grid">
+      <div class="member-grid">
+        <section class="member-panel" style="grid-column: 1 / -1;">
+          <h2 class="member-panel-title">Membership Subscription</h2>
+          <div class="billing-toggle" aria-label="Billing cycle">
+            <button
+              v-for="option in billingCycleOptions"
+              :key="option.value"
+              type="button"
+              :class="{ 'is-active': selectedBillingCycle === option.value }"
+              @click="selectedBillingCycle = option.value"
+            >
+              {{ option.label }}
+            </button>
+          </div>
+          <div class="subscription-grid">
             <article
               v-for="plan in subscriptionPlans"
               :key="plan.key"
@@ -3695,25 +3677,12 @@
               <div class="subscription-feature-list">
                 <div v-for="feature in plan.features" :key="feature" class="subscription-feature">✓ {{ feature }}</div>
               </div>
-              <button
-                class="primary-button"
-                type="button"
-                :disabled="isPayPalProcessing"
-                @click="selectSubscriptionPlan(plan)"
-              >
-                {{ getSubscriptionActionLabel(plan, selectedPaymentProvider) }}
+              <button class="primary-button" type="button" @click="selectSubscriptionPlan(plan)">
+                {{ memberProfile.plan === plan.key ? 'Current Plan' : 'Choose Subscription' }}
               </button>
             </article>
           </div>
-          <button
-            type="button"
-            class="carousel-arrow carousel-arrow-right"
-            aria-label="Scroll right"
-            @click="scrollSubscriptionCarousel('right')"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-          </button>
-        </div>
+        </section>
       </div>
     </section>
 
@@ -3846,7 +3815,6 @@
         const selectedCategory = ref('all');
         const selectedBillingCycle = ref('annual');
         const selectedPaymentProvider = ref('paypal');
-        const subscriptionGrid = ref(null);
         const isLoadingMarketplace = ref(false);
         const checkInLoading = ref(false);
         const memberLoggedIn = ref(false);
@@ -4707,14 +4675,6 @@
           return selectedBillingCycle.value === 'annual' ? 'per month, billed annually' : 'per month';
         };
 
-        const getSubscriptionActionLabel = (plan, provider) => {
-          if (isPayPalProcessing.value) return 'Processing...';
-          if (memberProfile.value.plan === plan.key && plan.key !== 'pay_as_you_go') return 'Current Plan';
-          if (plan.key === 'pay_as_you_go') return 'Buy Credits';
-          const providerName = provider === 'creem' ? 'Creem' : 'PayPal';
-          return `Pay with ${providerName}`;
-        };
-
         const selectSubscriptionPlan = async (plan) => {
           if (!memberLoggedIn.value) {
             openMemberPage('/register');
@@ -4739,16 +4699,6 @@
           } else {
             await processPayPalCheckout(plan);
           }
-        };
-
-        const scrollSubscriptionCarousel = (direction) => {
-          const grid = subscriptionGrid.value;
-          if (!grid) return;
-          const scrollAmount = 300;
-          grid.scrollBy({
-            left: direction === 'left' ? -scrollAmount : scrollAmount,
-            behavior: 'smooth'
-          });
         };
 
         const processPayPalCheckout = async (plan) => {
@@ -5628,7 +5578,6 @@
           selectedCategory,
           selectedBillingCycle,
           selectedPaymentProvider,
-          subscriptionGrid,
           currentToolSlug,
           toolKeyword,
           toolTitle,
@@ -5696,7 +5645,6 @@
           clampNumberFieldValue,
           getSubscriptionPeriodLabel,
           getSubscriptionPrice,
-          getSubscriptionActionLabel,
           handleMemberLogout,
           loginMember,
           loginWithGoogle,
@@ -5715,7 +5663,6 @@
           rollSeedField,
           saveMemberSettings,
           selectSubscriptionPlan,
-          scrollSubscriptionCarousel,
           executeWorkflow,
           downloadResult,
           changePasswordForm,

@@ -460,3 +460,47 @@ docker compose logs -f runninghub-app
 ### 後續建議
 - `getCurrentToolSlug()` 對非工具路徑預設返回 `'remove-background'`，建議改為返回空字串或 null
 - 考慮清理 VPS 上大量的 `rankwoven-old-*` 廢棄專案
+
+## 會話總結 - 2026-08-07 (Pricing 區塊回移)
+
+### 主要目的
+將原本 `Settings` 頁面下方的 `Membership Subscription` 區塊搬到 `/pricing` 頁面。
+
+### 完成內容
+- 以 Git 歷史中的舊版區塊為準，將 `Membership Subscription` 的會員面板樣式移回 `/pricing`
+- 保留 billing toggle、PayPal / Creem 選項、訂閱卡片輪播與購買按鈕
+
+### 關鍵決策
+- 不重做新的 pricing 版型，直接沿用原本 settings 下方的區塊，避免樣式偏移
+- 僅調整 `frontend/index.html` 的 pricing 區塊內容，保持其他會員頁邏輯不變
+
+### 修改的文件
+- `frontend/index.html`
+- `README.md`
+
+### 後續建議
+- 若 `/pricing` 還需要更明確的頁面標題，可以再補一個簡短的 heading，但先維持原版區塊樣式
+
+## 會話總結 - 2026-08-07 (Pricing 區塊回移實作)
+
+### 主要目的
+將 Git 歷史版本 `45f386f` 中 `/member/settings` 下半部的 `Membership Subscription` 區塊，直接搬到 `/pricing` 頁面。
+
+### 完成內容
+- 將 `frontend/index.html` 的 `/pricing` 模板替換為 `45f386f` 版本的會員訂閱卡片區塊
+- 移除今次替換後不再使用的訂閱輪播與按鈕文案 helper，避免保留孤立前端程式碼
+- 保留現有 `billingCycleOptions`、`subscriptionPlans` 與付款處理函式，讓頁面仍可沿用現有訂閱流程
+
+### 關鍵決策
+- 不重做新的 pricing 視覺稿，也不擴散修改到 `Settings`、`Orders` 或其他會員頁
+- 只回退 `/pricing` 的模板結構，令版面與 `45f386f` 的原始區塊一致
+
+### 修改的文件
+- `frontend/index.html`
+- `README.md`
+
+### 驗證
+- 執行 `npm test`，所有檢查與 11 個測試均已通過
+
+### 後續建議
+- 目前 `/pricing` 不再顯示 PayPal / Creem 切換 UI；如之後仍要保留多支付方式選擇，可再單獨補一輪前端交互調整
