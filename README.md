@@ -434,3 +434,29 @@ docker compose logs -f runninghub-app
 
 ### 修改的文件
 - `frontend/index.html`：移除重複的 Ahrefs Analytics JS 區塊；在 return 中加入 5 個缺失的變數/函式
+
+## 會話總結 - 2026-08-08 (定價頁修復)
+
+### 主要目的
+修復 `/pricing` 頁面顯示「Remove Background」工具內容而非套餐方案的問題。
+
+### 根本原因
+`frontend/index.html` 模板的 `v-if`/`v-else-if`/`v-else` 條件鏈有缺陷：
+- `<div v-else class="tool-page">` 是 catch-all，會在所有非會員、非市集路徑渲染
+- `/pricing` 路徑不是會員頁也不是市集頁，因此落入 `v-else` 分支，渲染了工具詳情頁
+- 同時 `isPricingPage` 使用獨立的 `v-if`，導致工具頁和定價頁同時渲染
+
+### 解決方案
+新增 `isToolPage` computed，排除會員、市集、法律、定價頁面，僅在真正的工具詳情頁或未知路徑時返回 true。將 `<div v-else class="tool-page">` 改為 `<div v-else-if="isToolPage" class="tool-page">`。
+
+### 修改的文件
+- `frontend/index.html`：新增 `isToolPage` computed；修改模板 `v-else` 為 `v-else-if="isToolPage"`；在 setup return 中加入 `isToolPage`
+
+### 部署
+- 提交 commit `dac9ff9`，推送到 GitHub `main` 分支
+- 通過 Hostinger VPS MCP `VPS_createNewProjectV1` 重新部署（VPS ID: 1307693）
+- 部署成功，容器運行正常，線上 HTML 確認 `v-else-if="isToolPage"` 已生效
+
+### 後續建議
+- `getCurrentToolSlug()` 對非工具路徑預設返回 `'remove-background'`，建議改為返回空字串或 null
+- 考慮清理 VPS 上大量的 `rankwoven-old-*` 廢棄專案
