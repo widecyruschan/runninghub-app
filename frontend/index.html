@@ -2618,7 +2618,7 @@
                   :key="item.path"
                   class="member-menu-item"
                   type="button"
-                  @click="openMemberPage(item.path)"
+                  @click="item.path === '/pricing' ? openPricingPage() : openMemberPage(item.path)"
                 >
                   <span aria-hidden="true">{{ item.icon }}</span>
                   <span>{{ item.label }}</span>
@@ -2640,7 +2640,7 @@
             <h1 class="member-title">{{ memberPageTitle }}</h1>
             <p class="member-description">{{ memberPageDescription }}</p>
           </div>
-          <button class="primary-button" type="button" @click="openMemberPage(memberLoggedIn ? '/member/settings' : '/register')">
+          <button class="primary-button" type="button" @click="memberLoggedIn ? openPricingPage() : openMemberPage('/register')">
             {{ memberLoggedIn ? 'Upgrade Plan' : 'Register Free' }}
           </button>
         </div>
@@ -3008,7 +3008,7 @@
                 </td>
               </tr>
               <tr v-if="!memberOrders.length">
-                <td colspan="5">No orders yet. <a href="#" @click.prevent="openMemberPage('/member/settings')">Upgrade now</a></td>
+                <td colspan="5">No orders yet. <a href="#" @click.prevent="openPricingPage()">Upgrade now</a></td>
               </tr>
             </tbody>
           </table>
@@ -3973,6 +3973,7 @@
           { path: '/member/dashboard', label: 'Dashboard', icon: '⊞' },
           { path: '/member/files', label: 'My Files', icon: '□' },
           { path: '/member/likes', label: 'My Likes', icon: '♡' },
+          { path: '/pricing', label: 'Pricing', icon: '★' },
           { path: '/member/orders', label: 'Orders', icon: '$' },
           { path: '/member/transactions', label: 'Transactions', icon: '◷' },
           { path: '/member/settings', label: 'Settings', icon: '⚙' }
