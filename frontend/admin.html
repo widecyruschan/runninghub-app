@@ -489,7 +489,8 @@
     }
 
     .status-draft,
-    .status-processing {
+    .status-processing,
+    .status-warning {
       background: var(--warning-soft);
       color: var(--warning);
     }
@@ -730,6 +731,12 @@
       border-color: var(--accent);
       background: var(--accent-soft);
       color: #08635d;
+    }
+
+    .button-warning {
+      border-color: #fde68a;
+      background: #fffbeb;
+      color: #92400e;
     }
 
     .option-list {
@@ -2529,48 +2536,20 @@
                     <td>{{ user.notes || '—' }}</td>
                     <td>
                       <button class="button" type="button" @click="openUserForm(user)">編輯</button>
+                      <button
+                        class="button"
+                        type="button"
+                        :class="user.status === 'active' ? 'button-warning' : 'button-success'"
+                        @click="toggleUserStatus(user)"
+                      >
+                        {{ user.status === 'active' ? '停用' : '啟用' }}
+                      </button>
+                      <button class="button button-danger" type="button" @click="deleteUser(user)">刪除</button>
                     </td>
                   </tr>
                 </tbody>
               </table>
 
-              <div class="section-title">
-                <div>
-                  <h3>{{ userForm.id ? '編輯後台帳號' : '新增後台帳號' }}</h3>
-                  <p>後台帳號只允許管理員或文章錄入員角色。</p>
-                </div>
-              </div>
-              <div class="form-grid">
-                <div class="field">
-                  <label for="backend-user-email">Email</label>
-                  <input id="backend-user-email" v-model="userForm.email" placeholder="admin@example.com">
-                </div>
-                <div class="field">
-                  <label for="backend-user-name">顯示名稱</label>
-                  <input id="backend-user-name" v-model="userForm.displayName" placeholder="後台帳號名稱">
-                </div>
-                <div class="field">
-                  <label for="backend-user-role">角色</label>
-                  <select id="backend-user-role" v-model="userForm.role">
-                    <option v-for="role in backendUserRoleOptions" :key="role.value" :value="role.value">{{ role.label }}</option>
-                  </select>
-                </div>
-                <div class="field">
-                  <label for="backend-user-status">狀態</label>
-                  <select id="backend-user-status" v-model="userForm.status">
-                    <option value="active">啟用</option>
-                    <option value="disabled">停用</option>
-                  </select>
-                </div>
-                <div class="field field-full">
-                  <label for="backend-user-notes">備註</label>
-                  <textarea id="backend-user-notes" v-model="userForm.notes" placeholder="內部備註"></textarea>
-                </div>
-              </div>
-              <div class="form-actions">
-                <button class="button" type="button" @click="resetUserForm">清空</button>
-                <button class="button button-primary" type="button" @click="saveUser">儲存後台帳號</button>
-              </div>
             </div>
           </section>
 
@@ -2615,60 +2594,21 @@
                     <td>{{ user.notes || '—' }}</td>
                     <td>
                       <button class="button" type="button" @click="openUserForm(user)">編輯</button>
+                      <button
+                        class="button"
+                        type="button"
+                        :class="user.status === 'active' ? 'button-warning' : 'button-success'"
+                        @click="toggleUserStatus(user)"
+                      >
+                        {{ user.status === 'active' ? '凍結' : '解凍' }}
+                      </button>
+                      <button class="button button-danger" type="button" @click="deleteUser(user)">刪除</button>
                       <button class="button button-success" type="button" @click="openCreditForm(user)">調整積分</button>
                       <button class="button" type="button" @click="openUserTaskHistory(user)">查看歷史</button>
                     </td>
                   </tr>
                 </tbody>
               </table>
-
-              <div class="section-title">
-                <div>
-                  <h3>{{ userForm.id ? '編輯註冊會員' : '會員資料' }}</h3>
-                  <p>會員只能通過前台註冊新增，後台可調整狀態、套餐和備註。</p>
-                </div>
-              </div>
-              <div class="form-grid">
-                <div class="field">
-                  <label for="member-user-email">Email</label>
-                  <input id="member-user-email" v-model="userForm.email" disabled>
-                </div>
-                <div class="field">
-                  <label for="member-user-name">顯示名稱</label>
-                  <input id="member-user-name" v-model="userForm.displayName" placeholder="會員名稱">
-                </div>
-                <div class="field">
-                  <label for="member-user-role">用戶類型</label>
-                  <select id="member-user-role" v-model="userForm.role">
-                    <option v-for="role in frontendUserRoleOptions" :key="role.value" :value="role.value">{{ role.label }}</option>
-                  </select>
-                </div>
-                <div v-if="userForm.role === 'member'" class="field">
-                  <label for="member-user-group">會員套餐</label>
-                  <select id="member-user-group" v-model="userForm.membershipGroup">
-                    <option v-for="group in memberPlanOptions" :key="group.value" :value="group.value">{{ group.label }}</option>
-                  </select>
-                </div>
-                <div class="field">
-                  <label for="member-user-credit">積分餘額</label>
-                  <input id="member-user-credit" v-model="userForm.creditBalance" type="number" min="0" step="1" disabled>
-                </div>
-                <div class="field">
-                  <label for="member-user-status">狀態</label>
-                  <select id="member-user-status" v-model="userForm.status">
-                    <option value="active">啟用</option>
-                    <option value="disabled">停用</option>
-                  </select>
-                </div>
-                <div class="field field-full">
-                  <label for="member-user-notes">備註</label>
-                  <textarea id="member-user-notes" v-model="userForm.notes" placeholder="內部備註"></textarea>
-                </div>
-              </div>
-              <div class="form-actions">
-                <button class="button" type="button" @click="resetUserForm">清空</button>
-                <button class="button button-primary" type="button" @click="saveUser">儲存會員資料</button>
-              </div>
 
               <section v-if="creditForm.userId" class="test-panel">
                 <div class="test-panel-header">
@@ -2701,6 +2641,76 @@
               </section>
             </div>
           </section>
+
+          <!-- 用戶編輯 Modal -->
+          <div v-if="userFormVisible" class="modal-mask" @click.self="closeUserForm">
+            <div class="modal-card">
+              <div class="modal-header">
+                <div class="modal-title">{{ userForm.id ? '編輯用戶' : '新增後台帳號' }}</div>
+                <button class="modal-close" type="button" @click="closeUserForm">×</button>
+              </div>
+              <div class="modal-body">
+                <div class="form-grid">
+                  <div class="field">
+                    <label for="user-email">Email</label>
+                    <input
+                      id="user-email"
+                      v-model="userForm.email"
+                      :disabled="userForm.accountType === 'frontend'"
+                      placeholder="user@example.com"
+                    >
+                  </div>
+                  <div class="field">
+                    <label for="user-name">顯示名稱</label>
+                    <input id="user-name" v-model="userForm.displayName" placeholder="用戶名稱">
+                  </div>
+                  <div class="field">
+                    <label for="user-role">角色 / 用戶類型</label>
+                    <select id="user-role" v-model="userForm.role" @change="handleUserRoleChange">
+                      <option
+                        v-for="role in availableUserRoleOptions"
+                        :key="role.value"
+                        :value="role.value"
+                      >
+                        {{ role.label }}
+                      </option>
+                    </select>
+                  </div>
+                  <div v-if="userForm.accountType === 'frontend' && userForm.role === 'member'" class="field">
+                    <label for="user-group">會員套餐</label>
+                    <select id="user-group" v-model="userForm.membershipGroup">
+                      <option v-for="group in memberPlanOptions" :key="group.value" :value="group.value">{{ group.label }}</option>
+                    </select>
+                  </div>
+                  <div v-if="userForm.id && userForm.accountType === 'frontend'" class="field">
+                    <label for="user-password">重設密碼</label>
+                    <input
+                      id="user-password"
+                      v-model="userForm.password"
+                      type="password"
+                      autocomplete="new-password"
+                      placeholder="不修改請留空"
+                    >
+                  </div>
+                  <div v-if="userForm.id" class="field">
+                    <label for="user-status">狀態</label>
+                    <select id="user-status" v-model="userForm.status">
+                      <option v-for="status in userStatusOptions" :key="status.value" :value="status.value">{{ status.label }}</option>
+                    </select>
+                  </div>
+                  <div class="field field-full">
+                    <label for="user-notes">備註</label>
+                    <textarea id="user-notes" v-model="userForm.notes" placeholder="內部備註"></textarea>
+                  </div>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button v-if="userForm.id" class="button button-danger" type="button" @click="deleteUser(userForm)">刪除用戶</button>
+                <button class="button" type="button" @click="closeUserForm">取消</button>
+                <button class="button button-primary" type="button" :disabled="userSaving" @click="saveUser">儲存</button>
+              </div>
+            </div>
+          </div>
 
           <section v-else-if="currentRoute === '/admin/memberships'" class="panel">
             <div class="panel-header">
@@ -2967,6 +2977,8 @@
         const menuForm = ref(createEmptyMenuForm());
         const userKeyword = ref('');
         const userForm = ref(createEmptyUserForm());
+        const userFormVisible = ref(false);
+        const userSaving = ref(false);
         const creditForm = ref(createEmptyCreditForm());
         const categories = ref([]);
         const menus = ref([]);
@@ -3065,6 +3077,12 @@
           { value: 'pro', label: 'PRO' },
           { value: 'pro_plus', label: 'PRO+' },
           { value: 'pro_max', label: 'PRO MAX' }
+        ];
+
+        const userStatusOptions = [
+          { value: 'active', label: '啟用' },
+          { value: 'frozen', label: '凍結' },
+          { value: 'disabled', label: '停用' }
         ];
 
         const taskStatusOptions = [
@@ -3414,7 +3432,8 @@
             membershipGroup: 'free',
             creditBalance: 0,
             status: 'active',
-            notes: ''
+            notes: '',
+            password: ''
           };
         }
 
@@ -3962,13 +3981,13 @@
               membershipGroup: user.membershipGroup,
               creditBalance: user.creditBalance,
               status: user.status,
-              notes: user.notes || ''
+              notes: user.notes || '',
+              password: ''
             };
-            navigateTo(userForm.value.accountType === 'backend' ? '/admin/users' : '/admin/members');
-            return;
+          } else {
+            userForm.value = createEmptyUserForm();
           }
-
-          userForm.value = createEmptyUserForm();
+          userFormVisible.value = true;
         }
 
         function openBackendUserForm() {
@@ -3977,21 +3996,29 @@
             accountType: 'backend',
             role: 'content_editor',
             membershipGroup: 'staff',
-            creditBalance: 0
+            creditBalance: 0,
+            password: ''
           };
-          navigateTo('/admin/users');
+          userFormVisible.value = true;
         }
 
-        function handleUserAccountTypeChange() {
+        function closeUserForm() {
+          userFormVisible.value = false;
+          resetUserForm();
+        }
+
+        function handleUserRoleChange() {
           if (userForm.value.accountType === 'backend') {
-            userForm.value.role = 'content_editor';
             userForm.value.membershipGroup = 'staff';
             userForm.value.creditBalance = 0;
             return;
           }
 
-          userForm.value.role = 'free_user';
-          userForm.value.membershipGroup = 'free';
+          if (userForm.value.role === 'free_user') {
+            userForm.value.membershipGroup = 'free';
+          } else if (userForm.value.role === 'member' && !userForm.value.membershipGroup) {
+            userForm.value.membershipGroup = 'free';
+          }
         }
 
         function inferAccountTypeFromRole(role) {
@@ -4550,39 +4577,93 @@
         }
 
         async function saveUser() {
-          const response = await adminFetch('/api/admin/users', {
-            method: 'POST',
+          if (userSaving.value) return;
+          userSaving.value = true;
+
+          try {
+            const response = await adminFetch('/api/admin/users', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(normalizeUserFormForSave())
+            });
+            const result = await response.json();
+
+            if (!result.success) {
+              window.alert(result.message || '用戶儲存失敗');
+              return;
+            }
+
+            if (userForm.value.id && userForm.value.password) {
+              const passwordResponse = await adminFetch(`/api/admin/users/${encodeURIComponent(userForm.value.id)}/password`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: userForm.value.password })
+              });
+              const passwordResult = await passwordResponse.json();
+              if (!passwordResult.success) {
+                window.alert(passwordResult.message || '密碼更新失敗');
+                return;
+              }
+            }
+
+            await loadUsers();
+            closeUserForm();
+          } finally {
+            userSaving.value = false;
+          }
+        }
+
+        function normalizeUserFormForSave() {
+          const payload = { ...userForm.value };
+          delete payload.password;
+
+          if (payload.accountType === 'backend') {
+            payload.membershipGroup = 'staff';
+            payload.creditBalance = 0;
+          } else if (payload.role === 'free_user') {
+            payload.membershipGroup = 'free';
+          }
+
+          return payload;
+        }
+
+        async function toggleUserStatus(user) {
+          const targetStatus = user.status === 'active'
+            ? (user.accountType === 'frontend' ? 'frozen' : 'disabled')
+            : 'active';
+          const actionLabel = targetStatus === 'active' ? '啟用' : (targetStatus === 'frozen' ? '凍結' : '停用');
+          if (!window.confirm(`確定要${actionLabel}用戶「${user.displayName || user.email}」嗎？`)) return;
+
+          const response = await adminFetch(`/api/admin/users/${encodeURIComponent(user.id)}/status`, {
+            method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(normalizeUserFormForSave())
+            body: JSON.stringify({ status: targetStatus })
           });
           const result = await response.json();
-
           if (!result.success) {
-            window.alert(result.message || '用戶儲存失敗');
+            window.alert(result.message || '狀態更新失敗');
             return;
           }
 
           await loadUsers();
-          resetUserForm();
         }
 
-        function normalizeUserFormForSave() {
-          if (userForm.value.accountType === 'backend') {
-            return {
-              ...userForm.value,
-              membershipGroup: 'staff',
-              creditBalance: 0
-            };
+        async function deleteUser(user) {
+          if (!window.confirm(`確定要刪除用戶「${user.displayName || user.email}」嗎？此操作無法復原。`)) return;
+
+          const response = await adminFetch(`/api/admin/users/${encodeURIComponent(user.id)}`, {
+            method: 'DELETE'
+          });
+          const result = await response.json();
+          if (!result.success) {
+            window.alert(result.message || '刪除失敗');
+            return;
           }
 
-          if (userForm.value.role === 'free_user') {
-            return {
-              ...userForm.value,
-              membershipGroup: 'free'
-            };
+          await loadUsers();
+          if (userFormVisible.value && userForm.value.id === user.id) {
+            closeUserForm();
           }
-
-          return userForm.value;
         }
 
         async function adjustUserCredits() {
@@ -5080,7 +5161,7 @@
           filteredTools,
           getTaskStatusClass,
           getTaskStatusLabel,
-          handleUserAccountTypeChange,
+          handleUserRoleChange,
           isTestingTool,
           addInputNode,
           addAllWorkflowFieldsToCanvas,
@@ -5134,6 +5215,9 @@
           resetMenuForm,
           resetToolTestValues,
           resetUserForm,
+          closeUserForm,
+          toggleUserStatus,
+          deleteUser,
           handleTestFileChange,
           runToolTest,
           recentTasks,
@@ -5173,6 +5257,9 @@
           tools,
           removeSelectedBuilderNode,
           userForm,
+          userFormVisible,
+          userSaving,
+          userStatusOptions,
           userKeyword,
           users,
           uploadFileTypeOptions,

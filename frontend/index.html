@@ -3103,7 +3103,7 @@
         <div v-else class="market-empty">No tools match your filters yet.</div>
       </section>
 
-      <div v-else class="tool-page">
+      <div v-else-if="isToolPage" class="tool-page">
         <aside class="tool-sidebar" aria-label="Tool sidebar">
           <div class="sidebar-inner">
             <section
@@ -3924,6 +3924,11 @@
 
         const isPricingPage = computed(() => {
           return normalizePath(currentPath.value) === '/pricing';
+        });
+
+        // 工具詳情頁：排除會員、市集、法律、定價等頁面，保留未知路徑的 fallback 行為
+        const isToolPage = computed(() => {
+          return !isMemberPage.value && !isMarketplace.value && !isLegalPage.value && !isPricingPage.value;
         });
 
         const currentLegalPath = computed(() => {
@@ -5610,6 +5615,7 @@
           isMemberPage,
           isLegalPage,
           isPricingPage,
+          isToolPage,
           currentLegalPath,
           categories: activeCategories,
           currentMemberPath,

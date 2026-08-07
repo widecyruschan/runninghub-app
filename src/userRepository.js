@@ -5,7 +5,7 @@ const BACKEND_USER_ROLES = new Set(['admin', 'content_editor']);
 const FRONTEND_USER_ROLES = new Set(['free_user', 'member']);
 const MEMBER_PLAN_GROUPS = new Set(['pro', 'pro_plus', 'pro_max']);
 const VALID_MEMBERSHIP_GROUPS = new Set(['staff', 'free', 'pro', 'pro_plus', 'pro_max']);
-const VALID_USER_STATUS = new Set(['active', 'disabled']);
+const VALID_USER_STATUS = new Set(['active', 'frozen', 'disabled']);
 const REGISTER_BONUS_CREDITS = 100;
 const DAILY_LOGIN_BONUS_CREDITS = 20;
 const LOGIN_BONUS_EXPIRES_DAYS = 3;
@@ -167,6 +167,10 @@ function createUserRepository(database) {
         reset_token_expires_at = '',
         updated_at = @updatedAt
       WHERE id = @id
+    `),
+    deleteById: database.prepare(`
+      DELETE FROM app_users
+      WHERE id = ?
     `)
   };
   // MySQL transaction is async (immediate), SQLite transaction returns a wrapper function.
@@ -431,9 +435,19 @@ function createUserRepository(database) {
     return (rows || []).map(mapCreditLedgerRecord);
   }
 
+  async function deleteById(id) {
+    const user = await getUserById(id);
+    if (!user) {
+      throwValidationError('用戶不存在', 'USER_NOT_FOUND', 404);
+    }
+    await statements.deleteById.run([id]);
+    return { deleted: true };
+  }
+
   return {
     DAILY_LOGIN_BONUS_CREDITS,
     adjustCredits,
+    deleteById,
     findById: getUserById,
     grantCreditsOnce,
     grantDailyLoginBonus,
@@ -573,8 +587,8 @@ function mapUserRecord(record) {
     creditBalance: record.credit_balance,
     lastLoginCreditDate: record.last_login_credit_date || '',
     status: record.status,
-    statusLabel: record.status === 'active' ? '啟用' : '停用',
-    statusClass: record.status === 'active' ? 'status-active' : 'status-error',
+    statusLabel: getStatusLabel(record.status),
+    statusClass: getStatusClass(record.status),
     notes: record.notes || '',
     createdAt: record.created_at,
     updatedAt: record.updated_at
@@ -652,6 +666,26 @@ function getMembershipGroupLabel(group) {
   };
 
   return labels[group] || group;
+}
+
+function getStatusLabel(status) {
+  const labels = {
+    active: '啟用',
+    frozen: '凍結',
+    disabled: '停用'
+  };
+
+  return labels[status] || status;
+}
+
+function getStatusClass(status) {
+  const classes = {
+    active: 'status-active',
+    frozen: 'status-warning',
+    disabled: 'status-error'
+  };
+
+  return classes[status] || 'status-error';
 }
 
 function parseInteger(value, message, code) {
