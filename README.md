@@ -395,3 +395,30 @@ docker compose logs -f runninghub-app
 - 后续建议：
   - 启动服务后进入后台 `/admin/workflows` 新增或编辑工具，切换到「搭建页面」模式，上传 ComfyUI API 格式工作流 JSON，测试左侧组件拖入画布、属性编辑与自动参数功能。
   - 若后续需要把分析逻辑复用到其他服务或改为后端接口，可再抽离为 `src/workflowAnalyzer.js` 并提供 `/api/admin/tools/analyze-workflow`。
+
+## 會話總結 - 2026-08-08
+
+### 主要目的
+修復 Google 登入後用戶資料無法顯示的問題。登入流程成功（session 建立、redirect 到 /member/files），但前端無法載入用戶資料。
+
+### 根本原因
+`getMemberSession()` 函式呼叫了 async 的 `memberSessionRepository.getSessionById()` 但沒有 `await`，導致回傳的是 Promise 而非 session 物件。Promise 永遠是 truthy，所以 `memberSession ? memberSession.user : null` 總是走 `memberSession.user` 分支，但 Promise 上沒有 `.user` 屬性，值為 `undefined`。`JSON.stringify` 會省略 undefined 值，導致 `/api/auth/me` 回應缺少 `data` 欄位，前端無法識別已登入狀態。
+
+### 完成的主要任務
+- 修改 `getMemberSession()` 為 `async function`，加入 `await`
+- 修改 `requireActiveMemberSession()` 為 `async function`，加入 `await`
+- 在所有 12 個呼叫點加入 `await` 關鍵字
+- 透過 Hostinger VPS MCP 重新部署 Docker 容器，環境變量直接嵌入 docker-compose.yml
+
+### 關鍵決策和解決方案
+- 診斷方式：用有效的 session ID 透過 curl 測試 `/api/auth/me`，觀察到 `data` 欄位缺失
+- 分析回應格式：`{"success":true,"message":"操作成功"}` 缺少 `data` → `undefined` 被 JSON.stringify 省略
+- 確認資料庫層面正常：session 記錄存在且有效
+- 環境變量部署：透過 `VPS_createNewProjectV1` 將所有環境變量直接寫入 docker-compose.yml，不依賴 .env 檔案
+
+### 修改的文件
+- `server.js`：修復 getMemberSession / requireActiveMemberSession 的 async/await 問題
+
+### 後續建議
+- 考慮將 session 驗證邏輯重構為獨立中間件
+- 加入整合測試覆蓋 OAuth 登入完整流程
