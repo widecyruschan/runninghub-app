@@ -422,3 +422,15 @@ docker compose logs -f runninghub-app
 ### 後續建議
 - 考慮將 session 驗證邏輯重構為獨立中間件
 - 加入整合測試覆蓋 OAuth 登入完整流程
+
+## 會話總結 - 2026-08-08 (補充)
+
+### 主要目的
+修復 `/member/settings` 頁面兩個前端錯誤。
+
+### 根本原因
+1. **Ahrefs Analytics 重複載入**：`<head>` 中同時存在 `<script src="...analytics.js" async>` 標籤和一段 JS 程式碼動態建立第二個相同的 script 元素，導致 analytics.js 被載入兩次。
+2. **`Cannot read properties of undefined (reading 'oldPassword')`**：`changePasswordForm`、`changePasswordLoading`、`changePasswordSuccess`、`changePasswordError`、`changeMemberPassword` 在 `setup()` 中有定義但沒有在 `return` 中暴露給模板，Vue 模板存取時得到 `undefined`。
+
+### 修改的文件
+- `frontend/index.html`：移除重複的 Ahrefs Analytics JS 區塊；在 return 中加入 5 個缺失的變數/函式
