@@ -425,7 +425,7 @@ async function handleKieApi(request, response) {
   const url = new URL(request.url, `http://${request.headers.host}`);
 
   if (url.pathname === '/api/kie/health' && request.method === 'GET') {
-    const memberSession = requireActiveMemberSession(request);
+    const memberSession = await requireActiveMemberSession(request);
     const creditBalance = await kieClient.getCreditBalance();
 
     sendJson(response, 200, {
@@ -441,7 +441,7 @@ async function handleKieApi(request, response) {
   }
 
   if (url.pathname === '/api/kie/egress-ip' && request.method === 'GET') {
-    const memberSession = requireActiveMemberSession(request);
+    const memberSession = await requireActiveMemberSession(request);
     const egressIp = await getCurrentEgressIp();
 
     sendJson(response, 200, {
@@ -456,7 +456,7 @@ async function handleKieApi(request, response) {
   }
 
   if (url.pathname === '/api/kie/diagnostics' && request.method === 'GET') {
-    const memberSession = requireActiveMemberSession(request);
+    const memberSession = await requireActiveMemberSession(request);
     const [egressIpResult, ipv6EgressIpResult, creditCheck] = await Promise.all([
       getKieEgressIpDiagnostic(),
       getKieIpv6EgressIpDiagnostic(),
@@ -479,7 +479,7 @@ async function handleKieApi(request, response) {
   }
 
   if (url.pathname === '/api/kie/upload' && request.method === 'POST') {
-    requireActiveMemberSession(request);
+    await requireActiveMemberSession(request);
     const requestBody = await readJsonBody(request);
     const uploadedFile = await uploadKieDataUrl(requestBody);
 
@@ -866,6 +866,83 @@ async function handleAdminApi(request, response) {
     return;
   }
 
+  const userStatusMatch = url.pathname.match(/^\/api\/admin\/users\/([^/]+)\/status$/);
+  if (userStatusMatch && request.method === 'PATCH') {
+    if (!hasPermission(adminSession, 'manage_users')) {
+      sendForbidden(response);
+      return;
+    }
+
+    const userId = decodeURIComponent(userStatusMatch[1]);
+    const requestBody = await readJsonBody(request);
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      sendJson(response, 404, { success: false, message: '用戶不存在', error: { code: 'USER_NOT_FOUND' } });
+      return;
+    }
+
+    const savedUser = await userRepository.saveUser({
+      ...user,
+      status: String(requestBody.status || '').trim()
+    });
+
+    sendJson(response, 200, {
+      success: true,
+      message: '用戶狀態已更新',
+      data: savedUser
+    });
+    return;
+  }
+
+  const userPasswordMatch = url.pathname.match(/^\/api\/admin\/users\/([^/]+)\/password$/);
+  if (userPasswordMatch && request.method === 'POST') {
+    if (!hasPermission(adminSession, 'manage_users')) {
+      sendForbidden(response);
+      return;
+    }
+
+    const userId = decodeURIComponent(userPasswordMatch[1]);
+    const requestBody = await readJsonBody(request);
+    const newPassword = String(requestBody.password || '');
+    if (newPassword.length < 6) {
+      sendJson(response, 422, { success: false, message: '密碼長度至少 6 位', error: { code: 'USER_PASSWORD_TOO_SHORT' } });
+      return;
+    }
+
+    const passwordHash = await hashMemberPassword(newPassword);
+    await userRepository.updatePassword(userId, passwordHash);
+
+    sendJson(response, 200, {
+      success: true,
+      message: '密碼已更新'
+    });
+    return;
+  }
+
+  const userDeleteMatch = url.pathname.match(/^\/api\/admin\/users\/([^/]+)$/);
+  if (userDeleteMatch && request.method === 'DELETE') {
+    if (!hasPermission(adminSession, 'manage_users')) {
+      sendForbidden(response);
+      return;
+    }
+
+    const userId = decodeURIComponent(userDeleteMatch[1]);
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      sendJson(response, 404, { success: false, message: '用戶不存在', error: { code: 'USER_NOT_FOUND' } });
+      return;
+    }
+
+    await memberSessionRepository.deleteSessionsByUserId(userId);
+    await userRepository.deleteById(userId);
+
+    sendJson(response, 200, {
+      success: true,
+      message: '用戶已刪除'
+    });
+    return;
+  }
+
   if (url.pathname === '/api/admin/tasks' && request.method === 'GET') {
     sendJson(response, 200, {
       success: true,
@@ -1031,7 +1108,7 @@ async function handleAuthApi(request, response) {
   }
 
   if (url.pathname === '/api/auth/me' && request.method === 'GET') {
-    const memberSession = getMemberSession(request);
+    const memberSession = await getMemberSession(request);
     sendJson(response, 200, {
       success: true,
       message: '操作成功',
@@ -1186,7 +1263,7 @@ async function handleAuthApi(request, response) {
   }
 
   if (url.pathname === '/api/auth/change-password' && request.method === 'POST') {
-    const memberSession = requireActiveMemberSession(request);
+    const memberSession = await requireActiveMemberSession(request);
     const body = await readJsonBody(request);
     const oldPassword = String(body?.oldPassword || '');
     const newPassword = String(body?.newPassword || '');
@@ -1266,7 +1343,7 @@ async function handleTaskApi(request, response) {
 
 async function handleMeApi(request, response) {
   const url = new URL(request.url, `http://${request.headers.host}`);
-  const memberSession = requireActiveMemberSession(request);
+  const memberSession = await requireActiveMemberSession(request);
   const userId = memberSession.user.id;
 
   // 账户概览统计 + 每日用量明细
@@ -1415,7 +1492,7 @@ async function handlePaymentApi(request, response) {
   const url = new URL(request.url, `http://${request.headers.host}`);
 
   if (url.pathname === '/api/payments/paypal/orders' && request.method === 'POST') {
-    const memberSession = requireActiveMemberSession(request);
+    const memberSession = await requireActiveMemberSession(request);
     const requestBody = await readJsonBody(request);
     const result = await createPaypalPaymentOrder(request, memberSession.user, requestBody);
 
@@ -1429,7 +1506,7 @@ async function handlePaymentApi(request, response) {
 
   const captureMatch = url.pathname.match(/^\/api\/payments\/paypal\/orders\/([^/]+)\/capture$/);
   if (captureMatch && request.method === 'POST') {
-    const memberSession = requireActiveMemberSession(request);
+    const memberSession = await requireActiveMemberSession(request);
     const providerOrderId = decodeURIComponent(captureMatch[1]);
     const result = await capturePaypalPaymentOrder(providerOrderId, memberSession.user);
 
@@ -1465,7 +1542,7 @@ async function handlePaymentApi(request, response) {
   }
 
   if (url.pathname === '/api/payments/creem/checkout' && request.method === 'POST') {
-    const memberSession = requireActiveMemberSession(request);
+    const memberSession = await requireActiveMemberSession(request);
     const requestBody = await readJsonBody(request);
     const result = await createCreemCheckoutSession(request, memberSession.user, requestBody);
 
@@ -1478,7 +1555,7 @@ async function handlePaymentApi(request, response) {
   }
 
   if (url.pathname === '/api/payments/creem/success' && request.method === 'POST') {
-    const memberSession = requireActiveMemberSession(request);
+    const memberSession = await requireActiveMemberSession(request);
     const requestBody = await readJsonBody(request);
     const result = await finalizeCreemCheckoutSession(memberSession.user, requestBody);
 
@@ -1505,7 +1582,7 @@ async function executeConfiguredTool(idOrSlug, requestBody, request) {
 
   ensureToolProviderConfigured(tool);
 
-  const memberSession = requireActiveMemberSession(request);
+  const memberSession = await requireActiveMemberSession(request);
 
   // Content Moderation – screen all prompts before execution
   const moderationViolation = await moderateToolInput(
@@ -3940,6 +4017,11 @@ async function loginMemberAccount(payload, provider) {
     throwHttpError('帳號不存在，請先註冊', 'MEMBER_NOT_FOUND', 404);
   }
 
+  if (existingUser.status !== 'active') {
+    const statusLabel = existingUser.status === 'frozen' ? '凍結' : '停用';
+    throwHttpError(`帳戶已被${statusLabel}，請聯絡客服`, 'MEMBER_ACCOUNT_INACTIVE', 403);
+  }
+
     if (!userAuth.passwordHash) {
       throwHttpError('此帳號尚未設定密碼，請使用 Google 登入或透過忘記密碼設定密碼', 'MEMBER_PASSWORD_NOT_SET', 403);
     }
@@ -4184,19 +4266,19 @@ function getAdminSession(request) {
   return null;
 }
 
-function getMemberSession(request) {
+async function getMemberSession(request) {
   const sessionIds = getCookieValues(request, MEMBER_SESSION_COOKIE);
 
   for (const sessionId of sessionIds) {
-    const memberSession = memberSessionRepository.getSessionById(sessionId);
+    const memberSession = await memberSessionRepository.getSessionById(sessionId);
     if (memberSession) return memberSession;
   }
 
   return null;
 }
 
-function requireActiveMemberSession(request) {
-  const memberSession = getMemberSession(request);
+async function requireActiveMemberSession(request) {
+  const memberSession = await getMemberSession(request);
   if (!memberSession || memberSession.user.status !== 'active') {
     throwHttpError('請先註冊或登入後再使用 AI 生成功能', 'AUTH_REQUIRED', 401);
   }
