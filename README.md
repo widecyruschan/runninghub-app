@@ -583,3 +583,28 @@ docker compose logs -f runninghub-app
 
 ### 後續建議
 - 部署後重新打開 `/pricing`，確認箭頭可左右捲動卡片，且頁面不再停在中間空白位置
+
+## 會話總結 - 2026-08-08 (Pricing 區塊結構修正)
+
+### 主要目的
+修正 `/pricing` 頁面中 `Membership Subscription` 被撐到視口下方的大段空白問題。
+
+### 完成內容
+- 找出問題根因為 `</main>` 提早關閉，導致 `legal/pricing/footer` 跑到 `app-shell` 外面
+- 把 `Membership Subscription`、法律頁與 footer 重新包回 `main.app-shell`
+- 保留左右滾動箭頭與回頂行為，確認 pricing 區塊從 header 下方正常起始
+
+### 關鍵決策
+- 不靠額外 spacer 或硬編碼 margin 解空白
+- 直接修正 HTML 結構，讓 `min-height: 100vh` 由正確的主容器接手
+
+### 修改的文件
+- `frontend/index.html`
+- `README.md`
+
+### 驗證
+- 以本地 `agent-browser` 重新打開 `/pricing`，確認 section top 由 577 降到 70
+- 截圖確認內容已回到 header 下方正常位置
+
+### 後續建議
+- 部署後再用瀏覽器檢查 `/pricing`，確認 live 版本已套用結構修正
