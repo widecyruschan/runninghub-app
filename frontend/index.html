@@ -3663,25 +3663,43 @@
               {{ option.label }}
             </button>
           </div>
-          <div class="subscription-grid">
-            <article
-              v-for="plan in subscriptionPlans"
-              :key="plan.key"
-              class="subscription-card"
-              :class="{ 'is-featured': plan.featured }"
+          <div class="subscription-carousel">
+            <button
+              type="button"
+              class="carousel-arrow carousel-arrow-left"
+              aria-label="Scroll left"
+              @click="scrollSubscriptionCarousel('left')"
             >
-              <span v-if="plan.featured" class="subscription-badge">Most Popular</span>
-              <div class="subscription-title">{{ plan.name }}</div>
-              <div class="subscription-price">{{ getSubscriptionPrice(plan) }}</div>
-              <div class="subscription-period">{{ getSubscriptionPeriodLabel(plan) }}</div>
-              <p class="subscription-description">{{ plan.description }}</p>
-              <div class="subscription-feature-list">
-                <div v-for="feature in plan.features" :key="feature" class="subscription-feature">✓ {{ feature }}</div>
-              </div>
-              <button class="primary-button" type="button" @click="selectSubscriptionPlan(plan)">
-                {{ memberProfile.plan === plan.key ? 'Current Plan' : 'Choose Subscription' }}
-              </button>
-            </article>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            <div ref="subscriptionGrid" class="subscription-grid">
+              <article
+                v-for="plan in subscriptionPlans"
+                :key="plan.key"
+                class="subscription-card"
+                :class="{ 'is-featured': plan.featured }"
+              >
+                <span v-if="plan.featured" class="subscription-badge">Most Popular</span>
+                <div class="subscription-title">{{ plan.name }}</div>
+                <div class="subscription-price">{{ getSubscriptionPrice(plan) }}</div>
+                <div class="subscription-period">{{ getSubscriptionPeriodLabel(plan) }}</div>
+                <p class="subscription-description">{{ plan.description }}</p>
+                <div class="subscription-feature-list">
+                  <div v-for="feature in plan.features" :key="feature" class="subscription-feature">✓ {{ feature }}</div>
+                </div>
+                <button class="primary-button" type="button" @click="selectSubscriptionPlan(plan)">
+                  {{ memberProfile.plan === plan.key ? 'Current Plan' : 'Choose Subscription' }}
+                </button>
+              </article>
+            </div>
+            <button
+              type="button"
+              class="carousel-arrow carousel-arrow-right"
+              aria-label="Scroll right"
+              @click="scrollSubscriptionCarousel('right')"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
           </div>
         </section>
       </div>
@@ -3816,6 +3834,7 @@
         const selectedCategory = ref('all');
         const selectedBillingCycle = ref('annual');
         const selectedPaymentProvider = ref('paypal');
+        const subscriptionGrid = ref(null);
         const isLoadingMarketplace = ref(false);
         const checkInLoading = ref(false);
         const memberLoggedIn = ref(false);
@@ -4704,6 +4723,16 @@
           }
         };
 
+        const scrollSubscriptionCarousel = (direction) => {
+          const grid = subscriptionGrid.value;
+          if (!grid) return;
+          const scrollAmount = 300;
+          grid.scrollBy({
+            left: direction === 'left' ? -scrollAmount : scrollAmount,
+            behavior: 'smooth'
+          });
+        };
+
         const processPayPalCheckout = async (plan) => {
           isPayPalProcessing.value = true;
 
@@ -5081,6 +5110,7 @@
         const setCurrentPath = () => {
           currentPath.value = window.location.pathname || '/';
           syncRobotsMeta(currentPath.value);
+          window.scrollTo(0, 0);
         };
 
         const getCurrentToolSlug = () => {
@@ -5596,6 +5626,7 @@
           selectedCategory,
           selectedBillingCycle,
           selectedPaymentProvider,
+          subscriptionGrid,
           currentToolSlug,
           toolKeyword,
           toolTitle,
@@ -5681,6 +5712,7 @@
           rollSeedField,
           saveMemberSettings,
           selectSubscriptionPlan,
+          scrollSubscriptionCarousel,
           executeWorkflow,
           downloadResult,
           changePasswordForm,

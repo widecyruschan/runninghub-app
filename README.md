@@ -559,3 +559,27 @@ docker compose logs -f runninghub-app
 
 ### 後續建議
 - 把這次變更部署後，再用瀏覽器 hard refresh 一次確認頁首品牌已不再顯示 `Remove Background`
+
+## 會話總結 - 2026-08-08 (Pricing 卡片箭頭與回頂修復)
+
+### 主要目的
+為 `/pricing` 的 `Membership Subscription` 區塊補回左右滾動箭頭，並減少頁面切換後出現的大段空白感。
+
+### 完成內容
+- 將 `Membership Subscription` 重新包回 `subscription-carousel`，補上左右滾動箭頭
+- 重新加入 `subscriptionGrid` 與 `scrollSubscriptionCarousel()`，維持橫向捲動卡片行為
+- 在路由切換時強制回到頁頂，避免 SPA 保留上一頁 scroll position 造成 pricing 區塊被頂下去
+
+### 關鍵決策
+- 保留現有 pricing 卡片樣式與訂閱邏輯，只補回舊版 carousel 交互
+- 用 route change 回頂處理視覺空白，不額外改動 pricing 的內容密度
+
+### 修改的文件
+- `frontend/index.html`
+- `README.md`
+
+### 驗證
+- 執行 `npm test`，所有檢查與 11 個測試均已通過
+
+### 後續建議
+- 部署後重新打開 `/pricing`，確認箭頭可左右捲動卡片，且頁面不再停在中間空白位置
