@@ -184,13 +184,24 @@ const adminRoutePrefixes = [
 
 const frontendRoutePrefixes = [
   '/login',
+  '/forgot-password',
   '/member',
   '/register',
+  '/reset-password',
   '/tools',
   '/privacy',
   '/terms',
   '/pricing'
 ];
+const botBlockedRoutePrefixes = [
+  '/admin',
+  '/login',
+  '/register',
+  '/forgot-password',
+  '/reset-password',
+  '/member'
+];
+const ROBOTS_NOINDEX_VALUE = 'noindex, nofollow, noarchive, nosnippet';
 const adminSessions = new Map();
 const pendingOAuthStates = new Map();
 const ADMIN_SESSION_COOKIE = 'runninghub_admin_session';
@@ -244,6 +255,24 @@ const server = http.createServer(async (request, response) => {
           apiKey: Boolean(process.env.CREEM_API_KEY),
           webhookSecret: Boolean(process.env.CREEM_WEBHOOK_SECRET),
         },
+      });
+      return;
+    }
+
+    if (requestPathname === '/robots.txt') {
+      sendText(response, 200, buildRobotsTxt(request), {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Cache-Control': 'public, max-age=3600'
+      });
+      return;
+    }
+
+    if (requestPathname === '/sitemap.xml') {
+      await dbReady;
+      const sitemapXml = await buildSitemapXml(request);
+      sendText(response, 200, sitemapXml, {
+        'Content-Type': 'application/xml; charset=utf-8',
+        'Cache-Control': 'public, max-age=3600'
       });
       return;
     }
@@ -4401,7 +4430,8 @@ function sendForbidden(response) {
 async function pipeRunningHubResponse(response, runningHubResponse) {
   const responseText = await runningHubResponse.text();
   response.writeHead(runningHubResponse.status, {
-    'Content-Type': runningHubResponse.headers.get('content-type') || 'application/json; charset=utf-8'
+    'Content-Type': runningHubResponse.headers.get('content-type') || 'application/json; charset=utf-8',
+    'X-Robots-Tag': ROBOTS_NOINDEX_VALUE
   });
   response.end(responseText);
 }
@@ -4446,12 +4476,12 @@ function readRequestBody(request, maxSize) {
 async function serveStaticFile(request, response) {
   const url = new URL(request.url, `http://${request.headers.host}`);
   if (isAdminRoute(url.pathname)) {
-    await sendStaticFile(response, path.join(PUBLIC_DIR, 'admin.html'));
+    await sendStaticFile(response, path.join(PUBLIC_DIR, 'admin.html'), getStaticRobotsHeaders(url.pathname));
     return;
   }
 
   if (isFrontendRoute(url.pathname)) {
-    await sendStaticFile(response, path.join(PUBLIC_DIR, 'index.html'));
+    await sendStaticFile(response, path.join(PUBLIC_DIR, 'index.html'), getStaticRobotsHeaders(url.pathname));
     return;
   }
 
@@ -4507,13 +4537,27 @@ function isFrontendRoute(pathname) {
   ));
 }
 
-async function sendStaticFile(response, filePath) {
+async function sendStaticFile(response, filePath, extraHeaders = {}) {
   const extension = path.extname(filePath).toLowerCase();
   response.writeHead(200, {
     'Content-Type': mimeTypes[extension] || 'application/octet-stream',
-    ...(extension === '.html' ? { 'Cache-Control': 'no-store' } : {})
+    ...(extension === '.html' ? { 'Cache-Control': 'no-store' } : {}),
+    ...extraHeaders
   });
   fs.createReadStream(filePath).pipe(response);
+}
+
+function isBotBlockedRoute(pathname) {
+  return botBlockedRoutePrefixes.some((routePrefix) => (
+    pathname === routePrefix || pathname.startsWith(`${routePrefix}/`)
+  ));
+}
+
+function getStaticRobotsHeaders(pathname) {
+  if (!isBotBlockedRoute(pathname)) return {};
+  return {
+    'X-Robots-Tag': ROBOTS_NOINDEX_VALUE
+  };
 }
 
 function getNoStoreHeaders() {
@@ -4528,9 +4572,79 @@ function getNoStoreHeaders() {
 function sendJson(response, statusCode, payload, extraHeaders = {}) {
   response.writeHead(statusCode, {
     'Content-Type': 'application/json; charset=utf-8',
+    'X-Robots-Tag': ROBOTS_NOINDEX_VALUE,
     ...extraHeaders
   });
   response.end(JSON.stringify(payload));
+}
+
+function sendText(response, statusCode, text, extraHeaders = {}) {
+  response.writeHead(statusCode, extraHeaders);
+  response.end(text);
+}
+
+function buildRobotsTxt(request) {
+  const publicBaseUrl = publicAppBaseUrl || getRequestOrigin(request);
+  return [
+    'User-agent: *',
+    'Allow: /',
+    'Disallow: /admin',
+    'Disallow: /member',
+    'Disallow: /login',
+    'Disallow: /register',
+    'Disallow: /forgot-password',
+    'Disallow: /reset-password',
+    'Disallow: /api/',
+    `Sitemap: ${publicBaseUrl}/sitemap.xml`
+  ].join('\n');
+}
+
+async function buildSitemapXml(request) {
+  const publicBaseUrl = publicAppBaseUrl || getRequestOrigin(request);
+  const publicPages = [
+    { path: '/', lastmod: null },
+    { path: '/pricing', lastmod: null },
+    { path: '/privacy', lastmod: null },
+    { path: '/terms', lastmod: null }
+  ];
+  const tools = await toolRepository.listActiveTools();
+  const toolEntries = tools.map((tool) => ({
+    path: `/tools/${encodeURIComponent(tool.slug)}`,
+    lastmod: tool.updatedAt || null
+  }));
+  const urlEntries = [...publicPages, ...toolEntries];
+  const xmlItems = urlEntries.map((entry) => {
+    const lastmod = formatSitemapLastmod(entry.lastmod);
+    return [
+      '  <url>',
+      `    <loc>${escapeXml(`${publicBaseUrl}${entry.path}`)}</loc>`,
+      ...(lastmod ? [`    <lastmod>${lastmod}</lastmod>`] : []),
+      '  </url>'
+    ].join('\n');
+  });
+
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ...xmlItems,
+    '</urlset>'
+  ].join('\n');
+}
+
+function formatSitemapLastmod(value) {
+  if (!value) return '';
+  const parsedDate = new Date(value);
+  if (Number.isNaN(parsedDate.getTime())) return '';
+  return parsedDate.toISOString();
+}
+
+function escapeXml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 }
 
 // 數據庫備份：將 SQLite 文件作為下載返回

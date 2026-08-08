@@ -504,3 +504,33 @@ docker compose logs -f runninghub-app
 
 ### 後續建議
 - 目前 `/pricing` 不再顯示 PayPal / Creem 切換 UI；如之後仍要保留多支付方式選擇，可再單獨補一輪前端交互調整
+
+## 會話總結 - 2026-08-08 (Search Console 索引修復)
+
+### 主要目的
+修復 Google Search Console 回報的 `404`、`401` 與 `noindex` 相關索引問題，並明確阻止機器人抓取後台與會員頁面。
+
+### 完成內容
+- 新增 `robots.txt` 路由，明確封鎖 `/admin`、`/member`、登入註冊、重設密碼與 `/api/`
+- 新增 `sitemap.xml` 路由，只輸出公開頁面與已上線工具頁
+- 為後台頁、會員頁、登入註冊頁與 API 回應加入 `X-Robots-Tag: noindex, nofollow, noarchive, nosnippet`
+- 前台 `index.html` 補上 route-aware `meta robots`；`admin.html` 補上靜態 `noindex`
+- 修復 `/forgot-password` 與 `/reset-password` 未被前端路由白名單接住、直接訪問會返回 `404` 的問題
+
+### 關鍵決策
+- 不對公開工具頁與法律頁加 noindex，避免影響正常收錄
+- 用 server header + robots.txt + sitemap 三層控制，而不是只靠前端 meta
+- 只把真正可公開的 URL 放進 sitemap，避免再把私有頁面暴露給 Search Console
+
+### 修改的文件
+- `server.js`
+- `frontend/index.html`
+- `frontend/admin.html`
+- `README.md`
+
+### 驗證
+- 執行 `npm test`，所有檢查與 11 個測試均已通過
+
+### 後續建議
+- 部署後到 Search Console 重新提交 `https://imgkit.io/sitemap.xml`
+- 對 `/admin`、`/member/settings`、`/login` 用 URL Inspection 重新驗證，確認 Google 收到 `noindex`

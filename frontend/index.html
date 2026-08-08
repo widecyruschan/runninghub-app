@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta id="page-robots-meta" name="robots" content="index,follow">
   <title>AI Tools</title>
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-4WHJP9D5NM"></script>
@@ -3965,6 +3966,7 @@
             time: 'Today'
           }
         ];
+        const privateRobotsRoutePrefixes = ['/admin', '/login', '/register', '/forgot-password', '/reset-password', '/member'];
         const billingCycleOptions = [
           { value: 'annual', label: 'Annual' },
           { value: 'monthly', label: 'Monthly' }
@@ -5064,8 +5066,20 @@
           return pathname.replace(/\/$/, '');
         };
 
+        const syncRobotsMeta = (pathname = currentPath.value) => {
+          const robotsMeta = document.getElementById('page-robots-meta');
+          if (!robotsMeta) return;
+
+          const normalizedPath = normalizePath(pathname);
+          const shouldNoindex = privateRobotsRoutePrefixes.some((routePrefix) => (
+            normalizedPath === routePrefix || normalizedPath.startsWith(`${routePrefix}/`)
+          ));
+          robotsMeta.setAttribute('content', shouldNoindex ? 'noindex,nofollow,noarchive,nosnippet' : 'index,follow');
+        };
+
         const setCurrentPath = () => {
           currentPath.value = window.location.pathname || '/';
+          syncRobotsMeta(currentPath.value);
         };
 
         const getCurrentToolSlug = () => {
@@ -5470,6 +5484,7 @@
         };
 
         onMounted(() => {
+          syncRobotsMeta(currentPath.value);
           loadMemberSession().finally(() => {
             processPayPalReturn();
             processCreemReturn();
