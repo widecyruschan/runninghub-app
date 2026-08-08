@@ -740,6 +740,12 @@
       color: #92400e;
     }
 
+    .tool-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
     .option-list {
       display: grid;
       gap: 8px;
@@ -1589,23 +1595,26 @@
                     <td><span class="status-pill" :class="tool.lastTestStatusClass">{{ tool.lastTestStatusLabel }}</span></td>
                     <td>{{ tool.sortOrder }}</td>
                     <td>
-                      <button class="button" type="button" @click="openToolForm(tool)">配置</button>
-                      <button
-                        class="button button-success"
-                        type="button"
-                        :disabled="tool.status === 'active'"
-                        @click="updateToolStatus(tool, 'active')"
-                      >
-                        上線
-                      </button>
-                      <button
-                        class="button button-danger"
-                        type="button"
-                        :disabled="tool.status === 'inactive'"
-                        @click="updateToolStatus(tool, 'inactive')"
-                      >
-                        停用
-                      </button>
+                      <div class="tool-actions">
+                        <button class="button" type="button" @click="openToolForm(tool)">配置</button>
+                        <button
+                          class="button button-success"
+                          type="button"
+                          :disabled="tool.status === 'active'"
+                          @click="updateToolStatus(tool, 'active')"
+                        >
+                          上線
+                        </button>
+                        <button
+                          class="button button-warning"
+                          type="button"
+                          :disabled="tool.status === 'inactive'"
+                          @click="updateToolStatus(tool, 'inactive')"
+                        >
+                          停用
+                        </button>
+                        <button class="button button-danger" type="button" @click="deleteTool(tool)">刪除</button>
+                      </div>
                     </td>
                   </tr>
                 </tbody>
@@ -4997,6 +5006,24 @@
 
           await loadTools();
           return result.data;
+        }
+
+        async function deleteTool(tool) {
+          if (!window.confirm(`確定要刪除工具「${tool.name}」嗎？此操作無法復原。`)) {
+            return;
+          }
+
+          const response = await adminFetch(`/api/admin/tools/${encodeURIComponent(tool.id)}`, {
+            method: 'DELETE'
+          });
+          const result = await response.json();
+
+          if (!result.success) {
+            window.alert(result.message || '工具刪除失敗');
+            return;
+          }
+
+          await loadTools();
         }
 
         async function adminFetch(url, options = {}) {

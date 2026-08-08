@@ -688,6 +688,36 @@ docker compose logs -f runninghub-app
 ### 後續建議
 - 重新上傳 workflow 後再測一次工具，確認未填欄位會自動沿用原始預設值
 
+## 會話總結 - 2026-08-08 (工具列表刪除按鈕)
+
+### 主要目的
+在後台工具列表新增刪除按鈕，讓管理者可以直接移除工具。
+
+### 完成內容
+- 工具列表操作欄新增「刪除」按鈕與刪除確認
+- 後端新增 `DELETE /api/admin/tools/:id` 介面
+- 工具採用軟刪除，透過 `deleted_at` 隱藏於列表，但保留歷史任務可查
+- 工具列表加入 `tool-actions` 包裝，避免按鈕過多時排版擠壓
+
+### 關鍵決策
+- 不做硬刪除，避免歷史任務與狀態同步查不到工具
+- 刪除後只從可見列表移除，不影響舊任務紀錄
+
+### 修改的文件
+- `frontend/admin.html`
+- `server.js`
+- `src/database.js`
+- `src/toolRepository.js`
+- `test/toolRepository.test.js`
+- `README.md`
+
+### 驗證
+- `npm test` 已通過
+- `toolRepository` 新增刪除回歸測試，確認刪除後列表不可見但按 id 仍可取回
+
+### 後續建議
+- 若之後需要恢復已刪工具，可再補一個還原按鈕，直接清除 `deleted_at`
+
 ## 會話總結 - 2026-08-08 (HYPIR workflow 修復)
 
 ### 主要目的

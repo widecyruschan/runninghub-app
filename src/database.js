@@ -59,6 +59,7 @@ async function migrateDatabase(adapter) {
       last_test_task_id VARCHAR(64) NOT NULL DEFAULT '',
       last_test_error TEXT NOT NULL DEFAULT '',
       last_tested_at VARCHAR(32),
+      deleted_at VARCHAR(32) NOT NULL DEFAULT '',
       sort_order INT NOT NULL DEFAULT 100,
       input_nodes_json TEXT NOT NULL,
       output_config_json TEXT NOT NULL,
@@ -188,6 +189,7 @@ async function migrateDatabase(adapter) {
   await ensureColumn(adapter, 'tools', 'last_test_task_id', "VARCHAR(64) NOT NULL DEFAULT ''");
   await ensureColumn(adapter, 'tools', 'last_test_error', "TEXT NOT NULL");
   await ensureColumn(adapter, 'tools', 'last_tested_at', 'VARCHAR(32)');
+  await ensureColumn(adapter, 'tools', 'deleted_at', "VARCHAR(32) NOT NULL DEFAULT ''");
   await ensureColumn(adapter, 'execution_tasks', 'user_id', "VARCHAR(64) NOT NULL DEFAULT ''");
   await ensureColumn(adapter, 'execution_tasks', 'actual_consume_coins', "DOUBLE NOT NULL DEFAULT 0");
   await ensureColumn(adapter, 'execution_tasks', 'charged_credits', "INT NOT NULL DEFAULT 0");

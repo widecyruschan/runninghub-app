@@ -774,6 +774,19 @@ async function handleAdminApi(request, response) {
     return;
   }
 
+  const toolDeleteMatch = url.pathname.match(/^\/api\/admin\/tools\/([^/]+)$/);
+  if (toolDeleteMatch && request.method === 'DELETE') {
+    const toolId = decodeURIComponent(toolDeleteMatch[1]);
+    const deletedTool = await toolRepository.deleteTool(toolId);
+
+    sendJson(response, 200, {
+      success: true,
+      message: '工具已刪除',
+      data: deletedTool
+    });
+    return;
+  }
+
   if (url.pathname === '/api/admin/categories' && request.method === 'GET') {
     sendJson(response, 200, {
       success: true,

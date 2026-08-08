@@ -14,6 +14,7 @@ function createToolRepository(database) {
       FROM tools
       LEFT JOIN tool_categories
         ON tool_categories.id = tools.category_id
+      WHERE COALESCE(tools.deleted_at, '') = ''
       ORDER BY tools.sort_order ASC, tools.created_at DESC
     `),
     findById: database.prepare(`
@@ -36,6 +37,18 @@ function createToolRepository(database) {
         ON tool_categories.id = tools.category_id
       WHERE tools.slug = ?
     `),
+    findBySlugActive: database.prepare(`
+      SELECT
+        tools.*,
+        tool_categories.name AS category_name,
+        tool_categories.category_key AS category_key
+      FROM tools
+      LEFT JOIN tool_categories
+        ON tool_categories.id = tools.category_id
+      WHERE tools.slug = ?
+        AND tools.status = 'active'
+        AND COALESCE(tools.deleted_at, '') = ''
+    `),
     findByIdOrSlug: database.prepare(`
       SELECT
         tools.*,
@@ -45,6 +58,18 @@ function createToolRepository(database) {
       LEFT JOIN tool_categories
         ON tool_categories.id = tools.category_id
       WHERE tools.id = ? OR tools.slug = ?
+    `),
+    findByIdOrSlugActive: database.prepare(`
+      SELECT
+        tools.*,
+        tool_categories.name AS category_name,
+        tool_categories.category_key AS category_key
+      FROM tools
+      LEFT JOIN tool_categories
+        ON tool_categories.id = tools.category_id
+      WHERE (tools.id = ? OR tools.slug = ?)
+        AND tools.status = 'active'
+        AND COALESCE(tools.deleted_at, '') = ''
     `),
     findByLastTestTaskId: database.prepare(`
       SELECT
@@ -65,6 +90,7 @@ function createToolRepository(database) {
       LEFT JOIN tool_categories
         ON tool_categories.id = tools.category_id
       WHERE tools.status = 'active'
+        AND COALESCE(tools.deleted_at, '') = ''
       ORDER BY tools.sort_order ASC, tools.created_at DESC
     `),
     findByToolKey: database.prepare(`
@@ -132,6 +158,15 @@ function createToolRepository(database) {
         sort_order = @sortOrder,
         input_nodes_json = @inputNodesJson,
         output_config_json = @outputConfigJson,
+        deleted_at = @deletedAt,
+        updated_at = @updatedAt
+      WHERE id = @id
+    `),
+    softDelete: database.prepare(`
+      UPDATE tools
+      SET
+        status = 'inactive',
+        deleted_at = @deletedAt,
         updated_at = @updatedAt
       WHERE id = @id
     `),
@@ -171,14 +206,14 @@ function createToolRepository(database) {
   }
 
   async function getActiveToolBySlug(slug) {
-    const record = await statements.findBySlug.get(slug);
-    if (!record || record.status !== 'active') return null;
+    const record = await statements.findBySlugActive.get(slug);
+    if (!record) return null;
     return mapPublicToolRecord(record);
   }
 
   async function getActiveToolByIdOrSlug(idOrSlug) {
-    const record = await statements.findByIdOrSlug.get([idOrSlug, idOrSlug]);
-    if (!record || record.status !== 'active') return null;
+    const record = await statements.findByIdOrSlugActive.get([idOrSlug, idOrSlug]);
+    if (!record) return null;
     return mapPublicToolRecord(record);
   }
 
@@ -198,6 +233,7 @@ function createToolRepository(database) {
       id,
       createdAt: existingTool?.createdAt || now,
       updatedAt: now,
+      deletedAt: existingTool?.deletedAt || '',
       inputNodesJson: JSON.stringify(normalizedTool.inputNodes),
       outputConfigJson: JSON.stringify(normalizedTool.outputConfig)
     };
@@ -218,6 +254,25 @@ function createToolRepository(database) {
 
       throw error;
     }
+
+    return await getToolById(id);
+  }
+
+  async function deleteTool(id) {
+    const tool = await getToolById(id);
+    if (!tool) {
+      const error = new Error('工具不存在');
+      error.statusCode = 404;
+      error.code = 'TOOL_NOT_FOUND';
+      throw error;
+    }
+
+    const now = new Date().toISOString();
+    await statements.softDelete.run({
+      id,
+      deletedAt: now,
+      updatedAt: now
+    });
 
     return await getToolById(id);
   }
@@ -839,6 +894,7 @@ function createToolRepository(database) {
     saveToolTestResult,
     saveTool,
     updateToolStatus,
+    deleteTool,
     seedDefaultTools
   };
 }
@@ -1070,6 +1126,7 @@ function mapToolRecord(record) {
     lastTestTaskId: record.last_test_task_id || '',
     lastTestError: record.last_test_error || '',
     lastTestedAt: record.last_tested_at,
+    deletedAt: record.deleted_at || '',
     sortOrder: record.sort_order,
     inputNodes,
     outputConfig: parseJson(record.output_config_json, {}),

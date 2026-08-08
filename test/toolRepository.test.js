@@ -42,3 +42,52 @@ test('default seed does not overwrite a custom remove background preview image',
     close();
   }
 });
+
+test('deleteTool hides the tool from list but keeps the record retrievable by id', async () => {
+  const { close, toolRepository } = await createTestToolRepository();
+  try {
+    const savedTool = await toolRepository.saveTool({
+      toolKey: 'delete-me-tool',
+      name: 'Delete Me',
+      slug: 'delete-me-tool',
+      categoryId: 'image',
+      shortDescription: 'Test tool',
+      detailHtml: '<p>Test tool</p>',
+      previewImageUrl: 'https://example.com/delete-me.webp',
+      creditCost: 1,
+      workflowId: 'workflow-delete-me',
+      instanceType: 'default',
+      status: 'draft',
+      sortOrder: 999,
+      inputNodes: [
+        {
+          nodeId: '1',
+          fieldName: 'image',
+          key: 'sourceImage',
+          dataType: 'image',
+          label: '上傳圖片',
+          placeholder: '',
+          defaultValue: '',
+          required: true,
+          options: []
+        }
+      ],
+      outputConfig: {
+        outputType: 'image',
+        previewMode: 'image',
+        fallbackPaths: ['url']
+      }
+    });
+
+    const deletedTool = await toolRepository.deleteTool(savedTool.id);
+    const visibleTools = await toolRepository.listTools();
+    const fetchedById = await toolRepository.getToolById(savedTool.id);
+
+    assert.equal(deletedTool.id, savedTool.id);
+    assert.ok(fetchedById.deletedAt);
+    assert.equal(visibleTools.some((tool) => tool.id === savedTool.id), false);
+    assert.equal(await toolRepository.getActiveToolBySlug(savedTool.slug), null);
+  } finally {
+    close();
+  }
+});
