@@ -688,6 +688,29 @@ docker compose logs -f runninghub-app
 ### 後續建議
 - 重新上傳 workflow 後再測一次工具，確認未填欄位會自動沿用原始預設值
 
+## 會話總結 - 2026-08-08 (工具列表刪除按鈕修復)
+
+### 主要目的
+修復工具列表新增「刪除」按鈕後，前端報 `deleteTool is not a function` 的問題。
+
+### 完成內容
+- 將 `deleteTool()` 正式加入 `frontend/admin.html` 的 `setup return`
+- 保留工具列表刪除按鈕與刪除確認行為
+
+### 關鍵決策
+- 只修正 Vue template 引用的暴露問題，不改刪除流程本身
+
+### 修改的文件
+- `frontend/admin.html`
+- `README.md`
+
+### 驗證
+- `npm test` 已通過
+- `deleteTool` 已出現在 `setup return` 中
+
+### 後續建議
+- 部署後再打開工具列表確認刪除確認彈窗可正常顯示
+
 ## 會話總結 - 2026-08-08 (工具列表刪除按鈕)
 
 ### 主要目的
