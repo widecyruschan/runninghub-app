@@ -608,3 +608,31 @@ docker compose logs -f runninghub-app
 
 ### 後續建議
 - 部署後再用瀏覽器檢查 `/pricing`，確認 live 版本已套用結構修正
+
+## 會話總結 - 2026-08-08 (會員頁登入保護)
+
+### 主要目的
+確保所有會員頁面都必須登入後才能進入。
+
+### 完成內容
+- 未登入時，會員 dropdown 只保留公開的 `Pricing`，不再顯示 Dashboard / My Files / Orders 等會員入口
+- `openMemberPage()` 加入登入檢查，未登入時會導向 `/login`
+- `loadMemberSession()` 在偵測到未登入且位於會員頁時，會自動導向 `/login`
+- `server.js` 對 `/member/*` 加入伺服器端 302 redirect，直接輸入網址也會被送回 `/login`
+- 會員 dropdown 底部按鈕未登入時改為 `Log In`
+
+### 關鍵決策
+- 用前端與伺服器雙層保護，而不是只靠 UI 隱藏
+- 保留 `Pricing` 為公開入口，其他會員頁一律視為需要登入
+
+### 修改的文件
+- `frontend/index.html`
+- `server.js`
+- `README.md`
+
+### 驗證
+- 本地 browser 直接開 `/member/dashboard`，會自動跳轉到 `/login`
+- 未登入時打開 user menu，只會看到 `Pricing` 與 `Log In`
+
+### 後續建議
+- 部署後再用真實瀏覽器測一次 `/member/*` 與 user menu，確認 production 行為一致

@@ -193,6 +193,9 @@ const frontendRoutePrefixes = [
   '/terms',
   '/pricing'
 ];
+const protectedMemberRoutePrefixes = [
+  '/member'
+];
 const botBlockedRoutePrefixes = [
   '/admin',
   '/login',
@@ -4480,6 +4483,15 @@ async function serveStaticFile(request, response) {
     return;
   }
 
+  if (isProtectedMemberRoute(url.pathname)) {
+    const memberSession = await getMemberSession(request);
+    if (!memberSession || memberSession.user.status !== 'active') {
+      response.writeHead(302, { Location: '/login' });
+      response.end();
+      return;
+    }
+  }
+
   if (isFrontendRoute(url.pathname)) {
     await sendStaticFile(response, path.join(PUBLIC_DIR, 'index.html'), getStaticRobotsHeaders(url.pathname));
     return;
@@ -4533,6 +4545,12 @@ function isAdminRoute(pathname) {
 
 function isFrontendRoute(pathname) {
   return frontendRoutePrefixes.some((routePrefix) => (
+    pathname === routePrefix || pathname.startsWith(`${routePrefix}/`)
+  ));
+}
+
+function isProtectedMemberRoute(pathname) {
+  return protectedMemberRoutePrefixes.some((routePrefix) => (
     pathname === routePrefix || pathname.startsWith(`${routePrefix}/`)
   ));
 }

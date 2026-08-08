@@ -2278,7 +2278,7 @@
 
     /* ---- Legal Pages ---- */
     .legal-page {
-      max-width: 820px;
+      max-width: 1200px;
       margin: 0 auto;
       padding: 48px 24px 64px;
       color: #334155;
@@ -2609,8 +2609,8 @@
               <div class="member-dropdown-header">
                 <span class="member-provider-mark">👤</span>
                 <div>
-                  <div>{{ memberLoggedIn ? 'Logged In' : 'Create your account' }}</div>
-                  <div class="member-dropdown-email">{{ memberEmail }}</div>
+                  <div>{{ memberLoggedIn ? 'Logged In' : 'Login Required' }}</div>
+                  <div class="member-dropdown-email">{{ memberLoggedIn ? memberEmail : 'Log in to access member pages' }}</div>
                 </div>
               </div>
               <div class="member-menu-list">
@@ -2626,7 +2626,7 @@
                 </button>
                 <button class="member-menu-item" type="button" @click="handleMemberLogout">
                   <span aria-hidden="true">↪</span>
-                  <span>{{ memberLoggedIn ? 'Log Out' : 'Register / Log In' }}</span>
+                  <span>{{ memberLoggedIn ? 'Log Out' : 'Log In' }}</span>
                 </button>
               </div>
             </div>
@@ -3962,15 +3962,23 @@
         const getDisplayText = (value) => DISPLAY_TEXT_MAP[value] || value || '';
         const getDisplayHtml = (value) => DETAIL_HTML_MAP[value] || value || '';
 
-        const memberMenuItems = [
-          { path: '/member/dashboard', label: 'Dashboard', icon: '⊞' },
-          { path: '/member/files', label: 'My Files', icon: '□' },
-          { path: '/member/likes', label: 'My Likes', icon: '♡' },
-          { path: '/pricing', label: 'Pricing', icon: '★' },
-          { path: '/member/orders', label: 'Orders', icon: '$' },
-          { path: '/member/transactions', label: 'Transactions', icon: '◷' },
-          { path: '/member/settings', label: 'Settings', icon: '⚙' }
-        ];
+        const memberMenuItems = computed(() => {
+          if (!memberLoggedIn.value) {
+            return [
+              { path: '/pricing', label: 'Pricing', icon: '★' }
+            ];
+          }
+
+          return [
+            { path: '/member/dashboard', label: 'Dashboard', icon: '⊞' },
+            { path: '/member/files', label: 'My Files', icon: '□' },
+            { path: '/member/likes', label: 'My Likes', icon: '♡' },
+            { path: '/pricing', label: 'Pricing', icon: '★' },
+            { path: '/member/orders', label: 'Orders', icon: '$' },
+            { path: '/member/transactions', label: 'Transactions', icon: '◷' },
+            { path: '/member/settings', label: 'Settings', icon: '⚙' }
+          ];
+        });
         const notificationItems = [
           {
             id: 'product-updates-march-2025',
@@ -4430,8 +4438,16 @@
           window.localStorage.setItem('runninghub:memberLoggedIn', memberLoggedIn.value ? 'true' : 'false');
         };
 
+        function isProtectedMemberPath(path) {
+          return String(path || '').startsWith('/member');
+        }
+
         const openMemberPage = (path) => {
           const targetPath = path || '/member/files';
+          if (isProtectedMemberPath(targetPath) && !memberLoggedIn.value) {
+            switchMemberForm('/login');
+            return;
+          }
           window.history.pushState({}, '', targetPath);
           setCurrentPath();
           resetTool();
@@ -4901,7 +4917,7 @@
 
         const handleMemberLogout = async () => {
           if (!memberLoggedIn.value) {
-            openMemberPage('/register');
+            switchMemberForm('/login');
             return;
           }
 
@@ -4920,6 +4936,9 @@
             if (!user) {
               memberLoggedIn.value = false;
               window.localStorage.setItem('runninghub:memberLoggedIn', 'false');
+              if (isProtectedMemberPath(currentPath.value)) {
+                openMemberPage('/login');
+              }
               return;
             }
 
@@ -4934,6 +4953,9 @@
             await loadMemberRecords();
           } catch (error) {
             console.warn('Member session failed to load:', error.message);
+            if (isProtectedMemberPath(currentPath.value) && !memberLoggedIn.value) {
+              openMemberPage('/login');
+            }
           }
         };
 
