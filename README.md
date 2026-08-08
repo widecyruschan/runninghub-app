@@ -662,6 +662,32 @@ docker compose logs -f runninghub-app
 ### 後續建議
 - 重新在後台對 HYPIR 工具點一次測試；若仍失敗，前端會回傳更具體的 RunningHub 原因，方便進一步修正
 
+## 會話總結 - 2026-08-08 (ComfyUI 工作流選填輸入)
+
+### 主要目的
+讓上傳的 ComfyUI 工作流支援選填輸入，未填時回填節點原有預設值，並恢復每個節點的輸入參數顯示。
+
+### 完成內容
+- 後台工作流分析器不再過濾 `prompt`，讓節點輸入可完整對應到各自的參數
+- 將從 workflow 匯入的輸入節點標為選填，方便逐項補值
+- 後端 `normalizeInputValue()` 在使用者未輸入時，會優先採用節點原始預設值
+
+### 關鍵決策
+- 不再把 workflow 內部參數一律視為固定欄位
+- 保留 workflow 原始 default value 作為空值回填來源
+
+### 修改的文件
+- `frontend/admin.html`
+- `server.js`
+- `README.md`
+
+### 驗證
+- 以腳本掃描 HYPIR workflow，確認可解析出多個節點輸入參數
+- `npm test` 已通過
+
+### 後續建議
+- 重新上傳 workflow 後再測一次工具，確認未填欄位會自動沿用原始預設值
+
 ## 會話總結 - 2026-08-08 (HYPIR workflow 修復)
 
 ### 主要目的

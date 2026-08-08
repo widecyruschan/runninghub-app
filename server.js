@@ -42,25 +42,6 @@ const KIE_SEEDANCE_WORKFLOW = 'seedance-2-0';
 const KIE_SEEDANCE_MODELS = new Set(['seedance-2-fast', 'seedance-2', 'doubao-seedance-2-0-pro']);
 const KIE_SEEDANCE_RESOLUTIONS = new Set(['480p', '720p', '1080p', '4K']);
 const KIE_SEEDANCE_ASPECT_RATIOS = new Set(['16:9', '4:3', '1:1', '3:4', '9:16', '21:9']);
-const HYPIR_RUNNINGHUB_WORKFLOW_ID = '2067517634551304193';
-const HYPIR_RUNNINGHUB_FIXED_NODE_INFO = [
-  { nodeId: '91', fieldName: 'upscale_factor', fieldValue: '2' },
-  { nodeId: '81', fieldName: 'rgthree_comparer', fieldValue: '[object Object]' },
-  { nodeId: '85', fieldName: 'model', fieldValue: 'stable-diffusion-2-1-base' },
-  { nodeId: '85', fieldName: 'hypir_weight', fieldValue: 'HYPIR_sd2.pth' },
-  { nodeId: '85', fieldName: 'upscale_factor', fieldValue: '2' },
-  { nodeId: '85', fieldName: 'preset_config', fieldValue: '自定义' },
-  { nodeId: '85', fieldName: 'lora_rank', fieldValue: '256' },
-  { nodeId: '85', fieldName: 'model_t', fieldValue: '200' },
-  { nodeId: '85', fieldName: 'coeff_t', fieldValue: '200' },
-  { nodeId: '91', fieldName: 'model', fieldValue: 'stable-diffusion-2-1-base' },
-  { nodeId: '91', fieldName: 'hypir_weight', fieldValue: 'HYPIR_sd2.pth' },
-  { nodeId: '91', fieldName: 'preset_config', fieldValue: '自定义' },
-  { nodeId: '91', fieldName: 'lora_rank', fieldValue: '256' },
-  { nodeId: '91', fieldName: 'model_t', fieldValue: '200' },
-  { nodeId: '91', fieldName: 'coeff_t', fieldValue: '200' },
-  { nodeId: '94', fieldName: 'filename_prefix', fieldValue: 'High_res' }
-];
 const RICH_EDITOR_UPLOAD_MIME_TYPES = new Set([
   'image/jpeg',
   'image/png',
@@ -1947,25 +1928,6 @@ async function buildNodeInfoList(tool, rawInputValues, normalizedInputValues) {
     });
   }
 
-  return appendWorkflowFixedNodeInfoList(tool, nodeInfoList);
-}
-
-function appendWorkflowFixedNodeInfoList(tool, nodeInfoList) {
-  const workflowId = String(tool?.workflowId || '').trim();
-  if (workflowId !== HYPIR_RUNNINGHUB_WORKFLOW_ID) {
-    return nodeInfoList;
-  }
-
-  const existingFieldKeys = new Set(
-    nodeInfoList.map((item) => `${String(item.nodeId)}:${String(item.fieldName)}`)
-  );
-
-  HYPIR_RUNNINGHUB_FIXED_NODE_INFO.forEach((item) => {
-    const fieldKey = `${item.nodeId}:${item.fieldName}`;
-    if (existingFieldKeys.has(fieldKey)) return;
-    nodeInfoList.push({ ...item });
-  });
-
   return nodeInfoList;
 }
 
@@ -2007,14 +1969,19 @@ function sanitizeInputValues(tool, rawInputValues) {
 
 async function normalizeInputValue(tool, node, inputValues) {
   const rawValue = inputValues[node.key];
+  const hasRawValue = rawValue !== undefined && rawValue !== null && rawValue !== '';
   const fallbackValue = node.defaultValue ?? '';
-  const value = rawValue === undefined || rawValue === null || rawValue === '' ? fallbackValue : rawValue;
+  const value = hasRawValue ? rawValue : fallbackValue;
 
   if (node.required && (value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0))) {
     throwHttpError(`${node.label || node.key} 為必填`, 'INPUT_VALUE_REQUIRED', 422);
   }
 
   if (node.dataType === 'image' || node.dataType === 'video' || node.dataType === 'audio') {
+    if (!hasRawValue) {
+      return value === undefined || value === null ? '' : value;
+    }
+
     if (node.dataType === 'image' && isMultipleImageUploadNode(node)) {
       if (!value) return [];
       if (!Array.isArray(value)) {

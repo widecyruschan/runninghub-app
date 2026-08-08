@@ -3328,40 +3328,6 @@
           };
         }
 
-        const HYPIR_WORKFLOW_ID = '2067517634551304193';
-        const HYPIR_FIXED_FIELD_NAMES = new Set([
-          'model',
-          'hypir_weight',
-          'upscale_factor',
-          'preset_config',
-          'lora_rank',
-          'model_t',
-          'coeff_t',
-          'filename_prefix'
-        ]);
-
-        function normalizeWorkflowInputNodesForSave(workflowId, inputNodes) {
-          const normalizedWorkflowId = String(workflowId || '').trim();
-          const nodes = Array.isArray(inputNodes) ? inputNodes : [];
-
-          if (normalizedWorkflowId !== HYPIR_WORKFLOW_ID) {
-            return nodes;
-          }
-
-          return nodes.filter((node) => !isHYPIRFixedWorkflowField(node));
-        }
-
-        function isHYPIRFixedWorkflowField(node) {
-          const fieldName = String(node?.fieldName || node?.key || '').trim().toLowerCase();
-
-          if (fieldName === 'rgthree_comparer') return true;
-          if (HYPIR_FIXED_FIELD_NAMES.has(fieldName)) return true;
-
-          const classType = String(node?.classType || '').trim().toLowerCase();
-          if (classType === 'image comparer (rgthree)') return true;
-          return false;
-        }
-
         function createNodeOption(label = '', value = '') {
           return {
             uid: `option-${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -3959,10 +3925,7 @@
               lastTestTaskId: tool.lastTestTaskId || '',
               lastTestError: tool.lastTestError || '',
               lastTestedAt: tool.lastTestedAt || '',
-              inputNodes: normalizeWorkflowInputNodesForSave(
-                tool.workflowId,
-                (tool.inputNodes || []).map(cloneInputNode)
-              )
+              inputNodes: (tool.inputNodes || []).map(cloneInputNode)
             };
           } else {
             window.localStorage.removeItem(LAST_EDITING_TOOL_ID_KEY);
@@ -4300,7 +4263,7 @@
                 nodeTitle: title,
                 label: humanizeBuilderLabel(fieldName),
                 defaultValue: normalizeBuilderDefaultValue(value, dataType),
-                required: dataType === 'image' || dataType === 'video' || dataType === 'audio',
+                required: false,
                 placeholder: '',
                 options: []
               };
@@ -4361,12 +4324,9 @@
         }
 
         function isIgnorableWorkflowInput(classType, fieldName, value) {
-          if (['output', 'unique_id', 'prompt', 'extra_pnginfo'].includes(fieldName)) return true;
-          if (fieldName === 'rgthree_comparer') return true;
-          if (HYPIR_FIXED_FIELD_NAMES.has(String(fieldName || '').trim().toLowerCase())) return true;
+          if (['output', 'unique_id', 'extra_pnginfo'].includes(fieldName)) return true;
           if (isWorkflowModelLoaderClass(classType)) return true;
           if (isWorkflowConnectionHint(fieldName) && (value === null || value === undefined || value === '')) return true;
-          if (String(classType || '').trim().toLowerCase() === 'image comparer (rgthree)') return true;
           return value === null || value === undefined;
         }
 
@@ -4749,10 +4709,7 @@
             instanceType: toolForm.value.instanceType,
             status: toolForm.value.status,
             sortOrder: Number(toolForm.value.sortOrder ?? 100),
-            inputNodes: normalizeWorkflowInputNodesForSave(
-              toolForm.value.workflowId,
-              toolForm.value.inputNodes
-            ).map(normalizeInputNodeForSave)
+            inputNodes: toolForm.value.inputNodes.map(normalizeInputNodeForSave)
           };
 
           const response = await adminFetch('/api/admin/tools', {
