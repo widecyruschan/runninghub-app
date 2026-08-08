@@ -636,3 +636,28 @@ docker compose logs -f runninghub-app
 
 ### 後續建議
 - 部署後再用真實瀏覽器測一次 `/member/*` 與 user menu，確認 production 行為一致
+
+## 會話總結 - 2026-08-08 (HYPIR workflow 修復)
+
+### 主要目的
+修正 RunningHub workflow `2067517634551304193` 在後台新增工具時測試失敗、無法上線的問題。
+
+### 完成內容
+- 讀取 `HYPIR-高清放大加二次修复_api.json` workflow 文件，確認真正的外部輸入只有 `LoadImage` 的圖片
+- 在後台 workflow 分析器中忽略 `HYPIRImageRestoration` 的固定參數與 `rgthree_comparer` 這類 comparer 配置
+- 在工具載入與儲存時，自動裁剪這些固定參數，避免舊的錯誤配置繼續被保存或測試
+
+### 關鍵決策
+- 不把 workflow 內部固定常數當成用戶可配置欄位
+- 只保留真正需要由後台上傳的圖片輸入，讓測試任務只送必要的 `nodeInfoList`
+
+### 修改的文件
+- `frontend/admin.html`
+- `README.md`
+
+### 驗證
+- 以腳本模擬 workflow 分析結果，確認最後只剩 `node 79 / image`
+- `npm test` 全部通過
+
+### 後續建議
+- 在後台重新打開這個工具，重新分析後再測試一次，然後再上線
