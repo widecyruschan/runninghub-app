@@ -42,6 +42,25 @@ const KIE_SEEDANCE_WORKFLOW = 'seedance-2-0';
 const KIE_SEEDANCE_MODELS = new Set(['seedance-2-fast', 'seedance-2', 'doubao-seedance-2-0-pro']);
 const KIE_SEEDANCE_RESOLUTIONS = new Set(['480p', '720p', '1080p', '4K']);
 const KIE_SEEDANCE_ASPECT_RATIOS = new Set(['16:9', '4:3', '1:1', '3:4', '9:16', '21:9']);
+const HYPIR_RUNNINGHUB_WORKFLOW_ID = '2067517634551304193';
+const HYPIR_RUNNINGHUB_FIXED_NODE_INFO = [
+  { nodeId: '91', fieldName: 'upscale_factor', fieldValue: '2' },
+  { nodeId: '81', fieldName: 'rgthree_comparer', fieldValue: '[object Object]' },
+  { nodeId: '85', fieldName: 'model', fieldValue: 'stable-diffusion-2-1-base' },
+  { nodeId: '85', fieldName: 'hypir_weight', fieldValue: 'HYPIR_sd2.pth' },
+  { nodeId: '85', fieldName: 'upscale_factor', fieldValue: '2' },
+  { nodeId: '85', fieldName: 'preset_config', fieldValue: '自定义' },
+  { nodeId: '85', fieldName: 'lora_rank', fieldValue: '256' },
+  { nodeId: '85', fieldName: 'model_t', fieldValue: '200' },
+  { nodeId: '85', fieldName: 'coeff_t', fieldValue: '200' },
+  { nodeId: '91', fieldName: 'model', fieldValue: 'stable-diffusion-2-1-base' },
+  { nodeId: '91', fieldName: 'hypir_weight', fieldValue: 'HYPIR_sd2.pth' },
+  { nodeId: '91', fieldName: 'preset_config', fieldValue: '自定义' },
+  { nodeId: '91', fieldName: 'lora_rank', fieldValue: '256' },
+  { nodeId: '91', fieldName: 'model_t', fieldValue: '200' },
+  { nodeId: '91', fieldName: 'coeff_t', fieldValue: '200' },
+  { nodeId: '94', fieldName: 'filename_prefix', fieldValue: 'High_res' }
+];
 const RICH_EDITOR_UPLOAD_MIME_TYPES = new Set([
   'image/jpeg',
   'image/png',
@@ -1928,6 +1947,25 @@ async function buildNodeInfoList(tool, rawInputValues, normalizedInputValues) {
     });
   }
 
+  return appendWorkflowFixedNodeInfoList(tool, nodeInfoList);
+}
+
+function appendWorkflowFixedNodeInfoList(tool, nodeInfoList) {
+  const workflowId = String(tool?.workflowId || '').trim();
+  if (workflowId !== HYPIR_RUNNINGHUB_WORKFLOW_ID) {
+    return nodeInfoList;
+  }
+
+  const existingFieldKeys = new Set(
+    nodeInfoList.map((item) => `${String(item.nodeId)}:${String(item.fieldName)}`)
+  );
+
+  HYPIR_RUNNINGHUB_FIXED_NODE_INFO.forEach((item) => {
+    const fieldKey = `${item.nodeId}:${item.fieldName}`;
+    if (existingFieldKeys.has(fieldKey)) return;
+    nodeInfoList.push({ ...item });
+  });
+
   return nodeInfoList;
 }
 
@@ -2127,7 +2165,7 @@ function normalizeOptionalNumberBoundary(value) {
 }
 
 async function syncTaskStatus(taskId) {
-  const task = getExistingTask(taskId);
+  const task = await getExistingTask(taskId);
   const tool = await toolRepository.getToolById(task.toolId);
   if (isKieTool(tool)) {
     return syncKieTaskStatus(task, tool);
@@ -2145,9 +2183,10 @@ async function syncTaskStatus(taskId) {
   const runningHubStatus = extractRunningHubStatus(statusResponse);
 
   if (runningHubStatus === 'FAILED') {
+    const failureMessage = await getRunningHubFailureMessage(task.runningHubTaskId);
     const failedTask = await taskRepository.markTaskStatus(task.id, 'FAILED', {
       code: 'RUNNINGHUB_TASK_FAILED',
-      message: statusResponse.msg || statusResponse.errorMessage || 'RunningHub 任務執行失敗'
+      message: failureMessage || statusResponse.msg || statusResponse.errorMessage || 'RunningHub 任務執行失敗'
     });
     syncToolTestResult(failedTask);
     return failedTask;
@@ -3065,8 +3104,8 @@ async function fetchRunningHub(targetUrl, options) {
   }
 }
 
-function getExistingTask(taskId) {
-  const task = taskRepository.getTaskById(taskId);
+async function getExistingTask(taskId) {
+  const task = await taskRepository.getTaskById(taskId);
   if (!task) {
     throwHttpError('任務不存在', 'TASK_NOT_FOUND', 404);
   }
@@ -3139,6 +3178,35 @@ function extractRunningHubUsage(responseData) {
     || {};
 
   return normalizeRunningHubUsage(usage);
+}
+
+async function getRunningHubFailureMessage(taskId) {
+  try {
+    const runningHubResponse = await fetchRunningHub(`${runningHubTaskApiBaseUrl}/outputs`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${runningHubApiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        apiKey: runningHubApiKey,
+        taskId
+      })
+    });
+    const responseText = await runningHubResponse.text();
+    const responseData = parseJsonText(responseText);
+    const failedReason = responseData?.data?.failedReason || responseData?.failedReason || {};
+
+    return String(
+      failedReason.exception_message
+      || failedReason.exceptionMessage
+      || responseData?.errorMessage
+      || responseData?.msg
+      || ''
+    ).trim();
+  } catch (error) {
+    return '';
+  }
 }
 
 function extractTaskOutputUsage(outputValues) {

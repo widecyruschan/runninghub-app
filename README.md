@@ -637,6 +637,31 @@ docker compose logs -f runninghub-app
 ### 後續建議
 - 部署後再用真實瀏覽器測一次 `/member/*` 與 user menu，確認 production 行為一致
 
+## 會話總結 - 2026-08-08 (HYPIR 測試失敗根因修正)
+
+### 主要目的
+修正 HYPIR 工具在後台測試時顯示「伺服器處理請求失敗」的問題。
+
+### 完成內容
+- 透過本地 RunningHub /tasks 狀態查詢，確認真正的錯誤來自 `getExistingTask()` 漏掉 `await`
+- 修正 `syncTaskStatus()` 與 `getExistingTask()` 的非同步處理，避免把 Promise 當成 task 物件
+- 為 RunningHub 任務失敗情況補上更具體的失敗訊息抓取，避免只回傳 `success`
+
+### 關鍵決策
+- 不再只看前端錯誤訊息，改以 RunningHub 原始 `status` / `outputs` 回應定位根因
+- 保留 HYPIR workflow 的固定輸入裁剪邏輯，但把真正影響測試的異步 bug 先修掉
+
+### 修改的文件
+- `server.js`
+- `README.md`
+
+### 驗證
+- `npm test` 已通過
+- 本地 `/api/tasks/:id` 已可正常返回任務資料，不再報 `ER_WRONG_ARGUMENTS`
+
+### 後續建議
+- 重新在後台對 HYPIR 工具點一次測試；若仍失敗，前端會回傳更具體的 RunningHub 原因，方便進一步修正
+
 ## 會話總結 - 2026-08-08 (HYPIR workflow 修復)
 
 ### 主要目的
