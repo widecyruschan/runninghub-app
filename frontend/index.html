@@ -4120,6 +4120,7 @@
           toolConfig.value?.inputNodes || []
         ).filter((node) => node.dataType !== 'image' && node.dataType !== 'video' && node.dataType !== 'audio'));
         const toolTitle = computed(() => {
+          if (isPricingPage.value || isLegalPage.value || isMemberPage.value) return 'ImgKit';
           if (isMarketplace.value) return 'AI Tool Platform';
           return getDisplayText(toolConfig.value?.name) || 'Remove Background';
         });
@@ -5109,7 +5110,9 @@
 
             marketplaceTools.value = Array.isArray(toolsResponse.data.data) ? toolsResponse.data.data : [];
             categories.value = Array.isArray(categoriesResponse.data.data) ? categoriesResponse.data.data : [];
-            document.title = 'AI Tool Platform';
+            if (isMarketplace.value) {
+              document.title = 'AI Tool Platform';
+            }
           } catch (error) {
             console.error('Tool marketplace failed to load:', error);
             marketplaceTools.value = [];

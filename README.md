@@ -534,3 +534,28 @@ docker compose logs -f runninghub-app
 ### 後續建議
 - 部署後到 Search Console 重新提交 `https://imgkit.io/sitemap.xml`
 - 對 `/admin`、`/member/settings`、`/login` 用 URL Inspection 重新驗證，確認 Google 收到 `noindex`
+
+## 會話總結 - 2026-08-08 (Pricing 頁品牌與 title 跟進)
+
+### 主要目的
+再次檢查 `/pricing` 的實際渲染狀態，並修正頁首品牌仍顯示 `Remove Background` 的路由 fallback 問題。
+
+### 完成內容
+- 用瀏覽器 CLI 重新驗證 `https://www.imgkit.io/pricing`，確認頁面內容其實已正常渲染，不再是純空白
+- 將 `/pricing`、法律頁與會員頁的頁首品牌 fallback 改為 `ImgKit`
+- 讓 `loadMarketplaceData()` 只在 marketplace 頁面更新 `document.title`，避免 `/pricing` 被覆寫回 `AI Tool Platform`
+
+### 關鍵決策
+- 不再把非工具頁 fallback 成 `Remove Background`
+- 保留工具頁顯示工具名的行為，只讓非工具頁顯示站點品牌
+
+### 修改的文件
+- `frontend/index.html`
+- `README.md`
+
+### 驗證
+- 以 `agent-browser` 重新打開 `https://www.imgkit.io/pricing`，確認頁面已有 `Membership Subscription` 區塊
+- 以本地 VM 跑過前端腳本初始化，未見 runtime error
+
+### 後續建議
+- 把這次變更部署後，再用瀏覽器 hard refresh 一次確認頁首品牌已不再顯示 `Remove Background`
