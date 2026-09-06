@@ -1688,7 +1688,7 @@
                   <h3>SEO 配置</h3>
                 </div>
                 <span
-                  v-if="!isSeoReady(toolForm.seoTitle) || !isSeoReady(toolForm.seoDescription)"
+                  v-if="!isSeoReady(toolForm.seoTitle) || !isSeoReady(toolForm.seoDescription) || !isSeoReady(toolForm.seoKeywords)"
                   class="status-pill status-draft"
                 >SEO 待補充</span>
               </div>
@@ -1700,6 +1700,15 @@
                     v-model="toolForm.seoTitle"
                     maxlength="255"
                     placeholder="例如：Remove Image Background Online - ImgKit"
+                  >
+                </div>
+                <div class="field field-full">
+                  <label for="tool-seo-keywords">SEO Keywords（英文）</label>
+                  <input
+                    id="tool-seo-keywords"
+                    v-model="toolForm.seoKeywords"
+                    maxlength="512"
+                    placeholder="例如：image background remover, transparent PNG, AI image tool"
                   >
                 </div>
                 <div class="field field-full">
@@ -3403,6 +3412,7 @@
             description: '',
             seoTitle: '',
             seoDescription: '',
+            seoKeywords: '',
             topDetailHtml: '',
             detailHtml: '',
             status: 'draft',
@@ -3963,6 +3973,7 @@
               description: tool.shortDescription || tool.description || '',
               seoTitle: tool.seoTitle || '',
               seoDescription: tool.seoDescription || '',
+              seoKeywords: tool.seoKeywords || '',
               topDetailHtml: tool.topDetailHtml || '',
               detailHtml: tool.detailHtml || '',
               status: tool.status || 'draft',
@@ -4751,6 +4762,7 @@
             shortDescription: toolForm.value.description,
             seoTitle: toolForm.value.seoTitle,
             seoDescription: toolForm.value.seoDescription,
+            seoKeywords: toolForm.value.seoKeywords,
             topDetailHtml: toolForm.value.topDetailHtml,
             detailHtml: toolForm.value.detailHtml,
             previewImageUrl: toolForm.value.previewImageUrl,

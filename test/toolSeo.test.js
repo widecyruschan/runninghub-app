@@ -14,6 +14,7 @@ test('creates tool SEO metadata with canonical and preview image URLs', () => {
   assert.deepEqual(metadata, {
     title: 'Enhance Images Online - ImgKit',
     description: 'Enhance image quality online with ImgKit.',
+    keywords: '',
     canonicalUrl: 'https://imgkit.io/tools/image-enhancer',
     imageUrl: 'https://imgkit.io/uploads/image-enhancer.webp'
   });
@@ -37,15 +38,44 @@ test('uses English defaults instead of non-English tool text', () => {
   assert.equal(cyrillicMetadata.title, 'AI Tool - ImgKit');
 });
 
+test('returns English SEO keywords and suppresses non-English keywords', () => {
+  const metadata = createToolSeoMetadata({
+    slug: 'image-enhancer',
+    name: 'Image Enhancer',
+    seoKeywords: 'image enhancement, AI image tool'
+  }, 'https://imgkit.io');
+
+  assert.equal(metadata.keywords, 'image enhancement, AI image tool');
+
+  const nonEnglishMetadata = createToolSeoMetadata({
+    slug: 'non-english-keywords',
+    name: 'Image Tool',
+    seoKeywords: '圖片工具, AI'
+  }, 'https://imgkit.io');
+  assert.equal(nonEnglishMetadata.keywords, '');
+});
+
+test('does not render a keywords meta tag for non-English keywords', () => {
+  const html = createToolPageHtml('<html><head><title>AI Tools</title></head><body></body></html>', {
+    slug: 'non-english-keywords',
+    name: 'Image Tool',
+    seoKeywords: '圖片工具, AI'
+  }, 'https://imgkit.io');
+
+  assert.doesNotMatch(html, /<meta name="keywords"/);
+});
+
 test('escapes configured SEO text in server-rendered tool HTML', () => {
   const html = createToolPageHtml('<html><head><title>AI Tools</title></head><body></body></html>', {
     slug: 'safe-tool',
     name: 'Safe Tool',
     seoTitle: 'Safe <Tool> & ImgKit',
-    seoDescription: 'Create "safe" images & videos.'
+    seoDescription: 'Create "safe" images & videos.',
+    seoKeywords: 'safe <tool>, images & videos'
   }, 'https://imgkit.io');
 
   assert.match(html, /<title>Safe &lt;Tool&gt; &amp; ImgKit<\/title>/);
   assert.match(html, /content="Create &quot;safe&quot; images &amp; videos\."/);
+  assert.match(html, /<meta name="keywords" content="safe &lt;tool&gt;, images &amp; videos">/);
   assert.match(html, /rel="canonical" href="https:\/\/imgkit\.io\/tools\/safe-tool"/);
 });

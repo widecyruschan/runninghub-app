@@ -21,7 +21,7 @@ async function createTestToolRepository() {
   };
 }
 
-function createSeoToolPayload(toolKey, seoTitle, seoDescription) {
+function createSeoToolPayload(toolKey, seoTitle, seoDescription, seoKeywords = '') {
   return {
     toolKey,
     name: toolKey,
@@ -30,6 +30,7 @@ function createSeoToolPayload(toolKey, seoTitle, seoDescription) {
     shortDescription: `${toolKey} description`,
     seoTitle,
     seoDescription,
+    seoKeywords,
     previewImageUrl: `https://example.com/${toolKey}.webp`,
     creditCost: 1,
     workflowId: `workflow-${toolKey}`,
@@ -148,10 +149,41 @@ test('tools keep independent SEO metadata in admin and public records', async ()
 
     assert.equal(adminTool.seoTitle, 'First SEO title');
     assert.equal(adminTool.seoDescription, 'First SEO description');
+    assert.equal(adminTool.seoKeywords, '');
     assert.equal(publicTool.seoTitle, 'First SEO title');
     assert.equal(publicTool.seoDescription, 'First SEO description');
+    assert.equal(publicTool.seoKeywords, '');
     assert.equal(publicTool.resolvedSeoTitle, 'First SEO title');
     assert.equal(publicTool.resolvedSeoDescription, 'First SEO description');
+    assert.equal(publicTool.resolvedSeoKeywords, '');
+  } finally {
+    await close();
+  }
+});
+
+test('tools keep independent SEO keywords in admin and public records', async () => {
+  const { close, toolRepository } = await createTestToolRepository();
+
+  try {
+    const firstTool = await toolRepository.saveTool(createSeoToolPayload(
+      'first-keywords-tool',
+      'First SEO title',
+      'First SEO description',
+      'image background remover, transparent PNG'
+    ));
+    await toolRepository.saveTool(createSeoToolPayload(
+      'second-keywords-tool',
+      'Second SEO title',
+      'Second SEO description',
+      'AI image editor, product visuals'
+    ));
+
+    const adminTool = await toolRepository.getToolById(firstTool.id);
+    const publicTool = await toolRepository.getActiveToolBySlug('first-keywords-tool');
+
+    assert.equal(adminTool.seoKeywords, 'image background remover, transparent PNG');
+    assert.equal(publicTool.seoKeywords, 'image background remover, transparent PNG');
+    assert.equal(publicTool.resolvedSeoKeywords, 'image background remover, transparent PNG');
   } finally {
     await close();
   }
@@ -167,6 +199,23 @@ test('saveTool rejects SEO metadata that exceeds database limits', async () => {
         'SEO description'
       )),
       (error) => error.code === 'TOOL_SEO_TITLE_TOO_LONG'
+    );
+  } finally {
+    await close();
+  }
+});
+
+test('saveTool rejects SEO keywords that exceed database limits', async () => {
+  const { close, toolRepository } = await createTestToolRepository();
+  try {
+    await assert.rejects(
+      toolRepository.saveTool(createSeoToolPayload(
+        'too-long-seo-keywords-tool',
+        'SEO title',
+        'SEO description',
+        'x'.repeat(513)
+      )),
+      (error) => error.code === 'TOOL_SEO_KEYWORDS_TOO_LONG'
     );
   } finally {
     await close();

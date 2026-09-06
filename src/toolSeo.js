@@ -9,11 +9,13 @@ function createToolSeoMetadata(tool, publicBaseUrl) {
   const description = getEnglishSeoText(sourceTool.seoDescription)
     || getEnglishSeoText(sourceTool.shortDescription)
     || DEFAULT_PAGE_DESCRIPTION;
+  const keywords = getEnglishSeoText(sourceTool.seoKeywords || sourceTool.seo_keywords);
   const canonicalUrl = `${normalizedBaseUrl}/tools/${encodeURIComponent(String(sourceTool.slug || '').trim())}`;
 
   return {
     title,
     description,
+    keywords,
     canonicalUrl,
     imageUrl: resolvePublicUrl(sourceTool.previewImageUrl, normalizedBaseUrl)
   };
@@ -29,6 +31,7 @@ function createToolPageHtml(indexHtml, tool, publicBaseUrl) {
     : [];
   const seoTags = [
     `  <meta name="description" content="${escapeHtml(metadata.description)}">`,
+    metadata.keywords ? `  <meta name="keywords" content="${escapeHtml(metadata.keywords)}">` : '',
     `  <link rel="canonical" href="${escapeHtml(metadata.canonicalUrl)}">`,
     '  <meta property="og:type" content="website">',
     '  <meta property="og:site_name" content="ImgKit">',

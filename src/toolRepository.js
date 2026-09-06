@@ -109,6 +109,7 @@ function createToolRepository(database) {
         short_description,
         seo_title,
         seo_description,
+        seo_keywords,
         top_detail_html,
         detail_html,
         preview_image_url,
@@ -131,6 +132,7 @@ function createToolRepository(database) {
         @shortDescription,
         @seoTitle,
         @seoDescription,
+        @seoKeywords,
         @topDetailHtml,
         @detailHtml,
         @previewImageUrl,
@@ -155,6 +157,7 @@ function createToolRepository(database) {
         short_description = @shortDescription,
         seo_title = @seoTitle,
         seo_description = @seoDescription,
+        seo_keywords = @seoKeywords,
         top_detail_html = @topDetailHtml,
         detail_html = @detailHtml,
         preview_image_url = @previewImageUrl,
@@ -935,6 +938,7 @@ function normalizeToolPayload(rawTool) {
   const toolKey = slugify(String(tool.toolKey || tool.key));
   const seoTitle = normalizeSeoText(tool.seoTitle || tool.seo_title || '', 255, 'SEO 網頁標題', 'TOOL_SEO_TITLE_TOO_LONG');
   const seoDescription = normalizeSeoText(tool.seoDescription || tool.seo_description || '', 512, 'Meta Description', 'TOOL_SEO_DESCRIPTION_TOO_LONG');
+  const seoKeywords = normalizeSeoText(tool.seoKeywords || tool.seo_keywords || '', 512, 'SEO Keywords', 'TOOL_SEO_KEYWORDS_TOO_LONG');
 
   if (!toolKey) {
     throwValidationError('工具識別碼格式不正確', 'TOOL_KEY_INVALID');
@@ -949,6 +953,7 @@ function normalizeToolPayload(rawTool) {
     shortDescription: String(tool.shortDescription || tool.description || '').trim(),
     seoTitle,
     seoDescription,
+    seoKeywords,
     topDetailHtml: sanitizeDetailHtml(tool.topDetailHtml || tool.top_detail_html || ''),
     detailHtml: sanitizeDetailHtml(tool.detailHtml || tool.detail_html || ''),
     previewImageUrl: String(tool.previewImageUrl || tool.preview_image_url || '').trim(),
@@ -1131,6 +1136,7 @@ function mapToolRecord(record) {
     description: record.short_description,
     seoTitle: record.seo_title || '',
     seoDescription: record.seo_description || '',
+    seoKeywords: record.seo_keywords || '',
     topDetailHtml: sanitizeDetailHtml(record.top_detail_html || ''),
     detailHtml: sanitizeDetailHtml(record.detail_html || ''),
     previewImageUrl: record.preview_image_url,
@@ -1173,8 +1179,10 @@ function mapPublicToolRecord(record) {
     description: tool.shortDescription,
     seoTitle: tool.seoTitle,
     seoDescription: tool.seoDescription,
+    seoKeywords: tool.seoKeywords,
     resolvedSeoTitle: resolvedSeo.title,
     resolvedSeoDescription: resolvedSeo.description,
+    resolvedSeoKeywords: resolvedSeo.keywords,
     topDetailHtml: tool.topDetailHtml,
     detailHtml: tool.detailHtml,
     previewImageUrl: tool.previewImageUrl,
