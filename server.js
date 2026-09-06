@@ -7,6 +7,8 @@ const crypto = require('crypto');
 const { createDatabase, DEFAULT_DATA_DIR, DEFAULT_DATABASE_PATH } = require('./src/database');
 const { createToolRepository } = require('./src/toolRepository');
 const { createToolPageHtml } = require('./src/toolSeo');
+const { getCookieDomainAttributeForHost } = require('./src/cookieDomain');
+const { buildRobotsTxt, buildRssXml, buildSitemapXml } = require('./src/publicFeeds');
 const { createCategoryRepository } = require('./src/categoryRepository');
 const { createMenuRepository } = require('./src/menuRepository');
 const { createTaskRepository } = require('./src/taskRepository');
@@ -264,7 +266,8 @@ const server = http.createServer(async (request, response) => {
     }
 
     if (requestPathname === '/robots.txt') {
-      sendText(response, 200, buildRobotsTxt(request), {
+      const publicBaseUrl = publicAppBaseUrl || getRequestOrigin(request);
+      sendText(response, 200, buildRobotsTxt(publicBaseUrl), {
         'Content-Type': 'text/plain; charset=utf-8',
         'Cache-Control': 'public, max-age=3600'
       });
@@ -273,10 +276,22 @@ const server = http.createServer(async (request, response) => {
 
     if (requestPathname === '/sitemap.xml') {
       await dbReady;
-      const sitemapXml = await buildSitemapXml(request);
+      const publicBaseUrl = publicAppBaseUrl || getRequestOrigin(request);
+      const sitemapXml = buildSitemapXml(publicBaseUrl, await toolRepository.listActiveTools());
       sendText(response, 200, sitemapXml, {
         'Content-Type': 'application/xml; charset=utf-8',
-        'Cache-Control': 'public, max-age=3600'
+        'Cache-Control': 'public, max-age=0, must-revalidate'
+      });
+      return;
+    }
+
+    if (requestPathname === '/rss.xml' || requestPathname === '/feed.xml') {
+      await dbReady;
+      const publicBaseUrl = publicAppBaseUrl || getRequestOrigin(request);
+      const rssXml = buildRssXml(publicBaseUrl, await toolRepository.listActiveTools());
+      sendText(response, 200, rssXml, {
+        'Content-Type': 'application/rss+xml; charset=utf-8',
+        'Cache-Control': 'public, max-age=0, must-revalidate'
       });
       return;
     }
@@ -1079,11 +1094,7 @@ async function handleAuthApi(request, response) {
     sendJson(response, 201, {
       success: true,
       message: '註冊並登入成功',
-      data: {
-        ...result.user,
-        _debugPasswordHashLength: result.user.passwordHash ? result.user.passwordHash.length : 0,
-        _debug: result._debug
-      }
+      data: result.user
     }, {
       'Set-Cookie': createMemberSessionCookie(request, result.session.id)
     });
@@ -4068,13 +4079,9 @@ async function registerMemberAccount(payload, provider) {
     allowInitialCreditBalance: true
   });
 
-  const afterSaveLength = memberUser.passwordHash ? memberUser.passwordHash.length : 0;
   memberUser = await userRepository.grantRegisterBonus(memberUser.id);
-  const afterBonusLength = memberUser.passwordHash ? memberUser.passwordHash.length : 0;
   memberUser = await applyMemberAuthCredits(memberUser.id, true);
-  const afterCreditsLength = memberUser.passwordHash ? memberUser.passwordHash.length : 0;
   const result = createMemberLoginResult(memberUser, provider || 'email', email);
-  result._debug = { afterSaveLength, afterBonusLength, afterCreditsLength };
 
   // 非同步發送歡迎郵件，不阻塞註冊回應
   sendWelcomeEmail(email, displayName).catch((err) => {
@@ -4447,20 +4454,8 @@ function shouldUseSecureCookie(request) {
 }
 
 function getCookieDomainAttribute(request) {
-  const configuredDomain = String(process.env.SESSION_COOKIE_DOMAIN || '').trim();
-  if (configuredDomain) return `Domain=${configuredDomain}`;
-
-  const host = String(request.headers['x-forwarded-host'] || request.headers.host || '')
-    .split(',')[0]
-    .trim()
-    .split(':')[0]
-    .toLowerCase();
-
-  if (host === 'imgkit.io' || host.endsWith('.imgkit.io')) {
-    return 'Domain=.imgkit.io';
-  }
-
-  return '';
+  const requestHost = request.headers['x-forwarded-host'] || request.headers.host || '';
+  return getCookieDomainAttributeForHost(requestHost, process.env.SESSION_COOKIE_DOMAIN);
 }
 
 function sendUnauthorized(response) {
@@ -4669,70 +4664,6 @@ function sendJson(response, statusCode, payload, extraHeaders = {}) {
 function sendText(response, statusCode, text, extraHeaders = {}) {
   response.writeHead(statusCode, extraHeaders);
   response.end(text);
-}
-
-function buildRobotsTxt(request) {
-  const publicBaseUrl = publicAppBaseUrl || getRequestOrigin(request);
-  return [
-    'User-agent: *',
-    'Allow: /',
-    'Disallow: /admin',
-    'Disallow: /member',
-    'Disallow: /login',
-    'Disallow: /register',
-    'Disallow: /forgot-password',
-    'Disallow: /reset-password',
-    'Disallow: /api/',
-    `Sitemap: ${publicBaseUrl}/sitemap.xml`
-  ].join('\n');
-}
-
-async function buildSitemapXml(request) {
-  const publicBaseUrl = publicAppBaseUrl || getRequestOrigin(request);
-  const publicPages = [
-    { path: '/', lastmod: null },
-    { path: '/pricing', lastmod: null },
-    { path: '/privacy', lastmod: null },
-    { path: '/terms', lastmod: null }
-  ];
-  const tools = await toolRepository.listActiveTools();
-  const toolEntries = tools.map((tool) => ({
-    path: `/tools/${encodeURIComponent(tool.slug)}`,
-    lastmod: tool.updatedAt || null
-  }));
-  const urlEntries = [...publicPages, ...toolEntries];
-  const xmlItems = urlEntries.map((entry) => {
-    const lastmod = formatSitemapLastmod(entry.lastmod);
-    return [
-      '  <url>',
-      `    <loc>${escapeXml(`${publicBaseUrl}${entry.path}`)}</loc>`,
-      ...(lastmod ? [`    <lastmod>${lastmod}</lastmod>`] : []),
-      '  </url>'
-    ].join('\n');
-  });
-
-  return [
-    '<?xml version="1.0" encoding="UTF-8"?>',
-    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-    ...xmlItems,
-    '</urlset>'
-  ].join('\n');
-}
-
-function formatSitemapLastmod(value) {
-  if (!value) return '';
-  const parsedDate = new Date(value);
-  if (Number.isNaN(parsedDate.getTime())) return '';
-  return parsedDate.toISOString();
-}
-
-function escapeXml(value) {
-  return String(value || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
 }
 
 // 數據庫備份：將 SQLite 文件作為下載返回

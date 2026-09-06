@@ -1584,6 +1584,52 @@
       object-fit: contain;
     }
 
+    .preview-reupload-target {
+      width: 100%;
+      min-height: 220px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      overflow: hidden;
+    }
+
+    .preview-reupload-target::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0);
+      transition: background 0.18s ease;
+      pointer-events: none;
+    }
+
+    .preview-reupload-target:hover::after {
+      background: rgba(15, 23, 42, 0.14);
+    }
+
+    .preview-reupload-hint {
+      position: absolute;
+      right: 14px;
+      bottom: 14px;
+      z-index: 1;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.78);
+      color: #ffffff;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      opacity: 0;
+      transition: opacity 0.18s ease, transform 0.18s ease;
+      transform: translateY(4px);
+      pointer-events: none;
+    }
+
+    .preview-reupload-target:hover .preview-reupload-hint {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
     .preview-audio {
       width: min(460px, calc(100% - 32px));
     }
@@ -1879,7 +1925,7 @@
 
     .dynamic-slider-row {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 110px;
+      grid-template-columns: minmax(0, 1fr) 110px 42px;
       gap: 12px;
       align-items: center;
     }
@@ -1893,6 +1939,25 @@
 
     .dynamic-slider-value {
       text-align: center;
+    }
+
+    .dynamic-slider-reset {
+      width: 42px;
+      min-height: 42px;
+      border: 1px solid #d5deea;
+      border-radius: 8px;
+      background: #ffffff;
+      color: #64748b;
+      cursor: pointer;
+      font-size: 22px;
+      line-height: 1;
+      font-weight: 500;
+    }
+
+    .dynamic-slider-reset:hover {
+      border-color: rgba(15, 118, 110, 0.45);
+      color: #0f766e;
+      background: #eefcf9;
     }
 
     .dynamic-slider-meta {
@@ -3198,12 +3263,23 @@
                         @change="handleMediaFileSelect(node, $event)"
                       >
                     </label>
-                    <img
+                    <label
                       v-else-if="node.dataType === 'image'"
-                      class="preview-image"
-                      :src="getMediaPreview(node)"
-                      alt="Input image preview"
+                      class="preview-reupload-target"
                     >
+                      <img
+                        class="preview-image"
+                        :src="getMediaPreview(node)"
+                        alt="Input image preview"
+                      >
+                      <span class="preview-reupload-hint">Click image to replace</span>
+                      <input
+                        class="hidden-input"
+                        type="file"
+                        :accept="getUploadAccept(node)"
+                        @change="handleMediaFileSelect(node, $event)"
+                      >
+                    </label>
                     <audio
                       v-else-if="node.dataType === 'audio'"
                       class="preview-audio"
@@ -3315,6 +3391,15 @@
                           :step="getNumberFieldStep(field)"
                           @change="clampNumberFieldValue(field)"
                         >
+                        <button
+                          type="button"
+                          class="dynamic-slider-reset"
+                          :title="`Reset to ${getNumberFieldDefaultValue(field)}`"
+                          :aria-label="`Reset ${getDisplayText(field.label) || field.key} to default`"
+                          @click="resetNumberFieldValue(field)"
+                        >
+                          ×
+                        </button>
                       </div>
                       <div class="dynamic-slider-meta">
                         <span>{{ getNumberFieldMin(field) }}</span>
@@ -5159,9 +5244,10 @@
           metaElement.setAttribute('content', content);
         };
 
-        const applyPageSeo = ({ title, description, canonicalPath, imageUrl = '' }) => {
+        const applyPageSeo = ({ title, description, canonicalPath, imageUrl = '', keywords = '' }) => {
           const canonicalUrl = new URL(canonicalPath || '/', window.location.origin).href;
           const resolvedDescription = description || DEFAULT_PAGE_DESCRIPTION;
+          const resolvedKeywords = String(keywords || '').trim();
           let resolvedImageUrl = '';
           let canonicalLink = document.head.querySelector('link[rel="canonical"]');
 
@@ -5182,6 +5268,7 @@
           canonicalLink.setAttribute('href', canonicalUrl);
 
           setMetaContent('meta[name="description"]', { name: 'description' }, resolvedDescription);
+          setMetaContent('meta[name="keywords"]', { name: 'keywords' }, resolvedKeywords);
           setMetaContent('meta[property="og:type"]', { property: 'og:type' }, 'website');
           setMetaContent('meta[property="og:site_name"]', { property: 'og:site_name' }, 'ImgKit');
           setMetaContent('meta[property="og:title"]', { property: 'og:title' }, title);
@@ -5291,7 +5378,8 @@
             title: payload.data.resolvedSeoTitle || 'AI Tool - ImgKit',
             description: payload.data.resolvedSeoDescription || DEFAULT_PAGE_DESCRIPTION,
             canonicalPath: `/tools/${encodeURIComponent(payload.data.slug || slug)}`,
-            imageUrl: getAssetUrl(payload.data.previewImageUrl)
+            imageUrl: getAssetUrl(payload.data.previewImageUrl),
+            keywords: payload.data.resolvedSeoKeywords || ''
           });
         };
 
@@ -5433,6 +5521,21 @@
           return Number.isFinite(value) && value > minValue ? value : minValue + 10;
         };
 
+        const getNumberFieldDefaultValue = (field) => {
+          const minValue = getNumberFieldMin(field);
+          const rawDefaultValue = field?.defaultValue;
+          if (rawDefaultValue === undefined || rawDefaultValue === null || rawDefaultValue === '') {
+            return minValue;
+          }
+
+          const numericDefaultValue = Number(rawDefaultValue);
+          if (!Number.isFinite(numericDefaultValue)) {
+            return minValue;
+          }
+
+          return Math.min(getNumberFieldMax(field), Math.max(minValue, numericDefaultValue));
+        };
+
         const getNumberFieldStep = (field) => {
           const defaultValue = String(field?.defaultValue ?? '');
           return defaultValue.includes('.') ? 0.1 : 1;
@@ -5451,6 +5554,14 @@
           formValues.value = {
             ...formValues.value,
             [field.key]: getClampedNumberValue(field, formValues.value[field.key])
+          };
+        };
+
+        const resetNumberFieldValue = (field) => {
+          if (!field || field.dataType !== 'number' || isSeedField(field)) return;
+          formValues.value = {
+            ...formValues.value,
+            [field.key]: getNumberFieldDefaultValue(field)
           };
         };
 
@@ -5809,9 +5920,11 @@
           removeUploadedImage,
           getNumberFieldMin,
           getNumberFieldMax,
+          getNumberFieldDefaultValue,
           getNumberFieldStep,
           getMultiImageGridStyle,
           clampNumberFieldValue,
+          resetNumberFieldValue,
           getSubscriptionPeriodLabel,
           getSubscriptionPrice,
           handleMemberLogout,

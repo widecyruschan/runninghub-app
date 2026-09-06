@@ -711,6 +711,54 @@ docker compose logs -f runninghub-app
 ### 後續建議
 - 部署後再打開工具列表確認刪除確認彈窗可正常顯示
 
+## 會話總結 - 2026-08-08 (前台圖片預覽點擊重傳)
+
+### 主要目的
+讓前台單張圖片上傳組件在上傳完成後，點擊圖片即可重新選擇檔案。
+
+### 完成內容
+- 將單張圖片預覽區塊改成可點擊的重傳入口
+- 為已上傳圖片增加 hover 提示 `Click image to replace`
+- 保持原有首次上傳、拖放、生成流程不變
+
+### 關鍵決策
+- 只針對單張圖片預覽做重傳交互，不改音訊與影片播放器
+- 沿用既有 `handleMediaFileSelect()`，避免新增另一套上傳處理
+
+### 修改的文件
+- `frontend/index.html`
+- `README.md`
+
+### 驗證
+- `npm test` 已通過
+
+### 後續建議
+- 部署後在前台圖片工具頁實際點擊已上傳圖片，確認會重新打開檔案選擇器
+
+## 會話總結 - 2026-08-08 (前台數字組件滑條修復)
+
+### 主要目的
+讓前台數字組件以 slider 呈現，並支援按 `×` 回復到預設值。
+
+### 完成內容
+- 前台數字組件改成 `range + number input + reset button` 的組合
+- `×` 會回復到該字段的預設值；如果沒有預設值，會回到最小值
+- 保持最小值 / 最大值 / 步進與原有提交邏輯不變
+
+### 關鍵決策
+- 不更動後台數字字段配置，只修前台顯示與交互
+- 讓前台直接沿用後台輸入的 default/min/max 資訊
+
+### 修改的文件
+- `frontend/index.html`
+- `README.md`
+
+### 驗證
+- `npm test` 已通過
+
+### 後續建議
+- 部署後在實際工具頁確認數字滑條可拖動，並且 `×` 可恢復預設值
+
 ## 會話總結 - 2026-08-08 (工具列表刪除按鈕)
 
 ### 主要目的
@@ -810,3 +858,113 @@ docker compose logs -f runninghub-app
 ### 後續建議
 - 部署後為每個已上線工具補齊英文 SEO 標題與描述，再使用 Google Search Console 重新檢查工具 URL
 - 可按實際搜尋結果表現持續調整標題與描述內容，不需要修改工具 slug 或 canonical
+
+## 會話總結 - 2026-09-06（本地後台登入修復）
+
+### 主要目的
+修復本地後台輸入正確帳號密碼後，仍顯示「請先登入後台」並無法進入管理頁的問題。
+
+### 完成內容
+- 確認登入 API 可成功建立服務端會話，但本地瀏覽器會拒絕帶有 `Domain=.imgkit.io` 的 cookie
+- 新增 cookie 域解析模組，只在請求主機屬於配置域時輸出 Domain 屬性
+- `localhost`、`127.0.0.1`、`::1` 與其他不匹配主機改用 host-only cookie
+- 保留 `imgkit.io` 與子域名共用 `.imgkit.io` cookie 的正式環境行為
+- 新增本地、正式域名與不匹配域名的回歸測試
+
+### 關鍵決策
+- 不修改 `.env` 或刪除正式環境的 `SESSION_COOKIE_DOMAIN`，避免本地修復破壞跨子域登入
+- 不改動帳號密碼校驗、會話 ID、有效期、HttpOnly、SameSite 或 Secure 規則
+- 將主機與 cookie 域匹配抽成純函式，方便不使用真實密碼測試
+
+### 使用的技術棧
+- Node.js 原生 HTTP、HTTP Cookie、Node test runner、agent-browser
+
+### 修改的文件
+- `server.js`
+- `src/cookieDomain.js`
+- `test/cookieDomain.test.js`
+- `package.json`
+- `README.md`
+
+### 驗證
+- `npm test` 全部通過，共 20 個測試
+- 本地登入響應已不再包含不匹配的 Domain 屬性
+- 使用隔離瀏覽器完成真實後台登入，刷新後仍保持會話，測試後已登出並清理臨時認證資料
+
+### 後續建議
+- 部署後確認 `api.imgkit.io` 的登入 cookie 仍帶 `Domain=.imgkit.io` 與 `Secure`
+
+## 會話總結 - 2026-09-06（工具 SEO Keywords 配置）
+
+### 主要目的
+在後台工具 SEO 配置中新增 `Keywords`，讓每個工具可單獨保存英文關鍵字並輸出到工具頁 metadata。
+
+### 完成內容
+- 工具資料表新增 `seo_keywords` 欄位，兼容 SQLite 與 MySQL 自動遷移
+- 後台工具表單新增 SEO Keywords 輸入框，支援新增、編輯、儲存與回填
+- 公開工具 API 返回 `seoKeywords` 與 `resolvedSeoKeywords`
+- 服務端工具頁在英文 Keywords 有效時輸出 `meta[name="keywords"]`
+- 前台工具頁同步設定或清除 Keywords meta，切換到其他頁面時不殘留舊工具關鍵字
+- Keywords 限制為 512 字元；非 ASCII 內容不輸出到前台
+
+### 關鍵決策
+- Keywords 使用英文逗號分隔純文字，不新增額外關鍵字表或複雜解析規則
+- 保留既有 title、description、canonical、Open Graph 與 Twitter Card 邏輯
+- 對超長 Keywords 返回明確驗證錯誤，不靜默截斷
+
+### 使用的技術棧
+- Vue 3 CDN、Node.js 原生 HTTP、SQLite / MySQL、Node test runner
+
+### 修改的文件
+- `frontend/admin.html`
+- `frontend/index.html`
+- `src/database.js`
+- `src/toolRepository.js`
+- `src/toolSeo.js`
+- `test/toolRepository.test.js`
+- `test/toolSeo.test.js`
+- `README.md`
+
+### 驗證
+- `npm test` 全部通過，共 24 個測試
+- 回歸測試覆蓋工具 Keywords 獨立保存、公開讀取、英文輸出、非英文抑制、HTML 轉義與超長驗證
+- `frontend/index.html` 與 `frontend/admin.html` 內嵌腳本語法檢查通過
+
+### 後續建議
+- 部署後為已上線工具補充英文 Keywords，並檢查工具頁原始 HTML 是否包含對應 meta
+
+## 會話總結 - 2026-09-07（動態 Sitemap、RSS 與推送部署）
+
+### 主要目的
+讓前台內容可供搜尋引擎與 RSS 閱讀器自動發現，並完成程式碼推送部署。
+
+### 完成內容
+- 新增動態 `sitemap.xml`，包含公開靜態頁及所有已上線工具 URL
+- 新增動態 `rss.xml`，並提供 `/feed.xml` 相容入口，只收錄已上線工具
+- `robots.txt` 持續指向 sitemap；後台、會員、登入和 API 路由維持禁止收錄
+- sitemap 與 RSS 每次請求從資料庫讀取公開工具，因此儲存工具資料或切換上下線後會自動更新
+- XML 內容進行轉義，避免工具 SEO 資料破壞 feed 格式
+- 移除原本受版本控制的支付 API 預設憑證，付款服務改由部署環境變數提供設定
+
+### 關鍵決策
+- 不生成靜態檔案，避免後台改動後還要額外執行建置或手動上傳
+- RSS 使用每個工具的已解析 SEO 標題與描述，未設定時使用現有公開工具資料兜底
+- sitemap 和 RSS 設定為重新驗證快取，讓搜尋引擎讀取時拿到最新資料
+
+### 使用的技術棧
+- Node.js 原生 HTTP、SQLite / MySQL、RSS 2.0、XML Sitemap、Node test runner
+
+### 修改的文件
+- `server.js`
+- `src/publicFeeds.js`
+- `src/envDefaults.js`
+- `test/publicFeeds.test.js`
+- `package.json`
+- `README.md`
+
+### 驗證
+- 新增 sitemap、RSS 與 robots 內容測試
+- 將以 `npm test` 和本地 HTTP 請求驗證 XML 回應、Content-Type 與只收錄公開工具
+
+### 後續建議
+- 部署後在 Google Search Console 和 Bing Webmaster Tools 提交 `https://imgkit.io/sitemap.xml`
