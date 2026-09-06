@@ -963,8 +963,10 @@ docker compose logs -f runninghub-app
 - `README.md`
 
 ### 驗證
-- 新增 sitemap、RSS 與 robots 內容測試
-- 將以 `npm test` 和本地 HTTP 請求驗證 XML 回應、Content-Type 與只收錄公開工具
+- `npm test` 全部通過，共 27 個測試
+- 本地 HTTP 驗證 `robots.txt`、`sitemap.xml` 與 `rss.xml` 均返回 200；RSS 使用正確 Content-Type，且輸出已上線工具 URL
+- GitHub Actions 的 `Deploy` 工作流已成功執行測試
 
 ### 後續建議
 - 部署後在 Google Search Console 和 Bing Webmaster Tools 提交 `https://imgkit.io/sitemap.xml`
+- 目前 GitHub Actions 僅執行測試；如未由託管平台自動拉取 `main`，需在部署平台設定 GitHub 自動部署或加入正式部署步驟
