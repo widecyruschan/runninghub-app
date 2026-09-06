@@ -13,11 +13,47 @@ async function createTestToolRepository() {
   const toolRepository = createToolRepository(database);
 
   return {
-    close() {
-      if (typeof database.close === 'function') database.close();
+    async close() {
+      if (typeof database.close === 'function') await database.close();
       fs.rmSync(dataDir, { recursive: true, force: true });
     },
     toolRepository
+  };
+}
+
+function createSeoToolPayload(toolKey, seoTitle, seoDescription) {
+  return {
+    toolKey,
+    name: toolKey,
+    slug: toolKey,
+    categoryId: 'image',
+    shortDescription: `${toolKey} description`,
+    seoTitle,
+    seoDescription,
+    previewImageUrl: `https://example.com/${toolKey}.webp`,
+    creditCost: 1,
+    workflowId: `workflow-${toolKey}`,
+    instanceType: 'default',
+    status: 'active',
+    sortOrder: 999,
+    inputNodes: [
+      {
+        nodeId: '1',
+        fieldName: 'image',
+        key: 'sourceImage',
+        dataType: 'image',
+        label: 'Upload image',
+        placeholder: '',
+        defaultValue: '',
+        required: true,
+        options: []
+      }
+    ],
+    outputConfig: {
+      outputType: 'image',
+      previewMode: 'image',
+      fallbackPaths: ['url']
+    }
   };
 }
 
@@ -39,7 +75,7 @@ test('default seed does not overwrite a custom remove background preview image',
     const updatedTool = await toolRepository.getToolById(originalTool.id);
     assert.equal(updatedTool.previewImageUrl, customPreviewImageUrl);
   } finally {
-    close();
+    await close();
   }
 });
 
@@ -88,6 +124,51 @@ test('deleteTool hides the tool from list but keeps the record retrievable by id
     assert.equal(visibleTools.some((tool) => tool.id === savedTool.id), false);
     assert.equal(await toolRepository.getActiveToolBySlug(savedTool.slug), null);
   } finally {
-    close();
+    await close();
+  }
+});
+
+test('tools keep independent SEO metadata in admin and public records', async () => {
+  const { close, toolRepository } = await createTestToolRepository();
+
+  try {
+    const firstTool = await toolRepository.saveTool(createSeoToolPayload(
+      'first-seo-tool',
+      'First SEO title',
+      'First SEO description'
+    ));
+    await toolRepository.saveTool(createSeoToolPayload(
+      'second-seo-tool',
+      'Second SEO title',
+      'Second SEO description'
+    ));
+
+    const adminTool = await toolRepository.getToolById(firstTool.id);
+    const publicTool = await toolRepository.getActiveToolBySlug('first-seo-tool');
+
+    assert.equal(adminTool.seoTitle, 'First SEO title');
+    assert.equal(adminTool.seoDescription, 'First SEO description');
+    assert.equal(publicTool.seoTitle, 'First SEO title');
+    assert.equal(publicTool.seoDescription, 'First SEO description');
+    assert.equal(publicTool.resolvedSeoTitle, 'First SEO title');
+    assert.equal(publicTool.resolvedSeoDescription, 'First SEO description');
+  } finally {
+    await close();
+  }
+});
+
+test('saveTool rejects SEO metadata that exceeds database limits', async () => {
+  const { close, toolRepository } = await createTestToolRepository();
+  try {
+    await assert.rejects(
+      toolRepository.saveTool(createSeoToolPayload(
+        'too-long-seo-tool',
+        'x'.repeat(256),
+        'SEO description'
+      )),
+      (error) => error.code === 'TOOL_SEO_TITLE_TOO_LONG'
+    );
+  } finally {
+    await close();
   }
 });

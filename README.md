@@ -765,3 +765,48 @@ docker compose logs -f runninghub-app
 
 ### 後續建議
 - 在後台重新打開這個工具，重新分析後再測試一次，然後再上線
+
+## 會話總結 - 2026-09-06（工具獨立 SEO 配置）
+
+### 主要目的
+在後台工具配置頁加入 SEO 內容，讓每個前台工具頁可設定獨立的網頁標題與描述。
+
+### 完成內容
+- 後台工具表單新增 SEO 網頁標題與 Meta Description 欄位，支援新增、編輯、儲存與回填
+- 工具資料表新增 `seo_title`、`seo_description` 欄位，兼容 SQLite 與 MySQL 自動遷移
+- 公開工具 API 返回各工具的獨立 SEO 配置
+- 前台工具頁同步更新 title、description、canonical、Open Graph 與 Twitter Card 標籤
+- 直接訪問 `/tools/:slug` 時由服務端輸出工具 SEO，避免搜尋引擎或分享爬蟲只能取得通用標題
+- sitemap 工具資料補回 `updatedAt`，讓既有 `lastmod` 輸出可正常使用
+
+### 關鍵決策
+- canonical 由公開站點地址與工具 slug 自動產生，不增加容易填錯的後台 URL 欄位
+- Open Graph 與 Twitter 分享圖片沿用工具預覽圖，不建立重複圖片配置
+- SEO 欄位允許留空，前台會使用工具名稱、簡介與英文站點描述兜底
+- 保留現有 Vue 3 CDN 與 Node.js 原生服務架構，不引入新依賴
+
+### 使用的技術棧
+- Vue 3 CDN、Node.js 原生 HTTP、SQLite / MySQL、Node test runner
+
+### 修改的文件
+- `frontend/admin.html`
+- `frontend/index.html`
+- `server.js`
+- `src/database.js`
+- `src/toolRepository.js`
+- `src/toolSeo.js`
+- `test/toolRepository.test.js`
+- `test/toolSeo.test.js`
+- `package.json`
+- `README.md`
+
+### 驗證
+- `npm test` 全部通過，共 17 個測試
+- 回歸測試確認不同工具可獨立保存並公開讀取 SEO 標題與描述
+- SEO 輸出測試覆蓋英文兜底、canonical、相對預覽圖 URL 與 HTML 轉義
+- 本地 HTTP 驗證確認直接工具 URL 已輸出 title、description、canonical、Open Graph 與 Twitter Card
+- 使用瀏覽器驗證工具頁 SEO 生效，返回工具市場後通用 SEO 可正確恢復
+
+### 後續建議
+- 部署後為每個已上線工具補齊英文 SEO 標題與描述，再使用 Google Search Console 重新檢查工具 URL
+- 可按實際搜尋結果表現持續調整標題與描述內容，不需要修改工具 slug 或 canonical

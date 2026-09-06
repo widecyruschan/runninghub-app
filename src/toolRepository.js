@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const { createToolSeoMetadata } = require('./toolSeo');
 
 const VALID_TOOL_STATUS = new Set(['draft', 'active', 'inactive']);
 const VALID_INPUT_DATA_TYPES = new Set(['image', 'video', 'audio', 'number', 'textarea', 'text', 'select', 'switch']);
@@ -106,6 +107,8 @@ function createToolRepository(database) {
         slug,
         category_id,
         short_description,
+        seo_title,
+        seo_description,
         top_detail_html,
         detail_html,
         preview_image_url,
@@ -126,6 +129,8 @@ function createToolRepository(database) {
         @slug,
         @categoryId,
         @shortDescription,
+        @seoTitle,
+        @seoDescription,
         @topDetailHtml,
         @detailHtml,
         @previewImageUrl,
@@ -148,6 +153,8 @@ function createToolRepository(database) {
         slug = @slug,
         category_id = @categoryId,
         short_description = @shortDescription,
+        seo_title = @seoTitle,
+        seo_description = @seoDescription,
         top_detail_html = @topDetailHtml,
         detail_html = @detailHtml,
         preview_image_url = @previewImageUrl,
@@ -926,6 +933,8 @@ function normalizeToolPayload(rawTool) {
   }
 
   const toolKey = slugify(String(tool.toolKey || tool.key));
+  const seoTitle = normalizeSeoText(tool.seoTitle || tool.seo_title || '', 255, 'SEO 網頁標題', 'TOOL_SEO_TITLE_TOO_LONG');
+  const seoDescription = normalizeSeoText(tool.seoDescription || tool.seo_description || '', 512, 'Meta Description', 'TOOL_SEO_DESCRIPTION_TOO_LONG');
 
   if (!toolKey) {
     throwValidationError('工具識別碼格式不正確', 'TOOL_KEY_INVALID');
@@ -938,6 +947,8 @@ function normalizeToolPayload(rawTool) {
     slug: slugify(String(tool.slug || toolKey)),
     categoryId: String(tool.categoryId || tool.category_id || 'image').trim() || 'image',
     shortDescription: String(tool.shortDescription || tool.description || '').trim(),
+    seoTitle,
+    seoDescription,
     topDetailHtml: sanitizeDetailHtml(tool.topDetailHtml || tool.top_detail_html || ''),
     detailHtml: sanitizeDetailHtml(tool.detailHtml || tool.detail_html || ''),
     previewImageUrl: String(tool.previewImageUrl || tool.preview_image_url || '').trim(),
@@ -949,6 +960,14 @@ function normalizeToolPayload(rawTool) {
     inputNodes: normalizedInputNodes,
     outputConfig: normalizeOutputConfig(tool.outputConfig)
   };
+}
+
+function normalizeSeoText(value, maxLength, fieldLabel, errorCode) {
+  const normalizedValue = String(value || '').trim();
+  if (normalizedValue.length > maxLength) {
+    throwValidationError(`${fieldLabel}不可超過 ${maxLength} 個字元`, errorCode);
+  }
+  return normalizedValue;
 }
 
 function getUpgradedNanoBananaText(currentValue, oldDefaultValue, newDefaultValue) {
@@ -1110,6 +1129,8 @@ function mapToolRecord(record) {
     categoryName: record.category_name || getFallbackCategoryName(record.category_id),
     shortDescription: record.short_description,
     description: record.short_description,
+    seoTitle: record.seo_title || '',
+    seoDescription: record.seo_description || '',
     topDetailHtml: sanitizeDetailHtml(record.top_detail_html || ''),
     detailHtml: sanitizeDetailHtml(record.detail_html || ''),
     previewImageUrl: record.preview_image_url,
@@ -1137,6 +1158,7 @@ function mapToolRecord(record) {
 
 function mapPublicToolRecord(record) {
   const tool = mapToolRecord(record);
+  const resolvedSeo = createToolSeoMetadata(tool, '');
 
   return {
     id: tool.id,
@@ -1149,6 +1171,10 @@ function mapPublicToolRecord(record) {
     categoryName: tool.categoryName,
     shortDescription: tool.shortDescription,
     description: tool.shortDescription,
+    seoTitle: tool.seoTitle,
+    seoDescription: tool.seoDescription,
+    resolvedSeoTitle: resolvedSeo.title,
+    resolvedSeoDescription: resolvedSeo.description,
     topDetailHtml: tool.topDetailHtml,
     detailHtml: tool.detailHtml,
     previewImageUrl: tool.previewImageUrl,
@@ -1156,7 +1182,8 @@ function mapPublicToolRecord(record) {
     workflowId: tool.workflowId,
     instanceType: tool.instanceType,
     inputNodes: tool.inputNodes,
-    outputConfig: tool.outputConfig
+    outputConfig: tool.outputConfig,
+    updatedAt: tool.updatedAt
   };
 }
 

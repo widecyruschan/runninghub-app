@@ -1685,6 +1685,36 @@
 
               <div class="section-title">
                 <div>
+                  <h3>SEO 配置</h3>
+                </div>
+                <span
+                  v-if="!isSeoReady(toolForm.seoTitle) || !isSeoReady(toolForm.seoDescription)"
+                  class="status-pill status-draft"
+                >SEO 待補充</span>
+              </div>
+              <div class="form-grid">
+                <div class="field field-full">
+                  <label for="tool-seo-title">SEO 網頁標題（英文）</label>
+                  <input
+                    id="tool-seo-title"
+                    v-model="toolForm.seoTitle"
+                    maxlength="255"
+                    placeholder="例如：Remove Image Background Online - ImgKit"
+                  >
+                </div>
+                <div class="field field-full">
+                  <label for="tool-seo-description">Meta Description（英文）</label>
+                  <textarea
+                    id="tool-seo-description"
+                    v-model="toolForm.seoDescription"
+                    maxlength="512"
+                    placeholder="例如：Remove image backgrounds online and download a transparent PNG in seconds."
+                  ></textarea>
+                </div>
+              </div>
+
+              <div class="section-title">
+                <div>
                   <h3>輸入節點配置</h3>
                   <p>可切換到「搭建頁面」透過拖放與上傳工作流檔案快速產生 UI 元件，兩種模式共享同一份輸入節點資料。</p>
                 </div>
@@ -3371,6 +3401,8 @@
             workflowId: '',
             instanceType: 'default',
             description: '',
+            seoTitle: '',
+            seoDescription: '',
             topDetailHtml: '',
             detailHtml: '',
             status: 'draft',
@@ -3397,6 +3429,11 @@
               })
             ]
           };
+        }
+
+        function isSeoReady(value) {
+          const normalizedValue = String(value || '').trim();
+          return /^[\x20-\x7e]+$/.test(normalizedValue);
         }
 
         function createEmptyToolTestResult() {
@@ -3924,6 +3961,8 @@
               workflowId: tool.workflowId === '待配置' ? '' : tool.workflowId,
               instanceType: tool.instanceType || 'default',
               description: tool.shortDescription || tool.description || '',
+              seoTitle: tool.seoTitle || '',
+              seoDescription: tool.seoDescription || '',
               topDetailHtml: tool.topDetailHtml || '',
               detailHtml: tool.detailHtml || '',
               status: tool.status || 'draft',
@@ -4710,6 +4749,8 @@
             slug: toolForm.value.key,
             categoryId: toolForm.value.categoryId,
             shortDescription: toolForm.value.description,
+            seoTitle: toolForm.value.seoTitle,
+            seoDescription: toolForm.value.seoDescription,
             topDetailHtml: toolForm.value.topDetailHtml,
             detailHtml: toolForm.value.detailHtml,
             previewImageUrl: toolForm.value.previewImageUrl,
@@ -5280,6 +5321,7 @@
           toolTestValues,
           updateCurrentToolStatus,
           updateToolStatus,
+          isSeoReady,
           toolForm,
           toolBuilderMode,
           toolKeyword,

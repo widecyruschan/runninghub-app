@@ -48,6 +48,8 @@ async function migrateDatabase(adapter) {
       slug VARCHAR(256) NOT NULL,
       category_id VARCHAR(64) NOT NULL DEFAULT 'image',
       short_description TEXT NOT NULL,
+      seo_title VARCHAR(255) NOT NULL DEFAULT '',
+      seo_description VARCHAR(512) NOT NULL DEFAULT '',
       top_detail_html TEXT NOT NULL,
       detail_html TEXT NOT NULL,
       preview_image_url TEXT NOT NULL,
@@ -183,6 +185,8 @@ async function migrateDatabase(adapter) {
   await ensureColumn(adapter, 'tools', 'category_id', "VARCHAR(64) NOT NULL DEFAULT 'image'");
   await ensureColumn(adapter, 'tools', 'preview_image_url', "TEXT NOT NULL");
   await ensureColumn(adapter, 'tools', 'credit_cost', "INT NOT NULL DEFAULT 1");
+  await ensureColumn(adapter, 'tools', 'seo_title', "VARCHAR(255) NOT NULL DEFAULT ''");
+  await ensureColumn(adapter, 'tools', 'seo_description', "VARCHAR(512) NOT NULL DEFAULT ''");
   await ensureColumn(adapter, 'tools', 'top_detail_html', "TEXT NOT NULL");
   await ensureColumn(adapter, 'tools', 'detail_html', "TEXT NOT NULL");
   await ensureColumn(adapter, 'tools', 'last_test_status', "VARCHAR(16) NOT NULL DEFAULT 'untested'");

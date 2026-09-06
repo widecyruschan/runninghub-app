@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-HK">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -3732,6 +3732,7 @@
     const MAX_FILE_SIZE = 10 * 1024 * 1024;
     const POLLING_INTERVAL = 3000;
     const MAX_POLLING_COUNT = 120;
+    const DEFAULT_PAGE_DESCRIPTION = 'Create images, videos, audio, and more with ImgKit AI tools.';
 
     if (API_BASE_URL) {
       axios.defaults.baseURL = API_BASE_URL;
@@ -4452,7 +4453,11 @@
           setCurrentPath();
           resetTool();
           toolConfig.value = null;
-          document.title = memberPageTitle.value + ' - ';
+          applyPageSeo({
+            title: `${memberPageTitle.value} - ImgKit`,
+            description: 'Manage your ImgKit account, files, credits, and subscription.',
+            canonicalPath: targetPath
+          });
           loadMemberRecords();
         };
 
@@ -4462,7 +4467,11 @@
           resetTool();
           toolConfig.value = null;
           const titles = { '/privacy': 'Privacy Policy', '/terms': 'Terms of Service' };
-          document.title = (titles[path] || 'Legal') + ' - ImgKit';
+          applyPageSeo({
+            title: (titles[path] || 'Legal') + ' - ImgKit',
+            description: 'Read the ImgKit legal terms and privacy information.',
+            canonicalPath: path
+          });
         };
 
         const openPricingPage = () => {
@@ -4470,7 +4479,11 @@
           setCurrentPath();
           resetTool();
           toolConfig.value = null;
-          document.title = 'Pricing - ImgKit';
+          applyPageSeo({
+            title: 'Pricing - ImgKit',
+            description: 'Compare ImgKit plans and choose the credits and features you need.',
+            canonicalPath: '/pricing'
+          });
         };
 
         const registerMember = async () => {
@@ -5129,6 +5142,58 @@
           robotsMeta.setAttribute('content', shouldNoindex ? 'noindex,nofollow,noarchive,nosnippet' : 'index,follow');
         };
 
+        const setMetaContent = (selector, attributes, content) => {
+          let metaElement = document.head.querySelector(selector);
+          if (!content) {
+            if (metaElement) metaElement.remove();
+            return;
+          }
+
+          if (!metaElement) {
+            metaElement = document.createElement('meta');
+            Object.entries(attributes).forEach(([attributeName, attributeValue]) => {
+              metaElement.setAttribute(attributeName, attributeValue);
+            });
+            document.head.appendChild(metaElement);
+          }
+          metaElement.setAttribute('content', content);
+        };
+
+        const applyPageSeo = ({ title, description, canonicalPath, imageUrl = '' }) => {
+          const canonicalUrl = new URL(canonicalPath || '/', window.location.origin).href;
+          const resolvedDescription = description || DEFAULT_PAGE_DESCRIPTION;
+          let resolvedImageUrl = '';
+          let canonicalLink = document.head.querySelector('link[rel="canonical"]');
+
+          if (imageUrl) {
+            try {
+              resolvedImageUrl = new URL(imageUrl, window.location.origin).href;
+            } catch (error) {
+              resolvedImageUrl = '';
+            }
+          }
+
+          document.title = title;
+          if (!canonicalLink) {
+            canonicalLink = document.createElement('link');
+            canonicalLink.setAttribute('rel', 'canonical');
+            document.head.appendChild(canonicalLink);
+          }
+          canonicalLink.setAttribute('href', canonicalUrl);
+
+          setMetaContent('meta[name="description"]', { name: 'description' }, resolvedDescription);
+          setMetaContent('meta[property="og:type"]', { property: 'og:type' }, 'website');
+          setMetaContent('meta[property="og:site_name"]', { property: 'og:site_name' }, 'ImgKit');
+          setMetaContent('meta[property="og:title"]', { property: 'og:title' }, title);
+          setMetaContent('meta[property="og:description"]', { property: 'og:description' }, resolvedDescription);
+          setMetaContent('meta[property="og:url"]', { property: 'og:url' }, canonicalUrl);
+          setMetaContent('meta[property="og:image"]', { property: 'og:image' }, resolvedImageUrl);
+          setMetaContent('meta[name="twitter:card"]', { name: 'twitter:card' }, resolvedImageUrl ? 'summary_large_image' : 'summary');
+          setMetaContent('meta[name="twitter:title"]', { name: 'twitter:title' }, title);
+          setMetaContent('meta[name="twitter:description"]', { name: 'twitter:description' }, resolvedDescription);
+          setMetaContent('meta[name="twitter:image"]', { name: 'twitter:image' }, resolvedImageUrl);
+        };
+
         const setCurrentPath = () => {
           currentPath.value = window.location.pathname || '/';
           syncRobotsMeta(currentPath.value);
@@ -5163,7 +5228,11 @@
             marketplaceTools.value = Array.isArray(toolsResponse.data.data) ? toolsResponse.data.data : [];
             categories.value = Array.isArray(categoriesResponse.data.data) ? categoriesResponse.data.data : [];
             if (isMarketplace.value) {
-              document.title = 'AI Tool Platform';
+              applyPageSeo({
+                title: 'AI Tool Platform - ImgKit',
+                description: DEFAULT_PAGE_DESCRIPTION,
+                canonicalPath: '/'
+              });
             }
           } catch (error) {
             console.error('Tool marketplace failed to load:', error);
@@ -5218,7 +5287,12 @@
           toolConfig.value = payload.data;
           initializeFormValues(payload.data.inputNodes || []);
           resetTool();
-          document.title = payload.data.name + ' ';
+          applyPageSeo({
+            title: payload.data.resolvedSeoTitle || 'AI Tool - ImgKit',
+            description: payload.data.resolvedSeoDescription || DEFAULT_PAGE_DESCRIPTION,
+            canonicalPath: `/tools/${encodeURIComponent(payload.data.slug || slug)}`,
+            imageUrl: getAssetUrl(payload.data.previewImageUrl)
+          });
         };
 
         const initializeFormValues = (inputNodes) => {
@@ -5563,7 +5637,11 @@
 
             if (isMemberPage.value) {
               toolConfig.value = null;
-              document.title = memberPageTitle.value + ' - ';
+              applyPageSeo({
+                title: `${memberPageTitle.value} - ImgKit`,
+                description: 'Manage your ImgKit account, files, credits, and subscription.',
+                canonicalPath: currentMemberPath.value
+              });
               loadMemberRecords();
               if (currentMemberPath.value === '/reset-password') {
                 const urlParams = new URLSearchParams(window.location.search);
@@ -5576,13 +5654,21 @@
             if (isLegalPage.value) {
               toolConfig.value = null;
               const titles = { '/privacy': 'Privacy Policy', '/terms': 'Terms of Service' };
-              document.title = (titles[currentLegalPath.value] || 'Legal') + ' - ImgKit';
+              applyPageSeo({
+                title: (titles[currentLegalPath.value] || 'Legal') + ' - ImgKit',
+                description: 'Read the ImgKit legal terms and privacy information.',
+                canonicalPath: currentLegalPath.value
+              });
               return;
             }
 
             if (isPricingPage.value) {
               toolConfig.value = null;
-              document.title = 'Pricing - ImgKit';
+              applyPageSeo({
+                title: 'Pricing - ImgKit',
+                description: 'Compare ImgKit plans and choose the credits and features you need.',
+                canonicalPath: '/pricing'
+              });
               return;
             }
 
@@ -5599,7 +5685,11 @@
 
           if (isMemberPage.value) {
             loadMarketplaceData().finally(() => {
-              document.title = memberPageTitle.value + ' - ';
+              applyPageSeo({
+                title: `${memberPageTitle.value} - ImgKit`,
+                description: 'Manage your ImgKit account, files, credits, and subscription.',
+                canonicalPath: currentMemberPath.value
+              });
               loadMemberRecords();
             });
             if (currentMemberPath.value === '/reset-password') {
@@ -5613,13 +5703,21 @@
           if (isLegalPage.value) {
             loadMarketplaceData();
             const titles = { '/privacy': 'Privacy Policy', '/terms': 'Terms of Service' };
-            document.title = (titles[currentLegalPath.value] || 'Legal') + ' - ImgKit';
+            applyPageSeo({
+              title: (titles[currentLegalPath.value] || 'Legal') + ' - ImgKit',
+              description: 'Read the ImgKit legal terms and privacy information.',
+              canonicalPath: currentLegalPath.value
+            });
             return;
           }
 
           if (isPricingPage.value) {
             loadMarketplaceData();
-            document.title = 'Pricing - ImgKit';
+            applyPageSeo({
+              title: 'Pricing - ImgKit',
+              description: 'Compare ImgKit plans and choose the credits and features you need.',
+              canonicalPath: '/pricing'
+            });
             return;
           }
 

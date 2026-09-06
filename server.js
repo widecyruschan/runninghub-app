@@ -6,6 +6,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { createDatabase, DEFAULT_DATA_DIR, DEFAULT_DATABASE_PATH } = require('./src/database');
 const { createToolRepository } = require('./src/toolRepository');
+const { createToolPageHtml } = require('./src/toolSeo');
 const { createCategoryRepository } = require('./src/categoryRepository');
 const { createMenuRepository } = require('./src/menuRepository');
 const { createTaskRepository } = require('./src/taskRepository');
@@ -4541,6 +4542,16 @@ async function serveStaticFile(request, response) {
   }
 
   if (isFrontendRoute(url.pathname)) {
+    const toolRouteMatch = url.pathname.match(/^\/tools\/([^/]+)$/);
+    if (toolRouteMatch) {
+      const slug = decodeURIComponent(toolRouteMatch[1]);
+      const tool = await toolRepository.getActiveToolBySlug(slug);
+      if (tool) {
+        await sendToolPage(request, response, tool);
+        return;
+      }
+    }
+
     await sendStaticFile(response, path.join(PUBLIC_DIR, 'index.html'), getStaticRobotsHeaders(url.pathname));
     return;
   }
@@ -4611,6 +4622,17 @@ async function sendStaticFile(response, filePath, extraHeaders = {}) {
     ...extraHeaders
   });
   fs.createReadStream(filePath).pipe(response);
+}
+
+async function sendToolPage(request, response, tool) {
+  const indexHtml = await fs.promises.readFile(path.join(PUBLIC_DIR, 'index.html'), 'utf8');
+  const publicBaseUrl = publicAppBaseUrl || getRequestOrigin(request);
+  const htmlWithSeo = createToolPageHtml(indexHtml, tool, publicBaseUrl);
+
+  sendText(response, 200, htmlWithSeo, {
+    'Content-Type': 'text/html; charset=utf-8',
+    'Cache-Control': 'no-store'
+  });
 }
 
 function isBotBlockedRoute(pathname) {
