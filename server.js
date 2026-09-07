@@ -4552,6 +4552,14 @@ async function serveStaticFile(request, response) {
         await sendToolPage(request, response, tool);
         return;
       }
+
+      sendNotFound(response, 'Tool not found');
+      return;
+    }
+
+    if (url.pathname.startsWith('/tools/')) {
+      sendNotFound(response, 'Tool page not found');
+      return;
     }
 
     await sendStaticFile(response, path.join(PUBLIC_DIR, 'index.html'), getStaticRobotsHeaders(url.pathname));
@@ -4671,6 +4679,15 @@ function sendJson(response, statusCode, payload, extraHeaders = {}) {
 function sendText(response, statusCode, text, extraHeaders = {}) {
   response.writeHead(statusCode, extraHeaders);
   response.end(text);
+}
+
+function sendNotFound(response, message) {
+  response.writeHead(404, {
+    'Content-Type': 'text/plain; charset=utf-8',
+    'X-Robots-Tag': ROBOTS_NOINDEX_VALUE,
+    'Cache-Control': 'no-store'
+  });
+  response.end(message);
 }
 
 // 數據庫備份：將 SQLite 文件作為下載返回
