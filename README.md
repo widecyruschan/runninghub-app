@@ -1013,3 +1013,71 @@ docker compose logs -f runninghub-app
 ### 後續建議
 - 在 Google Search Console 的 URL Inspection 重新檢查五個工具頁，要求重新編入索引
 - 後台為新增工具填寫英文 SEO title、description 和 Keywords；未填寫時會自動使用安全 fallback
+
+## 會話總結 - 2026-09-07（生成網站 llms.txt）
+
+### 主要目的
+為 AI crawler 和大型語言模型提供網站內容索引入口。
+
+### 完成內容
+- 新增動態 `/llms.txt` 端點
+- 包含網站簡介、首頁、價格、法律頁、sitemap 和 RSS 入口
+- 自動列出所有已上線工具的 canonical URL、SEO 描述與 Keywords
+- 工具資料更新或上下線後，`llms.txt` 會隨資料庫內容自動更新
+- 清理換行和 Markdown 特殊字元，避免後台內容破壞索引文件格式
+
+### 使用的技術棧
+- Node.js 原生 HTTP、Markdown text feed、SQLite / MySQL、Node test runner
+
+### 修改的文件
+- `server.js`
+- `src/publicFeeds.js`
+- `test/publicFeeds.test.js`
+- `package.json`
+- `README.md`
+
+### 驗證
+- `npm test` 全部通過，共 29 個測試
+- `/llms.txt` 使用 `text/plain` 回應，內容只包含公開頁面與 active 工具
+
+### 後續建議
+- 部署後確認 `https://imgkit.io/llms.txt` 可公開訪問，並在需要時把該 URL 提供給 AI crawler 或模型服務
+
+## 會話總結 - 2026-09-07（修復工具 GEO citations / quotations 報錯）
+
+### 主要目的
+修復 GEO 檢查中「No citations or quotations」的工具頁問題，讓 AI crawler 可以驗證工具描述的來源。
+
+### 完成內容
+- 為五個 active 工具加入官方來源：Google AI Developers、KIE API、W3C PNG Specification
+- 每個工具頁 SSR HTML 新增 `Sources and citations` 區塊、來源連結、短引語與 `<cite>` 標記
+- 前端 SPA 工具頁同步顯示來源與引語，切換工具時使用同一份 metadata
+- `llms.txt` 的每個工具條目新增 `Sources` 和 quotation block
+- 修復 API metadata 映射時把外部官方來源 URL 錯誤降級為本站工具 URL 的問題
+- 沒有配置來源的自訂工具會自動使用自身 canonical 頁作為 fallback source，仍保留可驗證引語
+
+### 關鍵決策
+- 引用優先使用官方 provider 文檔，避免使用不明第三方內容
+- 引語保持短句，並在頁面和 `llms.txt` 中同时显示来源链接
+- 不把 citations 写入数据库，避免覆盖后台工具配置；由 SEO profile 和工具 canonical 自动生成
+
+### 使用的技術棧
+- Node.js 原生 HTTP、Vue 3 CDN、Markdown llms.txt、HTML citations、Node test runner
+
+### 修改的文件
+- `src/toolSeo.js`
+- `src/toolRepository.js`
+- `src/publicFeeds.js`
+- `frontend/index.html`
+- `test/toolSeo.test.js`
+- `test/toolSeoCoverage.test.js`
+- `test/publicFeeds.test.js`
+- `README.md`
+
+### 驗證
+- `npm test` 全部通過，共 30 個測試
+- 本地工具頁驗證包含 `Sources and citations`、官方來源 URL、`blockquote` 和 `cite`
+- 本地 `llms.txt` 驗證保留 `ai.google.dev`、`docs.kie.ai` 和 W3C 来源链接
+
+### 後續建議
+- 部署後在 GEO/AI visibility 工具重新掃描每個工具 URL 和 `https://imgkit.io/llms.txt`

@@ -17,7 +17,17 @@ test('creates tool SEO metadata with canonical and preview image URLs', () => {
     keywords: 'Image Enhancer, AI tool, online AI tool, ImgKit',
     canonicalUrl: 'https://imgkit.io/tools/image-enhancer',
     imageUrl: 'https://imgkit.io/uploads/image-enhancer.webp',
-    category: 'MultimediaApplication'
+    category: 'MultimediaApplication',
+    sources: [{
+      label: 'Enhance Images Online - ImgKit tool page',
+      url: 'https://imgkit.io/tools/image-enhancer',
+      quote: 'Enhance image quality online with ImgKit.'
+    }],
+    quotes: [{
+      label: 'Enhance Images Online - ImgKit tool page',
+      url: 'https://imgkit.io/tools/image-enhancer',
+      quote: 'Enhance image quality online with ImgKit.'
+    }]
   });
 });
 

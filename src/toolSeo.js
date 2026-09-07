@@ -9,31 +9,66 @@ const TOOL_SEO_PROFILES = Object.freeze({
     title: 'Remove Image Background Online - ImgKit',
     description: 'Remove image backgrounds online with AI and download clean transparent PNGs for products, portraits, and design projects.',
     keywords: 'remove background, background remover, transparent PNG, AI image editing',
-    category: 'ImageEditingApplication'
+    category: 'ImageEditingApplication',
+    sources: [
+      {
+        label: 'W3C PNG Specification',
+        url: 'https://www.w3.org/TR/png/',
+        quote: 'Transparency information.'
+      }
+    ]
   },
   'google-nano-banana-pro': {
     title: 'AI Image Generator & Editor - Nano Banana - ImgKit',
     description: 'Create polished banners, posters, and product visuals with Google Nano Banana AI image generation and image editing.',
     keywords: 'Nano Banana, AI image generator, AI image editor, product visuals',
-    category: 'ImageEditingApplication'
+    category: 'ImageEditingApplication',
+    sources: [
+      {
+        label: 'Google AI Developers: Image Generation',
+        url: 'https://ai.google.dev/gemini-api/docs/image-generation',
+        quote: 'Get started generating images with the Gemini API using Nano Banana and Nano Banana Pro.'
+      }
+    ]
   },
   'google-veo-3-1': {
     title: 'Veo 3.1 AI Video Generator - ImgKit',
     description: 'Generate cinematic videos from text, images, or reference frames with Google Veo 3.1.',
     keywords: 'Veo 3.1, AI video generator, text to video, image to video',
-    category: 'VideoEditingApplication'
+    category: 'VideoEditingApplication',
+    sources: [
+      {
+        label: 'Google AI Developers: Video Generation',
+        url: 'https://ai.google.dev/gemini-api/docs/video',
+        quote: 'Veo 3.1 for high-fidelity cinematic videos.'
+      }
+    ]
   },
   'kie-suno-music': {
     title: 'AI Music & Song Generator - Suno - ImgKit',
     description: 'Create original songs and background music with Suno AI, custom styles, lyrics, and instrumental controls.',
     keywords: 'Suno AI, AI music generator, AI song generator, background music',
-    category: 'MusicApplication'
+    category: 'MusicApplication',
+    sources: [
+      {
+        label: 'KIE API: Suno API Quickstart',
+        url: 'https://docs.kie.ai/suno-api/quickstart',
+        quote: 'Suno API Quickstart.'
+      }
+    ]
   },
   'kie-seedance-2-0': {
     title: 'Seedance 2.0 AI Video Generator - ImgKit',
     description: 'Generate realistic text-to-video and image-to-video clips with Seedance 2.0 and multimodal references.',
     keywords: 'Seedance 2.0, AI video generator, text to video, image to video',
-    category: 'VideoEditingApplication'
+    category: 'VideoEditingApplication',
+    sources: [
+      {
+        label: 'KIE API Documentation',
+        url: 'https://docs.kie.ai/',
+        quote: 'Getting Started with KIE API.'
+      }
+    ]
   }
 });
 
@@ -96,6 +131,7 @@ function createToolSeoMetadata(tool, publicBaseUrl) {
     ? `${normalizedBaseUrl}/tools/${encodeURIComponent(slug)}`
     : normalizedBaseUrl || '/';
   const category = profile.category || categoryProfile.category || 'MultimediaApplication';
+  const sources = normalizeSources(profile.sources, canonicalUrl, title, description);
 
   return {
     title,
@@ -103,7 +139,9 @@ function createToolSeoMetadata(tool, publicBaseUrl) {
     keywords,
     canonicalUrl,
     imageUrl: resolvePublicUrl(sourceTool.previewImageUrl, normalizedBaseUrl),
-    category
+    category,
+    sources,
+    quotes: sources.filter((source) => source.quote)
   };
 }
 
@@ -140,6 +178,7 @@ function createToolPageHtml(indexHtml, tool, publicBaseUrl) {
     `    <p>${escapeHtml(metadata.description)}</p>`,
     '    <p>Explore this ImgKit AI tool and create high-quality content online.</p>',
     '  </article>',
+    renderSourceSection(metadata),
     '</noscript>'
   ].join('\n');
 
@@ -147,6 +186,25 @@ function createToolPageHtml(indexHtml, tool, publicBaseUrl) {
     .replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(metadata.title)}</title>`)
     .replace(/<\/head>/i, `${seoTags}\n</head>`)
     .replace(/<\/body>/i, `${fallbackContent}\n</body>`);
+}
+
+function renderSourceSection(metadata) {
+  const sourceItems = metadata.sources.map((source) => (
+    `    <li><a href="${escapeHtml(source.url)}">${escapeHtml(source.label)}</a></li>`
+  )).join('\n');
+  const quoteItems = metadata.quotes.map((quote) => (
+    `    <blockquote>${escapeHtml(quote.quote)} <cite><a href="${escapeHtml(quote.url)}">${escapeHtml(quote.label)}</a></cite></blockquote>`
+  )).join('\n');
+
+  return [
+    '  <section class="tool-geo-sources" aria-label="Sources and citations">',
+    '    <h2>Sources and citations</h2>',
+    '    <ul>',
+    sourceItems,
+    '    </ul>',
+    quoteItems,
+    '  </section>'
+  ].join('\n');
 }
 
 function createStructuredData(metadata) {
@@ -179,6 +237,33 @@ function humanizeSlug(slug) {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
+}
+
+function normalizeSources(rawSources, canonicalUrl, title, description) {
+  const sources = Array.isArray(rawSources) ? rawSources : [];
+  const normalizedSources = sources.map((source) => ({
+    label: String(source?.label || '').trim(),
+    url: resolveSourceUrl(source?.url, canonicalUrl),
+    quote: String(source?.quote || '').trim()
+  })).filter((source) => source.label && source.url);
+
+  if (normalizedSources.length) return normalizedSources;
+  return [{
+    label: `${title} tool page`,
+    url: canonicalUrl,
+    quote: description
+  }];
+}
+
+function resolveSourceUrl(rawUrl, canonicalUrl) {
+  const value = String(rawUrl || '').trim();
+  if (!value) return canonicalUrl;
+  try {
+    if (/^[a-z][a-z\d+.-]*:\/\//i.test(value)) return new URL(value).href;
+    return new URL(value, canonicalUrl).href;
+  } catch (error) {
+    return canonicalUrl;
+  }
 }
 
 function limitSeoText(value, maxLength) {

@@ -1159,6 +1159,46 @@
       border-radius: 8px;
     }
 
+    .tool-geo-sources {
+      border-top: 1px solid #d7e1ec;
+      padding-top: 24px;
+      color: #405168;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    .tool-geo-sources h2 {
+      margin: 0 0 12px;
+      color: var(--strong);
+      font-size: 20px;
+    }
+
+    .tool-geo-sources ul {
+      margin: 0 0 16px;
+      padding-left: 20px;
+    }
+
+    .tool-geo-sources a {
+      color: #0f766e;
+      font-weight: 700;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    .tool-geo-sources blockquote {
+      margin: 12px 0 0;
+      border-left: 3px solid #91d5cf;
+      padding: 8px 0 8px 14px;
+      color: #334155;
+    }
+
+    .tool-geo-sources cite {
+      display: block;
+      margin-top: 4px;
+      font-style: normal;
+      font-size: 12px;
+    }
+
     .marketplace {
       width: min(1180px, 100%);
       margin: 0 auto;
@@ -3520,6 +3560,19 @@
               <section v-if="toolDetailHtml" class="tool-detail-section" aria-label="Tool page bottom description">
                 <div class="tool-detail-content" v-html="toolDetailHtml"></div>
               </section>
+
+              <section v-if="toolSources.length" class="tool-geo-sources" aria-label="Sources and citations">
+                <h2>Sources and citations</h2>
+                <ul>
+                  <li v-for="source in toolSources" :key="source.url">
+                    <a :href="source.url" target="_blank" rel="noopener noreferrer">{{ source.label }}</a>
+                  </li>
+                </ul>
+                <blockquote v-for="quote in toolQuotes" :key="`${quote.url}-${quote.quote}`">
+                  “{{ quote.quote }}”
+                  <cite>— <a :href="quote.url" target="_blank" rel="noopener noreferrer">{{ quote.label }}</a></cite>
+                </blockquote>
+              </section>
             </div>
           </section>
         </div>
@@ -4253,6 +4306,8 @@
           if (isMarketplace.value) return '';
           return getDisplayHtml(toolConfig.value?.detailHtml);
         });
+        const toolSources = computed(() => toolConfig.value?.resolvedSeoSources || []);
+        const toolQuotes = computed(() => toolConfig.value?.resolvedSeoQuotes || []);
         const isResultImage = computed(() => {
           const outputType = toolConfig.value?.outputConfig?.outputType;
           if (outputType === 'image') return true;
@@ -5920,6 +5975,8 @@
           toolDescription,
           topDetailHtml,
           toolDetailHtml,
+          toolSources,
+          toolQuotes,
           toolCategoryLabel,
           sidebarSections,
           mediaInputNodes,

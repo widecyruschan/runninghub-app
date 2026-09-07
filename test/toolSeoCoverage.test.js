@@ -38,6 +38,8 @@ test('every seeded active tool receives unique, specific SEO metadata', async ()
       assert.ok(keywords[index], `${slug} is missing keywords`);
       assert.match(keywords[index], /^[\x20-\x7e]+$/, `${slug} keywords are not ASCII`);
       assert.match(html, /<script[^>]+type="application\/ld\+json">[\s\S]*<\/script>/, `${slug} is missing structured data`);
+      assert.match(html, /Sources and citations/, `${slug} is missing citations`);
+      assert.match(html, /<blockquote>[\s\S]+<cite>/, `${slug} is missing a quotation`);
     }
   } finally {
     if (typeof database.close === 'function') await database.close();

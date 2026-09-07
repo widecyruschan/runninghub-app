@@ -1183,6 +1183,8 @@ function mapPublicToolRecord(record) {
     resolvedSeoTitle: resolvedSeo.title,
     resolvedSeoDescription: resolvedSeo.description,
     resolvedSeoKeywords: resolvedSeo.keywords,
+    resolvedSeoSources: resolvedSeo.sources,
+    resolvedSeoQuotes: resolvedSeo.quotes,
     topDetailHtml: tool.topDetailHtml,
     detailHtml: tool.detailHtml,
     previewImageUrl: tool.previewImageUrl,

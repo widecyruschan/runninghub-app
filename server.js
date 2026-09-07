@@ -8,7 +8,7 @@ const { createDatabase, DEFAULT_DATA_DIR, DEFAULT_DATABASE_PATH } = require('./s
 const { createToolRepository } = require('./src/toolRepository');
 const { createToolPageHtml } = require('./src/toolSeo');
 const { getCookieDomainAttributeForHost } = require('./src/cookieDomain');
-const { buildRobotsTxt, buildRssXml, buildSitemapXml } = require('./src/publicFeeds');
+const { buildLlmsTxt, buildRobotsTxt, buildRssXml, buildSitemapXml } = require('./src/publicFeeds');
 const { createCategoryRepository } = require('./src/categoryRepository');
 const { createMenuRepository } = require('./src/menuRepository');
 const { createTaskRepository } = require('./src/taskRepository');
@@ -270,6 +270,17 @@ const server = http.createServer(async (request, response) => {
       sendText(response, 200, buildRobotsTxt(publicBaseUrl), {
         'Content-Type': 'text/plain; charset=utf-8',
         'Cache-Control': 'public, max-age=3600'
+      });
+      return;
+    }
+
+    if (requestPathname === '/llms.txt') {
+      await dbReady;
+      const publicBaseUrl = publicAppBaseUrl || getRequestOrigin(request);
+      const llmsText = buildLlmsTxt(publicBaseUrl, await toolRepository.listActiveTools());
+      sendText(response, 200, llmsText, {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Cache-Control': 'public, max-age=0, must-revalidate'
       });
       return;
     }

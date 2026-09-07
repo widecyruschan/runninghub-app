@@ -1,4 +1,5 @@
 const DEFAULT_FEED_DESCRIPTION = 'Create images, videos, audio, and more with ImgKit AI tools.';
+const DEFAULT_LLMS_DESCRIPTION = 'ImgKit is an AI tool platform for creating images, videos, audio, and other digital content online.';
 
 function buildRobotsTxt(publicBaseUrl) {
   const baseUrl = normalizePublicBaseUrl(publicBaseUrl);
@@ -70,6 +71,57 @@ function buildRssXml(publicBaseUrl, tools) {
   ].join('\n');
 }
 
+function buildLlmsTxt(publicBaseUrl, tools) {
+  const baseUrl = normalizePublicBaseUrl(publicBaseUrl);
+  const toolEntries = normalizeTools(tools).map((tool) => {
+    const title = getToolFeedText(tool.resolvedSeoTitle || tool.seoTitle || tool.name || 'AI Tool');
+    const description = getToolFeedText(
+      tool.resolvedSeoDescription || tool.seoDescription || tool.shortDescription || DEFAULT_FEED_DESCRIPTION
+    );
+    const keywords = getToolFeedText(tool.resolvedSeoKeywords || tool.seoKeywords || '');
+    const link = `${baseUrl}/tools/${encodeURIComponent(tool.slug)}`;
+    const sources = normalizeSourceEntries(
+      tool.resolvedSeoSources || tool.seoSources || [],
+      link,
+      title,
+      description
+    );
+
+    return [
+      `### [${escapeMarkdown(title)}](${link})`,
+      description,
+      ...(keywords ? [`- Keywords: ${escapeMarkdown(keywords)}`] : []),
+      '- Sources:',
+      ...sources.map((source) => `  - [${escapeMarkdown(source.label)}](${source.url})`),
+      ...sources.filter((source) => source.quote).flatMap((source) => [
+        `> "${escapeMarkdown(source.quote)}"`,
+        `> — [${escapeMarkdown(source.label)}](${source.url})`
+      ])
+    ].join('\n');
+  });
+
+  return [
+    '# ImgKit',
+    '',
+    `> ${DEFAULT_LLMS_DESCRIPTION}`,
+    '',
+    '## Public Pages',
+    `- [Home](${baseUrl}/): ImgKit AI tools marketplace.`,
+    `- [Pricing](${baseUrl}/pricing): ImgKit plans and credits.`,
+    `- [Privacy Policy](${baseUrl}/privacy): Privacy information.`,
+    `- [Terms of Service](${baseUrl}/terms): Service terms.`,
+    `- [Sitemap](${baseUrl}/sitemap.xml): Current public URLs for search engines.`,
+    `- [RSS Feed](${baseUrl}/rss.xml): Current public tool updates.`,
+    '',
+    '## AI Tools',
+    ...(toolEntries.length ? toolEntries : ['No public AI tools are currently available.']),
+    '',
+    '## Sources and citations',
+    'The tool entries above include source links and short quotations for verification.',
+    ''
+  ].join('\n');
+}
+
 function buildRssItem(baseUrl, tool) {
   const link = `${baseUrl}/tools/${encodeURIComponent(tool.slug)}`;
   const title = String(tool.resolvedSeoTitle || tool.seoTitle || tool.name || 'AI Tool').trim();
@@ -123,8 +175,47 @@ function escapeXml(value) {
     .replace(/'/g, '&apos;');
 }
 
+function getToolFeedText(value) {
+  return String(value || '')
+    .replace(/[\r\n]+/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function escapeMarkdown(value) {
+  return String(value || '')
+    .replace(/\\/g, '\\\\')
+    .replace(/([\[\]()`*_#])/g, '\\$1');
+}
+
+function normalizeSourceEntries(rawSources, fallbackUrl, fallbackLabel, fallbackQuote) {
+  const sources = Array.isArray(rawSources) ? rawSources : [];
+  const normalizedSources = sources.map((source) => ({
+    label: getToolFeedText(source?.label),
+    url: resolveFeedUrl(source?.url, fallbackUrl),
+    quote: getToolFeedText(source?.quote)
+  })).filter((source) => source.label && source.url);
+
+  return normalizedSources.length ? normalizedSources : [{
+    label: `${fallbackLabel} tool page`,
+    url: fallbackUrl,
+    quote: fallbackQuote
+  }];
+}
+
+function resolveFeedUrl(rawUrl, fallbackUrl) {
+  const value = String(rawUrl || '').trim();
+  if (!value) return fallbackUrl;
+  try {
+    return new URL(value, fallbackUrl).href;
+  } catch (error) {
+    return fallbackUrl;
+  }
+}
+
 module.exports = {
   buildRobotsTxt,
+  buildLlmsTxt,
   buildRssXml,
   buildSitemapXml
 };
