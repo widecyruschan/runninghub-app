@@ -366,7 +366,7 @@ function createToolRepository(database) {
         }
       });
     }
-    seedToolIfMissing({
+    await seedToolIfMissing({
       toolKey: 'google-nano-banana-pro',
       name: 'Google Nano Banana',
       slug: 'google-nano-banana-pro',
@@ -467,7 +467,7 @@ function createToolRepository(database) {
     });
     await upgradeNanoBananaTool();
 
-    seedToolIfMissing({
+    await seedToolIfMissing({
       toolKey: 'google-veo-3-1',
       name: 'Google Veo 3.1',
       slug: 'google-veo-3-1',
@@ -587,7 +587,7 @@ function createToolRepository(database) {
       }
     });
 
-    seedToolIfMissing({
+    await seedToolIfMissing({
       toolKey: 'kie-suno-music',
       name: 'Kie AI Music',
       slug: 'kie-suno-music',
@@ -683,7 +683,7 @@ function createToolRepository(database) {
 
     await upgradeSeedanceTool();
 
-    seedToolIfMissing({
+    await seedToolIfMissing({
       toolKey: 'kie-seedance-2-0',
       name: 'Seedance 2.0',
       slug: 'kie-seedance-2-0',

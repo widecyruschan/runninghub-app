@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta id="page-robots-meta" name="robots" content="index,follow">
   <title>AI Tools</title>
+  <link rel="alternate" type="application/rss+xml" title="ImgKit AI Tools" href="/rss.xml">
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-4WHJP9D5NM"></script>
   <!-- Ahrefs Analytics -->
@@ -4238,7 +4239,8 @@
           return getDisplayText(toolConfig.value?.name) || 'Remove Background';
         });
         const toolDescription = computed(() => (
-          getDisplayText(toolConfig.value?.shortDescription)
+          getDisplayText(toolConfig.value?.resolvedSeoDescription)
+          || getDisplayText(toolConfig.value?.shortDescription)
           || getDisplayText(toolConfig.value?.description)
           || 'Upload an image and run a workflow to generate the processed result automatically.'
         ));
@@ -5244,7 +5246,39 @@
           metaElement.setAttribute('content', content);
         };
 
-        const applyPageSeo = ({ title, description, canonicalPath, imageUrl = '', keywords = '' }) => {
+        const updateStructuredData = (metadata = null) => {
+          const existingScript = document.getElementById('tool-structured-data');
+          if (!metadata) {
+            existingScript?.remove();
+            return;
+          }
+
+          const structuredData = {
+            '@context': 'https://schema.org',
+            '@type': 'SoftwareApplication',
+            name: metadata.title,
+            description: metadata.description,
+            url: metadata.canonicalUrl,
+            applicationCategory: metadata.category || 'MultimediaApplication',
+            operatingSystem: 'Web',
+            publisher: {
+              '@type': 'Organization',
+              name: 'ImgKit',
+              url: new URL(metadata.canonicalUrl).origin
+            },
+            ...(metadata.imageUrl ? { image: metadata.imageUrl } : {})
+          };
+          let structuredDataScript = existingScript;
+          if (!structuredDataScript) {
+            structuredDataScript = document.createElement('script');
+            structuredDataScript.id = 'tool-structured-data';
+            structuredDataScript.type = 'application/ld+json';
+            document.head.appendChild(structuredDataScript);
+          }
+          structuredDataScript.textContent = JSON.stringify(structuredData);
+        };
+
+        const applyPageSeo = ({ title, description, canonicalPath, imageUrl = '', keywords = '', structuredData = null }) => {
           const canonicalUrl = new URL(canonicalPath || '/', window.location.origin).href;
           const resolvedDescription = description || DEFAULT_PAGE_DESCRIPTION;
           const resolvedKeywords = String(keywords || '').trim();
@@ -5275,10 +5309,18 @@
           setMetaContent('meta[property="og:description"]', { property: 'og:description' }, resolvedDescription);
           setMetaContent('meta[property="og:url"]', { property: 'og:url' }, canonicalUrl);
           setMetaContent('meta[property="og:image"]', { property: 'og:image' }, resolvedImageUrl);
+          setMetaContent('meta[property="og:image:alt"]', { property: 'og:image:alt' }, resolvedImageUrl ? title : '');
           setMetaContent('meta[name="twitter:card"]', { name: 'twitter:card' }, resolvedImageUrl ? 'summary_large_image' : 'summary');
           setMetaContent('meta[name="twitter:title"]', { name: 'twitter:title' }, title);
           setMetaContent('meta[name="twitter:description"]', { name: 'twitter:description' }, resolvedDescription);
           setMetaContent('meta[name="twitter:image"]', { name: 'twitter:image' }, resolvedImageUrl);
+          updateStructuredData(structuredData ? {
+            title,
+            description: resolvedDescription,
+            canonicalUrl,
+            imageUrl: resolvedImageUrl,
+            category: structuredData.category
+          } : null);
         };
 
         const setCurrentPath = () => {
@@ -5379,8 +5421,21 @@
             description: payload.data.resolvedSeoDescription || DEFAULT_PAGE_DESCRIPTION,
             canonicalPath: `/tools/${encodeURIComponent(payload.data.slug || slug)}`,
             imageUrl: getAssetUrl(payload.data.previewImageUrl),
-            keywords: payload.data.resolvedSeoKeywords || ''
+            keywords: payload.data.resolvedSeoKeywords || '',
+            structuredData: {
+              category: getStructuredDataCategory(payload.data.categoryKey || payload.data.categoryId)
+            }
           });
+        };
+
+        const getStructuredDataCategory = (categoryKey) => {
+          const categories = {
+            image: 'ImageEditingApplication',
+            video: 'VideoEditingApplication',
+            audio: 'MusicApplication',
+            text: 'WritingApplication'
+          };
+          return categories[String(categoryKey || '').toLowerCase()] || 'MultimediaApplication';
         };
 
         const initializeFormValues = (inputNodes) => {

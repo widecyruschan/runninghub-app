@@ -155,7 +155,7 @@ test('tools keep independent SEO metadata in admin and public records', async ()
     assert.equal(publicTool.seoKeywords, '');
     assert.equal(publicTool.resolvedSeoTitle, 'First SEO title');
     assert.equal(publicTool.resolvedSeoDescription, 'First SEO description');
-    assert.equal(publicTool.resolvedSeoKeywords, '');
+    assert.match(publicTool.resolvedSeoKeywords, /first-seo-tool/);
   } finally {
     await close();
   }

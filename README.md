@@ -970,3 +970,46 @@ docker compose logs -f runninghub-app
 ### 後續建議
 - 部署後在 Google Search Console 和 Bing Webmaster Tools 提交 `https://imgkit.io/sitemap.xml`
 - 目前 GitHub Actions 僅執行測試；如未由託管平台自動拉取 `main`，需在部署平台設定 GitHub 自動部署或加入正式部署步驟
+
+## 會話總結 - 2026-09-07（工具頁 SEO 全面修復與優化）
+
+### 主要目的
+修復每個工具頁出現重複、空白或通用 SEO metadata 的問題，讓搜尋引擎能讀取清楚且一致的工具資訊。
+
+### 完成內容
+- 為目前五個已上線工具建立獨立英文 SEO 標題、描述、Keywords 與 schema 類別
+- 對沒有填寫 SEO 或填寫非英文內容的工具，按工具 slug 和分類自動產生英文 fallback
+- 將 SEO title 限制為 60 字元、description 限制為 160 字元、Keywords 限制為 255 字元
+- SSR 工具頁新增 `SoftwareApplication` JSON-LD、`og:locale`、`og:image:alt` 和無 JavaScript 時的語義化內容
+- SPA 切換工具頁時同步更新或移除 JSON-LD 與頁面 metadata，避免沿用上一個工具的資料
+- 工具 URL 尾斜線統一 301 到 canonical URL，減少重複 URL
+- 修正預設工具 seed 寫入未等待完成的非同步問題，避免首次啟動時工具列表不完整
+- 新增全量工具 SEO 回歸測試，檢查唯一性、長度、英文 Keywords、結構化資料與五個工具是否完整建立
+
+### 關鍵決策
+- 保留後台可逐工具自訂 SEO 的優先級；fallback 只在欄位空白、非英文或通用值時使用
+- 不把 SEO fallback 寫回資料庫，避免覆蓋營運人員日後的自訂內容
+- 只在 SSR 工具頁加入工具結構化資料，離開工具頁時由前端清理，避免錯誤套用到會員、價格或法律頁
+
+### 使用的技術棧
+- Node.js 原生 HTTP、Vue 3 CDN、Schema.org JSON-LD、SQLite / MySQL、Node test runner
+
+### 修改的文件
+- `src/toolSeo.js`
+- `src/toolRepository.js`
+- `server.js`
+- `frontend/index.html`
+- `test/toolSeo.test.js`
+- `test/toolSeoCoverage.test.js`
+- `test/toolRepository.test.js`
+- `package.json`
+- `README.md`
+
+### 驗證
+- `npm test` 全部通過，共 28 個測試
+- 本地逐一請求五個工具頁，確認 title、description、keywords、canonical 與 JSON-LD 均存在且唯一
+- 本地確認尾斜線工具 URL 返回 301，canonical URL 返回 200
+
+### 後續建議
+- 在 Google Search Console 的 URL Inspection 重新檢查五個工具頁，要求重新編入索引
+- 後台為新增工具填寫英文 SEO title、description 和 Keywords；未填寫時會自動使用安全 fallback

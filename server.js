@@ -4537,9 +4537,16 @@ async function serveStaticFile(request, response) {
   }
 
   if (isFrontendRoute(url.pathname)) {
-    const toolRouteMatch = url.pathname.match(/^\/tools\/([^/]+)$/);
+    const toolRouteMatch = url.pathname.match(/^\/tools\/([^/]+)\/?$/);
     if (toolRouteMatch) {
       const slug = decodeURIComponent(toolRouteMatch[1]);
+      if (url.pathname.endsWith('/')) {
+        response.writeHead(301, {
+          Location: `/tools/${encodeURIComponent(slug)}`
+        });
+        response.end();
+        return;
+      }
       const tool = await toolRepository.getActiveToolBySlug(slug);
       if (tool) {
         await sendToolPage(request, response, tool);
