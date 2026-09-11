@@ -1081,3 +1081,38 @@ docker compose logs -f runninghub-app
 
 ### 後續建議
 - 部署後在 GEO/AI visibility 工具重新掃描每個工具 URL 和 `https://imgkit.io/llms.txt`
+
+## 會話總結 - 2026-09-12（修復工具頁孤島頁 / Orphan Page）
+
+### 主要目的
+修復 SEO 工具將每個工具頁判定為孤島頁的問題。瀏覽器中的 Vue 按鈕互動不等於搜尋引擎可解析的內部連結。
+
+### 完成內容
+- SSR 工具頁新增可被 crawler 直接解析的 `Related AI tools` `<nav>` 與普通 `<a href="/tools/...">` 連結
+- 每個 active 工具頁都連接到所有其他 active 工具，形成可爬取的內部連結圖
+- 前台顶部工具菜单的已上線工具改為真實 `<a href>`，仍保留 Vue SPA 點擊行為
+- 工具頁左側 Recent / Tools 菜單的已上線工具改為真實 `<a href>`，保留目前選中狀態與互動
+- 佔位分類項目仍使用 button，避免產生不存在的工具 URL
+- 回歸測試檢查每個工具頁都能找到全部 active 工具 URL
+
+### 關鍵決策
+- SSR 連結不放在只給 JavaScript 或只給 `noscript` 的區塊，讓搜尋引擎直接讀取主 HTML
+- 菜單使用標準 `<a href>` 作為可訪問和 SEO 基礎，`@click.prevent` 僅負責保留 SPA 體驗
+- 不新增虛假工具連結；只有資料庫中 active 的工具才進入可爬取目錄
+
+### 修改的文件
+- `src/toolSeo.js`
+- `server.js`
+- `frontend/index.html`
+- `test/toolSeo.test.js`
+- `test/toolSeoCoverage.test.js`
+- `README.md`
+
+### 驗證
+- `npm test` 全部通過，共 30 個測試
+- 本地工具頁 HTTP 驗證：任一工具頁包含 5 個 active 工具 URL 的普通 `<a href>` 連結
+- 前端模板驗證：顶部與左側菜單均包含工具 `/tools/...` href 綁定
+
+### 後續建議
+- 部署後重新執行 SEO crawler 的 orphan page / internal links 檢查
+- 在 Google Search Console 重新提交 sitemap，讓新的內部連結圖加速重新抓取

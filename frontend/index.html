@@ -183,6 +183,7 @@
       background: transparent;
       color: #25364d;
       cursor: pointer;
+      text-decoration: none;
       overflow-wrap: anywhere;
       text-align: left;
       font-size: 17px;
@@ -1020,6 +1021,7 @@
       text-align: left;
       font-size: 14px;
       font-weight: 750;
+      text-decoration: none;
     }
 
     .sidebar-link:hover,
@@ -1197,6 +1199,36 @@
       margin-top: 4px;
       font-style: normal;
       font-size: 12px;
+    }
+
+    .tool-related-links {
+      width: min(1180px, calc(100% - 40px));
+      margin: 0 auto 28px;
+      padding: 18px 20px;
+      border: 1px solid #dfe7f2;
+      border-radius: 8px;
+      background: #ffffff;
+    }
+
+    .tool-related-links h2 {
+      margin: 0 0 10px;
+      color: var(--strong);
+      font-size: 18px;
+    }
+
+    .tool-related-links ul {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 18px;
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    .tool-related-links a {
+      color: #0f766e;
+      font-weight: 700;
+      text-decoration: underline;
+      text-underline-offset: 3px;
     }
 
     .marketplace {
@@ -2657,16 +2689,24 @@
                   <span class="dropdown-icon" aria-hidden="true">{{ group.icon }}</span>
                   {{ group.name }}
                 </h2>
-                <button
-                  v-for="tool in group.tools"
-                  :key="`${group.key}-${tool.name}`"
-                  type="button"
-                  class="dropdown-link"
-                  :class="{ 'is-placeholder': !tool.slug }"
-                  @click="openMenuTool(tool)"
-                >
-                  {{ tool.name }}
-                </button>
+                <template v-for="tool in group.tools" :key="`${group.key}-${tool.name}`">
+                  <a
+                    v-if="tool.slug"
+                    class="dropdown-link"
+                    :href="`/tools/${encodeURIComponent(tool.slug)}`"
+                    @click.prevent="openMenuTool(tool)"
+                  >
+                    {{ tool.name }}
+                  </a>
+                  <button
+                    v-else
+                    type="button"
+                    class="dropdown-link is-placeholder"
+                    @click="openMenuTool(tool)"
+                  >
+                    {{ tool.name }}
+                  </button>
+                </template>
               </section>
             </div>
           </div>
@@ -3219,17 +3259,27 @@
               class="sidebar-section"
             >
               <h2 class="sidebar-title">{{ section.title }}</h2>
-              <button
-                v-for="item in section.items"
-                :key="`${section.title}-${item.name}`"
-                type="button"
-                class="sidebar-link"
-                :class="{ 'is-active': item.slug && item.slug === currentToolSlug }"
-                @click="openMenuTool(item)"
-              >
-                <span class="sidebar-icon" aria-hidden="true">{{ item.icon }}</span>
-                {{ getDisplayText(item.name) }}
-              </button>
+              <template v-for="item in section.items" :key="`${section.title}-${item.name}`">
+                <a
+                  v-if="item.slug"
+                  class="sidebar-link"
+                  :class="{ 'is-active': item.slug === currentToolSlug }"
+                  :href="`/tools/${encodeURIComponent(item.slug)}`"
+                  @click.prevent="openMenuTool(item)"
+                >
+                  <span class="sidebar-icon" aria-hidden="true">{{ item.icon }}</span>
+                  {{ getDisplayText(item.name) }}
+                </a>
+                <button
+                  v-else
+                  type="button"
+                  class="sidebar-link"
+                  @click="openMenuTool(item)"
+                >
+                  <span class="sidebar-icon" aria-hidden="true">{{ item.icon }}</span>
+                  {{ getDisplayText(item.name) }}
+                </button>
+              </template>
             </section>
           </div>
         </aside>

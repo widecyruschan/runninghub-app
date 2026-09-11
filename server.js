@@ -4648,7 +4648,8 @@ async function sendStaticFile(response, filePath, extraHeaders = {}) {
 async function sendToolPage(request, response, tool) {
   const indexHtml = await fs.promises.readFile(path.join(PUBLIC_DIR, 'index.html'), 'utf8');
   const publicBaseUrl = publicAppBaseUrl || getRequestOrigin(request);
-  const htmlWithSeo = createToolPageHtml(indexHtml, tool, publicBaseUrl);
+  const relatedTools = await toolRepository.listActiveTools();
+  const htmlWithSeo = createToolPageHtml(indexHtml, tool, publicBaseUrl, relatedTools);
 
   sendText(response, 200, htmlWithSeo, {
     'Content-Type': 'text/html; charset=utf-8',

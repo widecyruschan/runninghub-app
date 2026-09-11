@@ -145,7 +145,7 @@ function createToolSeoMetadata(tool, publicBaseUrl) {
   };
 }
 
-function createToolPageHtml(indexHtml, tool, publicBaseUrl) {
+function createToolPageHtml(indexHtml, tool, publicBaseUrl, relatedTools = []) {
   const metadata = createToolSeoMetadata(tool, publicBaseUrl);
   const socialImageTags = metadata.imageUrl
     ? [
@@ -172,6 +172,7 @@ function createToolPageHtml(indexHtml, tool, publicBaseUrl) {
     `  <script id="tool-structured-data" type="application/ld+json">${serializeJsonForHtml(structuredData)}</script>`
   ].join('\n');
   const fallbackContent = [
+    renderRelatedToolsSection(relatedTools, metadata.canonicalUrl),
     '<noscript id="tool-seo-content">',
     '  <article>',
     `    <h1>${escapeHtml(metadata.title)}</h1>`,
@@ -186,6 +187,26 @@ function createToolPageHtml(indexHtml, tool, publicBaseUrl) {
     .replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(metadata.title)}</title>`)
     .replace(/<\/head>/i, `${seoTags}\n</head>`)
     .replace(/<\/body>/i, `${fallbackContent}\n</body>`);
+}
+
+function renderRelatedToolsSection(relatedTools, currentCanonicalUrl) {
+  const links = (Array.isArray(relatedTools) ? relatedTools : [])
+    .filter((relatedTool) => relatedTool && relatedTool.slug && relatedTool.resolvedSeoTitle)
+    .map((relatedTool) => {
+      const relatedUrl = `${getOrigin(currentCanonicalUrl)}/tools/${encodeURIComponent(relatedTool.slug)}`;
+      return `    <li><a href="${escapeHtml(relatedUrl)}">${escapeHtml(relatedTool.resolvedSeoTitle)}</a></li>`;
+    })
+    .join('\n');
+
+  if (!links) return '';
+  return [
+    '  <nav class="tool-related-links" aria-label="Related AI tools">',
+    '    <h2>Related AI tools</h2>',
+    '    <ul>',
+    links,
+    '    </ul>',
+    '  </nav>'
+  ].join('\n');
 }
 
 function renderSourceSection(metadata) {

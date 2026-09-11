@@ -20,7 +20,8 @@ test('every seeded active tool receives unique, specific SEO metadata', async ()
       html: createToolPageHtml(
         '<html><head><title>AI Tools</title></head><body></body></html>',
         tool,
-        'https://imgkit.io'
+        'https://imgkit.io',
+        tools
       )
     }));
     const titles = metadata.map(({ html }) => html.match(/<title>([^<]+)<\/title>/)?.[1] || '');
@@ -40,6 +41,13 @@ test('every seeded active tool receives unique, specific SEO metadata', async ()
       assert.match(html, /<script[^>]+type="application\/ld\+json">[\s\S]*<\/script>/, `${slug} is missing structured data`);
       assert.match(html, /Sources and citations/, `${slug} is missing citations`);
       assert.match(html, /<blockquote>[\s\S]+<cite>/, `${slug} is missing a quotation`);
+      for (const relatedTool of tools) {
+        assert.match(
+          html,
+          new RegExp(`href="https://imgkit\\.io/tools/${relatedTool.slug}"`),
+          `${slug} cannot crawl ${relatedTool.slug}`
+        );
+      }
     }
   } finally {
     if (typeof database.close === 'function') await database.close();

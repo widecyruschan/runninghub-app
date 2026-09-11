@@ -36,7 +36,10 @@ test('uses English defaults instead of non-English tool text', () => {
     slug: 'remove-background',
     name: '圖片背景移除',
     shortDescription: '上傳圖片後自動移除背景。'
-  }, 'https://imgkit.io');
+  }, 'https://imgkit.io', [{
+    slug: 'related-tool',
+    resolvedSeoTitle: 'Related Tool - ImgKit'
+  }]);
 
   assert.equal(metadata.title, 'Remove Image Background Online - ImgKit');
   assert.equal(metadata.description, 'Remove image backgrounds online with AI and download clean transparent PNGs for products, portraits, and design projects.');
@@ -73,7 +76,10 @@ test('does not render non-English configured keywords in the keywords meta tag',
     slug: 'non-english-keywords',
     name: 'Image Tool',
     seoKeywords: '圖片工具, AI'
-  }, 'https://imgkit.io');
+  }, 'https://imgkit.io', [{
+    slug: 'related-tool',
+    resolvedSeoTitle: 'Related Tool - ImgKit'
+  }]);
 
   assert.match(html, /<meta name="keywords" content="Image Tool, AI tool/);
   assert.doesNotMatch(html, /圖片工具/);
@@ -86,7 +92,10 @@ test('escapes configured SEO text in server-rendered tool HTML', () => {
     seoTitle: 'Safe <Tool> & ImgKit',
     seoDescription: 'Create "safe" images & videos.',
     seoKeywords: 'safe <tool>, images & videos'
-  }, 'https://imgkit.io');
+  }, 'https://imgkit.io', [{
+    slug: 'related-tool',
+    resolvedSeoTitle: 'Related Tool - ImgKit'
+  }]);
 
   assert.match(html, /<title>Safe &lt;Tool&gt; &amp; ImgKit<\/title>/);
   assert.match(html, /content="Create &quot;safe&quot; images &amp; videos\."/);
@@ -94,6 +103,7 @@ test('escapes configured SEO text in server-rendered tool HTML', () => {
   assert.match(html, /rel="canonical" href="https:\/\/imgkit\.io\/tools\/safe-tool"/);
   assert.match(html, /<script id="tool-structured-data" type="application\/ld\+json">[\s\S]*SoftwareApplication/);
   assert.match(html, /<noscript id="tool-seo-content">[\s\S]*<h1>Safe &lt;Tool&gt; &amp; ImgKit<\/h1>/);
+  assert.match(html, /<nav class="tool-related-links"[\s\S]*href="https:\/\/imgkit\.io\/tools\/related-tool"/);
 
   const structuredDataJson = html.match(/<script id="tool-structured-data" type="application\/ld\+json">([\s\S]*?)<\/script>/)?.[1];
   const structuredData = JSON.parse(structuredDataJson);
