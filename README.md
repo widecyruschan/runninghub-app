@@ -1116,3 +1116,26 @@ docker compose logs -f runninghub-app
 ### 後續建議
 - 部署後重新執行 SEO crawler 的 orphan page / internal links 檢查
 - 在 Google Search Console 重新提交 sitemap，讓新的內部連結圖加速重新抓取
+
+## 會話總結 - 2026-09-12（推送工具頁 SEO 修復）
+
+### 主要目的
+將已完成並驗證的工具頁孤島頁修復推送到 GitHub 專案 `runninghub-app`。
+
+### 完成內容
+- 確認本地 `main` 僅領先 `origin/main` 一個 SEO 修復提交
+- 確認遠端沒有尚未整合的新提交
+- 確認 `.env` 仍受 `.gitignore` 保護，沒有密碼、Token 或 API Key 納入推送
+
+### 關鍵決策和解決方案
+- 直接推送現有 `main`，不額外建立分支或改寫提交歷史
+- 保留功能修復與本次推送記錄為獨立提交，方便追蹤
+
+### 使用的技術棧
+- Git、GitHub、Node.js 測試流程
+
+### 新增或修改的文件
+- `README.md`
+
+### 後續建議
+- 部署完成後重新掃描工具頁的 orphan page 與 internal links 報告
